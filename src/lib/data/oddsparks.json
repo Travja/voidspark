@@ -1,0 +1,3852 @@
+{
+  "version": "wiki 2026-11-01",
+  "source": "https://oddsparks.wiki.gg (CC BY-SA)",
+  "spark": [
+    {
+      "id": "spark-stumpy",
+      "name": "Stumpy Spark",
+      "block": "stumpy-spark-block",
+      "speed": 100
+    },
+    {
+      "id": "spark-crafty",
+      "name": "Crafty Spark",
+      "block": "crafty-spark-block",
+      "speed": 150
+    },
+    {
+      "id": "spark-handy",
+      "name": "Handy Spark",
+      "block": "handy-spark-block",
+      "speed": 250
+    }
+  ],
+  "category": [
+    {
+      "id": "woodland-sparks",
+      "name": "Woodland Sparks"
+    },
+    {
+      "id": "woodland-items",
+      "name": "Woodland Items"
+    },
+    {
+      "id": "mountain-sparks",
+      "name": "Mountain Sparks"
+    },
+    {
+      "id": "mountain-items",
+      "name": "Mountain Items"
+    },
+    {
+      "id": "plateau-items",
+      "name": "Plateau Items"
+    },
+    {
+      "id": "magic-items",
+      "name": "Magic Items"
+    },
+    {
+      "id": "metal-sparks",
+      "name": "Metal Sparks"
+    },
+    {
+      "id": "refiners",
+      "name": "Refiners"
+    },
+    {
+      "id": "assemblers",
+      "name": "Assemblers"
+    },
+    {
+      "id": "harvesters",
+      "name": "Harvesters"
+    },
+    {
+      "id": "miscellaneous",
+      "name": "Miscellaneous"
+    }
+  ],
+  "workstation": [
+    {
+      "category": "refiners",
+      "id": "aetheric-collider",
+      "name": "Aetheric Collider",
+      "cost": [
+        {
+          "id": "aether-segment",
+          "amount": 5
+        },
+        {
+          "id": "copper-ingot",
+          "amount": 20
+        }
+      ],
+      "sparkPowered": true
+    },
+    {
+      "category": "refiners",
+      "id": "aetheric-distiller",
+      "name": "Aetheric Distiller",
+      "cost": [
+        {
+          "id": "wooden-panel",
+          "amount": 20
+        },
+        {
+          "id": "beelephant-carapace",
+          "amount": 1
+        }
+      ],
+      "sparkPowered": true
+    },
+    {
+      "category": "assemblers",
+      "id": "alchemy-lab",
+      "name": "Alchemy Lab",
+      "cost": [
+        {
+          "id": "stone-plate",
+          "amount": 20
+        },
+        {
+          "id": "small-vial",
+          "amount": 10
+        },
+        {
+          "id": "squilican-tube",
+          "amount": 5
+        }
+      ],
+      "sparkPowered": true
+    },
+    {
+      "category": "miscellaneous",
+      "id": "arboretum",
+      "name": "Arboretum",
+      "cost": [
+        {
+          "id": "stellar-fertiliser",
+          "amount": 20
+        },
+        {
+          "id": "refined-aether",
+          "amount": 5
+        },
+        {
+          "id": "crangolin-lavascale",
+          "amount": 1
+        }
+      ],
+      "sparkPowered": false
+    },
+    {
+      "category": "refiners",
+      "id": "cutter",
+      "name": "Cutter",
+      "cost": [
+        {
+          "id": "wooden-blade",
+          "amount": 20
+        }
+      ],
+      "sparkPowered": true
+    },
+    {
+      "category": "harvesters",
+      "id": "drill",
+      "name": "Drill",
+      "cost": [
+        {
+          "id": "stone-plate",
+          "amount": 20
+        },
+        {
+          "id": "sawn-timber",
+          "amount": 10
+        },
+        {
+          "id": "beelephant-carapace",
+          "amount": 1
+        }
+      ],
+      "sparkPowered": true
+    },
+    {
+      "category": "refiners",
+      "id": "furnace",
+      "name": "Furnace",
+      "cost": [
+        {
+          "id": "limestone",
+          "amount": 20
+        },
+        {
+          "id": "rock-teron-shell",
+          "amount": 3
+        }
+      ],
+      "sparkPowered": true
+    },
+    {
+      "category": "refiners",
+      "id": "geode-breaker",
+      "name": "Geode Breaker",
+      "cost": [
+        {
+          "id": "fabric",
+          "amount": 20
+        },
+        {
+          "id": "copper-ingot",
+          "amount": 5
+        },
+        {
+          "id": "crangolin-scale",
+          "amount": 2
+        }
+      ],
+      "sparkPowered": true
+    },
+    {
+      "category": "miscellaneous",
+      "id": "greenhouse",
+      "name": "Greenhouse",
+      "cost": [
+        {
+          "id": "stellar-ice",
+          "amount": 5
+        },
+        {
+          "id": "fertiliser",
+          "amount": 10
+        },
+        {
+          "id": "raw-aether",
+          "amount": 1
+        }
+      ],
+      "sparkPowered": true
+    },
+    {
+      "category": "harvesters",
+      "id": "logger",
+      "name": "Logger",
+      "cost": [
+        {
+          "id": "wooden-log",
+          "amount": 10
+        },
+        {
+          "id": "stone",
+          "amount": 5
+        },
+        {
+          "id": "beelephant-carapace",
+          "amount": 1
+        }
+      ],
+      "sparkPowered": true
+    },
+    {
+      "category": "assemblers",
+      "id": "loom",
+      "name": "Loom",
+      "cost": [
+        {
+          "id": "stone-plate",
+          "amount": 20
+        },
+        {
+          "id": "pengus-tendon",
+          "amount": 3
+        }
+      ],
+      "sparkPowered": true
+    },
+    {
+      "category": "harvesters",
+      "id": "miasma-collector",
+      "name": "Miasma Collector",
+      "cost": [
+        {
+          "id": "stone-plate",
+          "amount": 20
+        },
+        {
+          "id": "fabric",
+          "amount": 10
+        },
+        {
+          "id": "frowl-sac",
+          "amount": 2
+        }
+      ],
+      "sparkPowered": true,
+      "craftCap": 7.5
+    },
+    {
+      "category": "harvesters",
+      "id": "ore-miner",
+      "name": "Ore Miner",
+      "cost": [
+        {
+          "id": "stone-plate",
+          "amount": 20
+        },
+        {
+          "id": "copper-ore",
+          "amount": 10
+        },
+        {
+          "id": "crangolin-scale",
+          "amount": 3
+        }
+      ],
+      "sparkPowered": true
+    },
+    {
+      "category": "refiners",
+      "id": "plant-extractor",
+      "name": "Plant Extractor",
+      "cost": [
+        {
+          "id": "copper-ingot",
+          "amount": 1
+        },
+        {
+          "id": "stone-spike",
+          "amount": 10
+        }
+      ],
+      "sparkPowered": true
+    },
+    {
+      "category": "refiners",
+      "id": "sawbench",
+      "name": "Sawbench",
+      "cost": [
+        {
+          "id": "wooden-log",
+          "amount": 20
+        }
+      ],
+      "sparkPowered": true
+    },
+    {
+      "category": "assemblers",
+      "id": "spark-workbench",
+      "name": "Spark Workbench",
+      "cost": [
+        {
+          "id": "wooden-log",
+          "amount": 20
+        },
+        {
+          "id": "aether-shard",
+          "amount": 5
+        }
+      ],
+      "sparkPowered": true
+    },
+    {
+      "category": "assemblers",
+      "id": "spark-workshop",
+      "name": "Spark Workshop",
+      "cost": [],
+      "sparkPowered": true
+    },
+    {
+      "category": "assemblers",
+      "id": "spark-workstation",
+      "name": "Spark Workstation",
+      "cost": [
+        {
+          "id": "stone-plate",
+          "amount": 20
+        },
+        {
+          "id": "aether-shard",
+          "amount": 5
+        }
+      ],
+      "sparkPowered": true
+    },
+    {
+      "category": "assemblers",
+      "id": "stone-workshop",
+      "name": "Stone Workshop",
+      "cost": [
+        {
+          "id": "stone-plate",
+          "amount": 20
+        },
+        {
+          "id": "pebble",
+          "amount": 20
+        }
+      ],
+      "sparkPowered": true
+    },
+    {
+      "category": "refiners",
+      "id": "stonecutter",
+      "name": "Stonecutter",
+      "cost": [
+        {
+          "id": "stone",
+          "amount": 20
+        }
+      ],
+      "sparkPowered": true
+    },
+    {
+      "category": "assemblers",
+      "id": "wood-workshop",
+      "name": "Wood Workshop",
+      "cost": [
+        {
+          "id": "sawn-timber",
+          "amount": 20
+        },
+        {
+          "id": "wooden-panel",
+          "amount": 10
+        }
+      ],
+      "sparkPowered": true
+    }
+  ],
+  "process": [
+    {
+      "id": "carry-spark",
+      "name": "Carry Spark",
+      "workstation": "spark-workbench",
+      "buildTime": 32,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "crafty-spark-block",
+          "amount": 1
+        },
+        {
+          "material": "sawn-timber",
+          "amount": 4
+        }
+      ],
+      "to": [
+        {
+          "material": "carry-spark-block",
+          "amount": 1
+        }
+      ],
+      "temperature": "-3",
+      "source": "Spark Workbench"
+    },
+    {
+      "id": "stumpy-spark",
+      "name": "Stumpy Spark",
+      "workstation": "spark-workbench",
+      "buildTime": 32,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "aether-shard",
+          "amount": 1
+        },
+        {
+          "material": "wooden-log",
+          "amount": 5
+        }
+      ],
+      "to": [
+        {
+          "material": "stumpy-spark-block",
+          "amount": 1
+        }
+      ],
+      "temperature": "-3",
+      "source": "Spark Workbench"
+    },
+    {
+      "id": "loamy-spark",
+      "name": "Loamy Spark",
+      "workstation": "spark-workbench",
+      "buildTime": 32,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "aether-shard",
+          "amount": 5
+        },
+        {
+          "material": "fertiliser",
+          "amount": 3
+        }
+      ],
+      "to": [
+        {
+          "material": "loamy-spark-block",
+          "amount": 5
+        }
+      ],
+      "temperature": "-3",
+      "source": "Spark Workbench"
+    },
+    {
+      "id": "crafty-spark",
+      "name": "Crafty Spark",
+      "workstation": "spark-workbench",
+      "buildTime": 48,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "stumpy-spark-block",
+          "amount": 2
+        },
+        {
+          "material": "wooden-panel",
+          "amount": 2
+        }
+      ],
+      "to": [
+        {
+          "material": "crafty-spark-block",
+          "amount": 1
+        }
+      ],
+      "temperature": "-3",
+      "source": "Spark Workbench"
+    },
+    {
+      "id": "choppy-spark",
+      "name": "Choppy Spark",
+      "workstation": "spark-workbench",
+      "buildTime": 64,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "stumpy-spark-block",
+          "amount": 3
+        },
+        {
+          "material": "wooden-blade",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "choppy-spark-block",
+          "amount": 1
+        }
+      ],
+      "temperature": "-3",
+      "source": "Spark Workbench"
+    },
+    {
+      "id": "arty-spark",
+      "name": "Arty Spark",
+      "workstation": "spark-workbench",
+      "buildTime": 32,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "stumpy-spark-block",
+          "amount": 2
+        },
+        {
+          "material": "rope",
+          "amount": 5
+        }
+      ],
+      "to": [
+        {
+          "material": "arty-spark-block",
+          "amount": 1
+        }
+      ],
+      "temperature": "-3",
+      "source": "Spark Workbench"
+    },
+    {
+      "id": "rocky-spark",
+      "name": "Rocky Spark",
+      "workstation": "spark-workstation",
+      "buildTime": 32,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "stumpy-spark-block",
+          "amount": 2
+        },
+        {
+          "material": "stone",
+          "amount": 5
+        }
+      ],
+      "to": [
+        {
+          "material": "rocky-spark-block",
+          "amount": 1
+        }
+      ],
+      "temperature": "3",
+      "source": "Spark Workstation"
+    },
+    {
+      "id": "scouty-spark",
+      "name": "Scouty Spark",
+      "workstation": "spark-workstation",
+      "buildTime": 32,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "stumpy-spark-block",
+          "amount": 1
+        },
+        {
+          "material": "dowsing-stone",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "scouty-spark-block",
+          "amount": 1
+        }
+      ],
+      "temperature": "3",
+      "source": "Spark Workstation"
+    },
+    {
+      "id": "hauling-spark",
+      "name": "Hauling Spark",
+      "workstation": "spark-workstation",
+      "buildTime": 64,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "carry-spark-block",
+          "amount": 2
+        },
+        {
+          "material": "stone-wheel",
+          "amount": 4
+        }
+      ],
+      "to": [
+        {
+          "material": "hauling-spark-block",
+          "amount": 1
+        }
+      ],
+      "temperature": "3",
+      "source": "Spark Workstation"
+    },
+    {
+      "id": "boomy-spark",
+      "name": "Boomy Spark",
+      "workstation": "spark-workstation",
+      "buildTime": 48,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "rocky-spark-block",
+          "amount": 3
+        },
+        {
+          "material": "explosives",
+          "amount": 5
+        }
+      ],
+      "to": [
+        {
+          "material": "boomy-spark-block",
+          "amount": 3
+        }
+      ],
+      "temperature": "3",
+      "source": "Spark Workstation"
+    },
+    {
+      "id": "puffy-spark",
+      "name": "Puffy Spark",
+      "workstation": "spark-workstation",
+      "buildTime": 32,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "rocky-spark-block",
+          "amount": 1
+        },
+        {
+          "material": "fabric",
+          "amount": 4
+        }
+      ],
+      "to": [
+        {
+          "material": "puffy-spark-block",
+          "amount": 1
+        }
+      ],
+      "temperature": "3",
+      "source": "Spark Workstation"
+    },
+    {
+      "id": "slashy-spark",
+      "name": "Slashy Spark",
+      "workstation": "spark-workstation",
+      "buildTime": 64,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "rocky-spark-block",
+          "amount": 2
+        },
+        {
+          "material": "choppy-spark-block",
+          "amount": 3
+        }
+      ],
+      "to": [
+        {
+          "material": "slashy-spark-block",
+          "amount": 1
+        }
+      ],
+      "temperature": "3",
+      "source": "Spark Workstation"
+    },
+    {
+      "id": "crashy-spark",
+      "name": "Crashy Spark",
+      "workstation": "spark-workstation",
+      "buildTime": 64,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "boomy-spark-block",
+          "amount": 2
+        },
+        {
+          "material": "stone-spike",
+          "amount": 7
+        }
+      ],
+      "to": [
+        {
+          "material": "crashy-spark-block",
+          "amount": 1
+        }
+      ],
+      "temperature": "3",
+      "source": "Spark Workstation"
+    },
+    {
+      "id": "bark-harvesting",
+      "name": "Bark Harvesting",
+      "workstation": "logger",
+      "buildTime": 2,
+      "fuelRequired": false,
+      "from": [],
+      "to": [
+        {
+          "material": "tree-bark",
+          "amount": 1
+        }
+      ],
+      "temperature": "Insulated",
+      "source": "Logger"
+    },
+    {
+      "id": "bark",
+      "name": "Bark",
+      "workstation": "sawbench",
+      "buildTime": 8,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "wooden-log",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "tree-bark",
+          "amount": 2
+        }
+      ],
+      "temperature": "-3",
+      "source": "Sawbench"
+    },
+    {
+      "id": "coal",
+      "name": "Coal",
+      "workstation": "furnace",
+      "buildTime": 8,
+      "fuelRequired": true,
+      "from": [
+        {
+          "material": "wooden-log",
+          "amount": 3
+        }
+      ],
+      "to": [
+        {
+          "material": "coal",
+          "amount": 1
+        }
+      ],
+      "temperature": "-3",
+      "source": "Furnace"
+    },
+    {
+      "id": "fabric",
+      "name": "Fabric",
+      "workstation": "loom",
+      "buildTime": 8,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "tree-bark",
+          "amount": 4
+        },
+        {
+          "material": "rope",
+          "amount": 2
+        }
+      ],
+      "to": [
+        {
+          "material": "fabric",
+          "amount": 1
+        }
+      ],
+      "temperature": "3",
+      "source": "Loom"
+    },
+    {
+      "id": "fertiliser",
+      "name": "Fertiliser",
+      "workstation": "cutter",
+      "buildTime": 24,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "leaves",
+          "amount": 4
+        }
+      ],
+      "to": [
+        {
+          "material": "fertiliser",
+          "amount": 2
+        }
+      ],
+      "temperature": "3",
+      "source": "Cutter"
+    },
+    {
+      "id": "ladder",
+      "name": "Ladder",
+      "workstation": "wood-workshop",
+      "buildTime": 32,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "wooden-log",
+          "amount": 4
+        },
+        {
+          "material": "sawn-timber",
+          "amount": 10
+        }
+      ],
+      "to": [
+        {
+          "material": "ladder",
+          "amount": 2
+        }
+      ],
+      "temperature": "3",
+      "source": "Wood Workshop"
+    },
+    {
+      "id": "leaves-harvesting",
+      "name": "Leaves Harvesting",
+      "workstation": "logger",
+      "buildTime": 2,
+      "fuelRequired": false,
+      "from": [],
+      "to": [
+        {
+          "material": "leaves",
+          "amount": 1
+        }
+      ],
+      "temperature": "Insulated",
+      "source": "Logger"
+    },
+    {
+      "id": "log-harvesting",
+      "name": "Log Harvesting",
+      "workstation": "logger",
+      "buildTime": 2,
+      "fuelRequired": false,
+      "from": [],
+      "to": [
+        {
+          "material": "wooden-log",
+          "amount": 1
+        }
+      ],
+      "temperature": "Insulated",
+      "source": "Logger"
+    },
+    {
+      "id": "sawn-timber",
+      "name": "Sawn Timber",
+      "workstation": "sawbench",
+      "buildTime": 16,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "wooden-log",
+          "amount": 2
+        }
+      ],
+      "to": [
+        {
+          "material": "sawn-timber",
+          "amount": 1
+        }
+      ],
+      "temperature": "-3",
+      "source": "Sawbench"
+    },
+    {
+      "id": "wooden-panel",
+      "name": "Wooden Panel",
+      "workstation": "sawbench",
+      "buildTime": 8,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "sawn-timber",
+          "amount": 2
+        }
+      ],
+      "to": [
+        {
+          "material": "wooden-panel",
+          "amount": 1
+        }
+      ],
+      "temperature": "-3",
+      "source": "Sawbench"
+    },
+    {
+      "id": "rope",
+      "name": "Rope",
+      "workstation": "loom",
+      "buildTime": 16,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "leaves",
+          "amount": 2
+        },
+        {
+          "material": "tree-bark",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "rope",
+          "amount": 1
+        }
+      ],
+      "temperature": "3",
+      "source": "Loom"
+    },
+    {
+      "id": "wooden-blade",
+      "name": "Wooden Blade",
+      "workstation": "wood-workshop",
+      "buildTime": 48,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "sawn-timber",
+          "amount": 1
+        },
+        {
+          "material": "wooden-panel",
+          "amount": 2
+        }
+      ],
+      "to": [
+        {
+          "material": "wooden-blade",
+          "amount": 1
+        }
+      ],
+      "temperature": "3",
+      "source": "Wood Workshop"
+    },
+    {
+      "id": "big-vial",
+      "name": "Big Vial",
+      "workstation": "furnace",
+      "buildTime": 128,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "quartz",
+          "amount": 10
+        }
+      ],
+      "to": [
+        {
+          "material": "big-vial",
+          "amount": 2
+        }
+      ],
+      "temperature": "-3",
+      "source": "Furnace"
+    },
+    {
+      "id": "dowsing-stone",
+      "name": "Dowsing Stone",
+      "workstation": "stone-workshop",
+      "buildTime": 24,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "quartz",
+          "amount": 1
+        },
+        {
+          "material": "rope",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "dowsing-stone",
+          "amount": 3
+        }
+      ],
+      "temperature": "3",
+      "source": "Stone Workshop"
+    },
+    {
+      "id": "explosives",
+      "name": "Explosives",
+      "workstation": "wood-workshop",
+      "buildTime": 24,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "fertiliser",
+          "amount": 2
+        },
+        {
+          "material": "limestone",
+          "amount": 4
+        }
+      ],
+      "to": [
+        {
+          "material": "explosives",
+          "amount": 1
+        }
+      ],
+      "temperature": "3",
+      "source": "Wood Workshop"
+    },
+    {
+      "id": "limestone-harvesting",
+      "name": "Limestone Harvesting",
+      "workstation": "drill",
+      "buildTime": 2,
+      "fuelRequired": false,
+      "from": [],
+      "to": [
+        {
+          "material": "limestone",
+          "amount": 1
+        }
+      ],
+      "temperature": "Insulated",
+      "source": "Drill"
+    },
+    {
+      "id": "limestone",
+      "name": "Limestone",
+      "workstation": "stonecutter",
+      "buildTime": 16,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "coral",
+          "amount": 4
+        }
+      ],
+      "to": [
+        {
+          "material": "limestone",
+          "amount": 3
+        }
+      ],
+      "temperature": "3",
+      "source": "Stonecutter"
+    },
+    {
+      "id": "path-tile",
+      "name": "Path Tile",
+      "workstation": "stone-workshop",
+      "buildTime": 32,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "pebble",
+          "amount": 10
+        },
+        {
+          "material": "limestone",
+          "amount": 5
+        }
+      ],
+      "to": [
+        {
+          "material": "path-tile",
+          "amount": 5
+        }
+      ],
+      "temperature": "3",
+      "source": "Stone Workshop"
+    },
+    {
+      "id": "pebble",
+      "name": "Pebble",
+      "workstation": "stonecutter",
+      "buildTime": 32,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "stone",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "pebble",
+          "amount": 2
+        }
+      ],
+      "temperature": "3",
+      "source": "Stonecutter"
+    },
+    {
+      "id": "quartz-harvesting",
+      "name": "Quartz Harvesting",
+      "workstation": "drill",
+      "buildTime": 2,
+      "fuelRequired": false,
+      "from": [],
+      "to": [
+        {
+          "material": "quartz",
+          "amount": 1
+        }
+      ],
+      "temperature": "Insulated",
+      "source": "Drill"
+    },
+    {
+      "id": "quartz",
+      "name": "Quartz",
+      "workstation": "furnace",
+      "buildTime": 8,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "limestone",
+          "amount": 3
+        }
+      ],
+      "to": [
+        {
+          "material": "quartz",
+          "amount": 1
+        }
+      ],
+      "temperature": "-3",
+      "source": "Furnace"
+    },
+    {
+      "id": "small-vial",
+      "name": "Small Vial",
+      "workstation": "furnace",
+      "buildTime": 32,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "quartz",
+          "amount": 4
+        }
+      ],
+      "to": [
+        {
+          "material": "small-vial",
+          "amount": 2
+        }
+      ],
+      "temperature": "-3",
+      "source": "Furnace"
+    },
+    {
+      "id": "stone-harvesting",
+      "name": "Stone Harvesting",
+      "workstation": "drill",
+      "buildTime": 2,
+      "fuelRequired": false,
+      "from": [],
+      "to": [
+        {
+          "material": "stone",
+          "amount": 1
+        }
+      ],
+      "temperature": "Insulated",
+      "source": "Drill"
+    },
+    {
+      "id": "stone",
+      "name": "Stone",
+      "workstation": "stonecutter",
+      "buildTime": 8,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "limestone",
+          "amount": 4
+        }
+      ],
+      "to": [
+        {
+          "material": "stone",
+          "amount": 2
+        }
+      ],
+      "temperature": "3",
+      "source": "Stonecutter"
+    },
+    {
+      "id": "stone-plate",
+      "name": "Stone Plate",
+      "workstation": "stonecutter",
+      "buildTime": 32,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "stone",
+          "amount": 2
+        }
+      ],
+      "to": [
+        {
+          "material": "stone-plate",
+          "amount": 1
+        }
+      ],
+      "temperature": "3",
+      "source": "Stonecutter"
+    },
+    {
+      "id": "stone-spike",
+      "name": "Stone Spike",
+      "workstation": "stone-workshop",
+      "buildTime": 16,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "wooden-blade",
+          "amount": 1
+        },
+        {
+          "material": "stone-plate",
+          "amount": 4
+        }
+      ],
+      "to": [
+        {
+          "material": "stone-spike",
+          "amount": 4
+        }
+      ],
+      "temperature": "3",
+      "source": "Stone Workshop"
+    },
+    {
+      "id": "stone-wheel",
+      "name": "Stone Wheel",
+      "workstation": "stone-workshop",
+      "buildTime": 16,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "path-tile",
+          "amount": 4
+        },
+        {
+          "material": "stone-plate",
+          "amount": 2
+        }
+      ],
+      "to": [
+        {
+          "material": "stone-wheel",
+          "amount": 2
+        }
+      ],
+      "temperature": "3",
+      "source": "Stone Workshop"
+    },
+    {
+      "id": "clump-dividing",
+      "name": "Clump Dividing",
+      "workstation": "cutter",
+      "buildTime": 128,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "aetheric-clump",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "aetheric-pellet",
+          "amount": 6
+        }
+      ],
+      "temperature": "3",
+      "source": "Cutter"
+    },
+    {
+      "id": "pellet-refining",
+      "name": "Pellet Refining",
+      "workstation": "aetheric-distiller",
+      "buildTime": 48,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "aetheric-pellet",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "aether-shard",
+          "amount": 6
+        }
+      ],
+      "temperature": "3",
+      "source": "Aetheric Pellet"
+    },
+    {
+      "id": "raw-distillation",
+      "name": "Raw Distillation",
+      "workstation": "aetheric-distiller",
+      "buildTime": 48,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "raw-aether",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "aether-shard",
+          "amount": 6
+        }
+      ],
+      "temperature": "3",
+      "source": "Aetheric Distiller"
+    },
+    {
+      "id": "refined-distillation",
+      "name": "Refined Distillation",
+      "workstation": "aetheric-distiller",
+      "buildTime": 128,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "refined-aether",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "aether-shard",
+          "amount": 30
+        }
+      ],
+      "temperature": "3",
+      "source": "Aetheric Distiller"
+    },
+    {
+      "id": "miasma-vial",
+      "name": "Miasma Vial",
+      "workstation": "miasma-collector",
+      "buildTime": 16,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "small-vial",
+          "amount": 2
+        },
+        {
+          "material": "miasma",
+          "amount": 2
+        }
+      ],
+      "to": [
+        {
+          "material": "miasma-vial",
+          "amount": 2
+        }
+      ],
+      "temperature": "-3",
+      "source": "Miasma Collector"
+    },
+    {
+      "id": "miasma-transmutation",
+      "name": "Miasma Transmutation",
+      "workstation": "alchemy-lab",
+      "buildTime": 48,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "miasma-vial",
+          "amount": 2
+        },
+        {
+          "material": "aether-shard",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "raw-aether",
+          "amount": 1
+        }
+      ],
+      "temperature": "3",
+      "source": "Alchemy Lab"
+    },
+    {
+      "id": "aether-refinement",
+      "name": "Aether Refinement",
+      "workstation": "alchemy-lab",
+      "buildTime": 64,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "raw-aether",
+          "amount": 2
+        },
+        {
+          "material": "big-vial",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "refined-aether",
+          "amount": 1
+        }
+      ],
+      "temperature": "3",
+      "source": "Alchemy Lab"
+    },
+    {
+      "id": "blue-paint",
+      "name": "Blue Paint",
+      "workstation": "cutter",
+      "buildTime": 16,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "quartz",
+          "amount": 5
+        }
+      ],
+      "to": [
+        {
+          "material": "blue-paint",
+          "amount": 1
+        }
+      ],
+      "temperature": "3",
+      "source": "Cutter"
+    },
+    {
+      "id": "turpentine",
+      "name": "Turpentine",
+      "workstation": "cutter",
+      "buildTime": 16,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "wooden-log",
+          "amount": 5
+        }
+      ],
+      "to": [
+        {
+          "material": "turpentine",
+          "amount": 1
+        }
+      ],
+      "temperature": "3",
+      "source": "Cutter"
+    },
+    {
+      "id": "red-paint",
+      "name": "Red Paint",
+      "workstation": "cutter",
+      "buildTime": 16,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "tree-bark",
+          "amount": 5
+        }
+      ],
+      "to": [
+        {
+          "material": "red-paint",
+          "amount": 1
+        }
+      ],
+      "temperature": "3",
+      "source": "Cutter"
+    },
+    {
+      "id": "yellow-paint",
+      "name": "Yellow Paint",
+      "workstation": "cutter",
+      "buildTime": 16,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "leaves",
+          "amount": 5
+        }
+      ],
+      "to": [
+        {
+          "material": "yellow-paint",
+          "amount": 1
+        }
+      ],
+      "temperature": "3",
+      "source": "Cutter"
+    },
+    {
+      "id": "black-paint",
+      "name": "Black Paint",
+      "workstation": "cutter",
+      "buildTime": 16,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "pebble",
+          "amount": 5
+        }
+      ],
+      "to": [
+        {
+          "material": "black-paint",
+          "amount": 1
+        }
+      ],
+      "temperature": "3",
+      "source": "Cutter"
+    },
+    {
+      "id": "white-paint",
+      "name": "White Paint",
+      "workstation": "cutter",
+      "buildTime": 16,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "limestone",
+          "amount": 5
+        }
+      ],
+      "to": [
+        {
+          "material": "white-paint",
+          "amount": 1
+        }
+      ],
+      "temperature": "3",
+      "source": "Cutter"
+    },
+    {
+      "id": "green-paint",
+      "name": "Green Paint",
+      "workstation": "stone-workshop",
+      "buildTime": 16,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "blue-paint",
+          "amount": 1
+        },
+        {
+          "material": "yellow-paint",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "green-paint",
+          "amount": 1
+        }
+      ],
+      "temperature": "3",
+      "source": "Stone Workshop"
+    },
+    {
+      "id": "orange-paint",
+      "name": "Orange Paint",
+      "workstation": "stone-workshop",
+      "buildTime": 16,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "red-paint",
+          "amount": 1
+        },
+        {
+          "material": "yellow-paint",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "orange-paint",
+          "amount": 1
+        }
+      ],
+      "temperature": "3",
+      "source": "Stone Workshop"
+    },
+    {
+      "id": "purple-paint",
+      "name": "Purple Paint",
+      "workstation": "stone-workshop",
+      "buildTime": 16,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "red-paint",
+          "amount": 1
+        },
+        {
+          "material": "blue-paint",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "purple-paint",
+          "amount": 1
+        }
+      ],
+      "temperature": "3",
+      "source": "Stone Workshop"
+    },
+    {
+      "id": "handy-spark",
+      "name": "Handy Spark",
+      "workstation": "spark-workshop",
+      "buildTime": 64,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "crafty-spark-block",
+          "amount": 5
+        },
+        {
+          "material": "copper-ingot",
+          "amount": 4
+        },
+        {
+          "material": "aether-crystal",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "handy-spark-block",
+          "amount": 1
+        }
+      ],
+      "temperature": "-5",
+      "source": "Spark Workshop"
+    },
+    {
+      "id": "break-bumpy-geode",
+      "name": "Break Bumpy Geode",
+      "workstation": "geode-breaker",
+      "buildTime": 24,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "bumpy-geode",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "volcanic-soil",
+          "amount": 20,
+          "chance": 0.3333
+        },
+        {
+          "material": "coal",
+          "amount": 10,
+          "chance": 0.3333
+        },
+        {
+          "material": "glowshroom",
+          "amount": 10,
+          "chance": 0.3333
+        }
+      ],
+      "temperature": "5",
+      "source": "Geode Breaker"
+    },
+    {
+      "id": "break-cracked-geode",
+      "name": "Break Cracked Geode",
+      "workstation": "geode-breaker",
+      "buildTime": 24,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "cracked-geode",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "volcanic-soil",
+          "amount": 20,
+          "chance": 0.3333
+        },
+        {
+          "material": "copper-ore",
+          "amount": 10,
+          "chance": 0.3333
+        },
+        {
+          "material": "coal",
+          "amount": 10,
+          "chance": 0.3333
+        }
+      ],
+      "temperature": "5",
+      "source": "Geode Breaker"
+    },
+    {
+      "id": "extract-copper-seed",
+      "name": "Extract Copper Seed",
+      "workstation": "plant-extractor",
+      "buildTime": 48,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "copper-seed",
+          "amount": 2
+        }
+      ],
+      "to": [
+        {
+          "material": "copper-ore",
+          "amount": 1
+        },
+        {
+          "material": "coal",
+          "amount": 1
+        }
+      ],
+      "temperature": "3",
+      "source": "Plant Extractor"
+    },
+    {
+      "id": "sponge",
+      "name": "Sponge",
+      "workstation": "loom",
+      "buildTime": 824,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "tree-bark",
+          "amount": 5
+        },
+        {
+          "material": "fabric",
+          "amount": 10
+        }
+      ],
+      "to": [
+        {
+          "material": "sponge",
+          "amount": 3
+        }
+      ],
+      "temperature": "3",
+      "source": "Loom"
+    },
+    {
+      "id": "stone-block-breakdown",
+      "name": "Stone Block Breakdown",
+      "workstation": "stonecutter",
+      "buildTime": 16,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "stone-block",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "stone",
+          "amount": 8
+        }
+      ],
+      "temperature": "3",
+      "source": "Stonecutter"
+    },
+    {
+      "id": "fertiliser-enrichment",
+      "name": "Fertiliser Enrichment",
+      "workstation": "wood-workshop",
+      "buildTime": 24,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "fertiliser",
+          "amount": 1
+        },
+        {
+          "material": "stellar-ice",
+          "amount": 5
+        }
+      ],
+      "to": [
+        {
+          "material": "fertiliser",
+          "amount": 5
+        }
+      ],
+      "temperature": "3",
+      "source": "Wood Workshop"
+    },
+    {
+      "id": "leafy-growth",
+      "name": "Leafy Growth",
+      "workstation": "greenhouse",
+      "buildTime": 64,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "leaves",
+          "amount": 4
+        },
+        {
+          "material": "fertiliser",
+          "amount": 2
+        }
+      ],
+      "to": [
+        {
+          "material": "leaf-knot",
+          "amount": 10
+        }
+      ],
+      "cycles": 10,
+      "temperature": "3",
+      "source": "Greenhouse"
+    },
+    {
+      "id": "fluted-coral-reef",
+      "name": "Fluted Coral Reef",
+      "workstation": "greenhouse",
+      "buildTime": 32,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "coral-seed",
+          "amount": 1
+        },
+        {
+          "material": "fertiliser",
+          "amount": 2
+        }
+      ],
+      "to": [
+        {
+          "material": "fluted-coral",
+          "amount": 20
+        }
+      ],
+      "cycles": 10,
+      "temperature": "-3",
+      "source": "Greenhouse"
+    },
+    {
+      "id": "aetheric-flower",
+      "name": "Aetheric Flower",
+      "workstation": "greenhouse",
+      "buildTime": 32,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "aetheric-pellet",
+          "amount": 2
+        },
+        {
+          "material": "fertiliser",
+          "amount": 3
+        }
+      ],
+      "to": [
+        {
+          "material": "aether-flower",
+          "amount": 1
+        }
+      ],
+      "cycles": 10,
+      "temperature": "-3",
+      "source": "Greenhouse"
+    },
+    {
+      "id": "stellar-fertiliser",
+      "name": "Stellar Fertiliser",
+      "workstation": "alchemy-lab",
+      "buildTime": 64,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "fertiliser",
+          "amount": 4
+        },
+        {
+          "material": "stellar-leaves",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "stellar-fertiliser",
+          "amount": 4
+        }
+      ],
+      "temperature": "3",
+      "source": "Alchemy Lab"
+    },
+    {
+      "id": "leaf-knot-cutting",
+      "name": "Leaf Knot Cutting",
+      "workstation": "sawbench",
+      "buildTime": 16,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "leaf-knot",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "leaves",
+          "amount": 10
+        }
+      ],
+      "temperature": "-3",
+      "source": "Sawbench"
+    },
+    {
+      "id": "leaf-knot-trimming",
+      "name": "Leaf Knot Trimming",
+      "workstation": "sawbench",
+      "buildTime": 16,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "leaf-knot",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "wooden-log",
+          "amount": 6
+        }
+      ],
+      "temperature": "-3",
+      "source": "Sawbench"
+    },
+    {
+      "id": "coral",
+      "name": "Coral",
+      "workstation": "stonecutter",
+      "buildTime": 32,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "fluted-coral",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "coral",
+          "amount": 8
+        }
+      ],
+      "temperature": "3",
+      "source": "Stonecutter"
+    },
+    {
+      "id": "extract-coral-seed",
+      "name": "Extract Coral Seed",
+      "workstation": "plant-extractor",
+      "buildTime": 64,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "coral-seed",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "limestone",
+          "amount": 3
+        },
+        {
+          "material": "coral",
+          "amount": 3
+        }
+      ],
+      "temperature": "-3",
+      "source": "Plant Extractor"
+    },
+    {
+      "id": "coral-seed-germination",
+      "name": "Coral Seed Germination",
+      "workstation": "greenhouse",
+      "buildTime": 32,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "coral",
+          "amount": 2
+        },
+        {
+          "material": "fertiliser",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "coral-seed",
+          "amount": 20
+        }
+      ],
+      "cycles": 10,
+      "temperature": "-3",
+      "source": "Greenhouse"
+    },
+    {
+      "id": "stone-block",
+      "name": "Stone Block",
+      "workstation": "stone-workshop",
+      "buildTime": 24,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "limestone",
+          "amount": 10
+        },
+        {
+          "material": "stone-plate",
+          "amount": 10
+        }
+      ],
+      "to": [
+        {
+          "material": "stone-block",
+          "amount": 5
+        }
+      ],
+      "temperature": "3",
+      "source": "Stone Workshop"
+    },
+    {
+      "id": "stone-block-cutting",
+      "name": "Stone Block Cutting",
+      "workstation": "stonecutter",
+      "buildTime": 16,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "stone-block",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "stone-spike",
+          "amount": 1
+        }
+      ],
+      "temperature": "3",
+      "source": "Stone Spike"
+    },
+    {
+      "id": "aether-pellet-fusion",
+      "name": "Aether Pellet Fusion",
+      "workstation": "alchemy-lab",
+      "buildTime": 64,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "leaf-knot",
+          "amount": 1
+        },
+        {
+          "material": "refined-aether",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "aetheric-clump",
+          "amount": 2
+        }
+      ],
+      "temperature": "3",
+      "source": "Alchemy Lab"
+    },
+    {
+      "id": "extract-aether-flower",
+      "name": "Extract Aether Flower",
+      "workstation": "plant-extractor",
+      "buildTime": 64,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "aether-flower",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "aetheric-clump",
+          "amount": 6
+        },
+        {
+          "material": "aether-seed",
+          "amount": 20
+        }
+      ],
+      "temperature": "3",
+      "source": "Plant Extractor"
+    },
+    {
+      "id": "corrupted-aether-cleansing",
+      "name": "Corrupted Aether Cleansing",
+      "workstation": "aetheric-collider",
+      "buildTime": 32,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "corrupted-aether",
+          "amount": 2
+        },
+        {
+          "material": "cleansing-fragment",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "raw-aether",
+          "amount": 8,
+          "chance": 0.75
+        },
+        {
+          "material": "aetheric-clump",
+          "amount": 1,
+          "chance": 0.25
+        }
+      ],
+      "temperature": "-3",
+      "source": "Aetheric Collider"
+    },
+    {
+      "id": "grey-aether-purification",
+      "name": "Grey Aether Purification",
+      "workstation": "aetheric-collider",
+      "buildTime": 32,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "grey-aether",
+          "amount": 2
+        },
+        {
+          "material": "aether-seed",
+          "amount": 5
+        }
+      ],
+      "to": [
+        {
+          "material": "raw-aether",
+          "amount": 8,
+          "chance": 0.25
+        },
+        {
+          "material": "aetheric-clump",
+          "amount": 1,
+          "chance": 0.75
+        }
+      ],
+      "temperature": "-3",
+      "source": "Aetheric Collider"
+    },
+    {
+      "id": "aether-pellet-fusion-alchemy-lab",
+      "name": "Aether Pellet Fusion",
+      "workstation": "alchemy-lab",
+      "buildTime": 64,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "leaf-knot",
+          "amount": 1
+        },
+        {
+          "material": "raw-aether",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "aetheric-pellet",
+          "amount": 2
+        }
+      ],
+      "temperature": "3",
+      "source": "Alchemy Lab"
+    },
+    {
+      "id": "aether-seed-crystallization",
+      "name": "Aether Seed Crystallization",
+      "workstation": "alchemy-lab",
+      "buildTime": 64,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "aether-seed",
+          "amount": 1
+        },
+        {
+          "material": "raw-aether",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "aether-crystal",
+          "amount": 10
+        }
+      ],
+      "temperature": "3",
+      "source": "Alchemy Lab"
+    },
+    {
+      "id": "frozen-log-cutting",
+      "name": "Frozen Log Cutting",
+      "workstation": "sawbench",
+      "buildTime": 16,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "frozen-log",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "stellar-ice",
+          "amount": 3
+        }
+      ],
+      "temperature": "-3",
+      "source": "Sawbench"
+    },
+    {
+      "id": "frozen-stone-cutting",
+      "name": "Frozen Stone Cutting",
+      "workstation": "stonecutter",
+      "buildTime": 32,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "frozen-stone",
+          "amount": 2
+        }
+      ],
+      "to": [
+        {
+          "material": "stellar-ice",
+          "amount": 6
+        }
+      ],
+      "temperature": "3",
+      "source": "Stonecutter"
+    },
+    {
+      "id": "drill-bit",
+      "name": "Drill Bit",
+      "workstation": "furnace",
+      "buildTime": 32,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "copper-ingot",
+          "amount": 2
+        }
+      ],
+      "to": [
+        {
+          "material": "drill-bit",
+          "amount": 2
+        }
+      ],
+      "temperature": "-3",
+      "source": "Furnace"
+    },
+    {
+      "id": "copper-ore-smelting",
+      "name": "Copper Ore Smelting",
+      "workstation": "furnace",
+      "buildTime": 64,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "copper-ore",
+          "amount": 3
+        }
+      ],
+      "to": [
+        {
+          "material": "copper-ingot",
+          "amount": 1
+        }
+      ],
+      "temperature": "-3",
+      "source": "Furnace"
+    },
+    {
+      "id": "copper-seed-smelting",
+      "name": "Copper Seed Smelting",
+      "workstation": "furnace",
+      "buildTime": 64,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "copper-seed",
+          "amount": 3
+        }
+      ],
+      "to": [
+        {
+          "material": "copper-ingot",
+          "amount": 1
+        }
+      ],
+      "temperature": "-3",
+      "source": "Furnace"
+    },
+    {
+      "id": "copper-sap-smelting",
+      "name": "Copper Sap Smelting",
+      "workstation": "furnace",
+      "buildTime": 24,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "copper-sap",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "copper-ingot",
+          "amount": 1
+        }
+      ],
+      "temperature": "-3",
+      "source": "Furnace"
+    },
+    {
+      "id": "copper-sap-beading",
+      "name": "Copper Sap Beading",
+      "workstation": "furnace",
+      "buildTime": 24,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "copper-sap",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "copper-seed",
+          "amount": 8
+        }
+      ],
+      "temperature": "-3",
+      "source": "Furnace"
+    },
+    {
+      "id": "liquid-fertiliser",
+      "name": "Liquid Fertiliser",
+      "workstation": "alchemy-lab",
+      "buildTime": 64,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "fireshroom-cluster",
+          "amount": 2
+        },
+        {
+          "material": "stellar-leaves",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "liquid-fertiliser",
+          "amount": 4
+        }
+      ],
+      "temperature": "3",
+      "source": "Alchemy Lab"
+    },
+    {
+      "id": "cleansing-fragment-enrichment",
+      "name": "Cleansing Fragment Enrichment",
+      "workstation": "alchemy-lab",
+      "buildTime": 256,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "grey-aether",
+          "amount": 4
+        },
+        {
+          "material": "cleansing-fragment",
+          "amount": 18
+        }
+      ],
+      "to": [
+        {
+          "material": "cleansing-fragment",
+          "amount": 20
+        }
+      ],
+      "temperature": "-3",
+      "source": "Alchemy Lab"
+    },
+    {
+      "id": "copper-ore-harvesting",
+      "name": "Copper Ore Harvesting",
+      "workstation": "ore-miner",
+      "buildTime": 10,
+      "fuelRequired": false,
+      "from": [],
+      "to": [
+        {
+          "material": "copper-ore",
+          "amount": 1
+        }
+      ],
+      "temperature": "Insulated",
+      "source": "Ore Miner"
+    },
+    {
+      "id": "break-shiny-geode",
+      "name": "Break Shiny Geode",
+      "workstation": "geode-breaker",
+      "buildTime": 24,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "shiny-geode",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "volcanic-soil",
+          "amount": 20,
+          "chance": 0.3333
+        },
+        {
+          "material": "copper-ore",
+          "amount": 10,
+          "chance": 0.3333
+        },
+        {
+          "material": "glowshroom",
+          "amount": 10,
+          "chance": 0.3333
+        }
+      ],
+      "temperature": "5",
+      "source": "Geode Breaker"
+    },
+    {
+      "id": "break-geode-cluster",
+      "name": "Break Geode Cluster",
+      "workstation": "geode-breaker",
+      "buildTime": 24,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "geode-cluster",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "bumpy-geode",
+          "amount": 10,
+          "chance": 0.3333
+        },
+        {
+          "material": "shiny-geode",
+          "amount": 10,
+          "chance": 0.3333
+        },
+        {
+          "material": "cracked-geode",
+          "amount": 10,
+          "chance": 0.3333
+        }
+      ],
+      "temperature": "5",
+      "source": "Geode Breaker"
+    },
+    {
+      "id": "geode-reef",
+      "name": "Geode Reef",
+      "workstation": "arboretum",
+      "buildTime": 128,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "lava-cap",
+          "amount": 1
+        },
+        {
+          "material": "coral-seed",
+          "amount": 4
+        }
+      ],
+      "to": [
+        {
+          "material": "geode-cluster",
+          "amount": 5
+        }
+      ],
+      "cycles": 100,
+      "temperature": "-3",
+      "source": "Arboretum"
+    },
+    {
+      "id": "copper-bamboo",
+      "name": "Copper Bamboo",
+      "workstation": "arboretum",
+      "buildTime": 256,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "leaf-knot",
+          "amount": 2
+        },
+        {
+          "material": "copper-seed",
+          "amount": 5
+        }
+      ],
+      "to": [
+        {
+          "material": "copper-cutting",
+          "amount": 5
+        }
+      ],
+      "cycles": 100,
+      "temperature": "-5",
+      "source": "Arboretum"
+    },
+    {
+      "id": "aether-tree",
+      "name": "Aether Tree",
+      "workstation": "arboretum",
+      "buildTime": 256,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "liquid-fertiliser",
+          "amount": 5
+        },
+        {
+          "material": "aether-seed",
+          "amount": 5
+        }
+      ],
+      "to": [
+        {
+          "material": "aether-apple",
+          "amount": 1
+        }
+      ],
+      "cycles": 100,
+      "source": "Arboretum"
+    },
+    {
+      "id": "copper-seed-germination",
+      "name": "Copper Seed Germination",
+      "workstation": "greenhouse",
+      "buildTime": 88,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "copper-ore",
+          "amount": 2
+        },
+        {
+          "material": "volcanic-soil",
+          "amount": 2
+        }
+      ],
+      "to": [
+        {
+          "material": "copper-seed",
+          "amount": 20
+        }
+      ],
+      "cycles": 10,
+      "temperature": "3",
+      "source": "Greenhouse"
+    },
+    {
+      "id": "stellar-cactus",
+      "name": "Stellar Cactus",
+      "workstation": "greenhouse",
+      "buildTime": 64,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "stellar-seed",
+          "amount": 1
+        },
+        {
+          "material": "volcanic-soil",
+          "amount": 2
+        }
+      ],
+      "to": [
+        {
+          "material": "stellar-leaves",
+          "amount": 20
+        }
+      ],
+      "cycles": 10,
+      "temperature": "-5",
+      "source": "Greenhouse"
+    },
+    {
+      "id": "fireshroom-colony",
+      "name": "Fireshroom Colony",
+      "workstation": "greenhouse",
+      "buildTime": 64,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "glowshroom",
+          "amount": 2
+        },
+        {
+          "material": "stellar-fertiliser",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "fireshroom-cluster",
+          "amount": 10
+        }
+      ],
+      "cycles": 10,
+      "temperature": "3",
+      "source": "Greenhouse"
+    },
+    {
+      "id": "extract-stellar-leaves",
+      "name": "Extract Stellar Leaves",
+      "workstation": "plant-extractor",
+      "buildTime": 64,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "stellar-leaves",
+          "amount": 2
+        }
+      ],
+      "to": [
+        {
+          "material": "stellar-seed",
+          "amount": 3
+        },
+        {
+          "material": "stellar-ice",
+          "amount": 5
+        }
+      ],
+      "temperature": "-3",
+      "source": "Plant Extractor"
+    },
+    {
+      "id": "freezing-spark",
+      "name": "Freezing Spark",
+      "workstation": "spark-workshop",
+      "buildTime": 64,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "stellar-ice",
+          "amount": 10
+        },
+        {
+          "material": "copper-ingot",
+          "amount": 8
+        },
+        {
+          "material": "aether-crystal",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "freezing-spark-block",
+          "amount": 1
+        }
+      ],
+      "temperature": "-5",
+      "source": "Spark Workshop"
+    },
+    {
+      "id": "drilly-spark",
+      "name": "Drilly Spark",
+      "workstation": "spark-workshop",
+      "buildTime": 64,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "slashy-spark-block",
+          "amount": 6
+        },
+        {
+          "material": "drill-bit",
+          "amount": 3
+        },
+        {
+          "material": "aether-crystal",
+          "amount": 3
+        }
+      ],
+      "to": [
+        {
+          "material": "drilly-spark-block",
+          "amount": 3
+        }
+      ],
+      "temperature": "5",
+      "source": "Spark Workshop"
+    },
+    {
+      "id": "spark-token-cleansing",
+      "name": "Spark Token Cleansing",
+      "workstation": "aetheric-collider",
+      "buildTime": 48,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "corrupted-spark-token",
+          "amount": 1
+        },
+        {
+          "material": "cleansing-fragment",
+          "amount": 2
+        }
+      ],
+      "to": [
+        {
+          "material": "scrubby-spark-block",
+          "amount": 1,
+          "chance": 0.5
+        },
+        {
+          "material": "grey-aether",
+          "amount": 1,
+          "chance": 0.5
+        }
+      ],
+      "temperature": "-3",
+      "source": "Aetheric Collider"
+    },
+    {
+      "id": "extract-aether-segment",
+      "name": "Extract Aether Segment",
+      "workstation": "plant-extractor",
+      "buildTime": 64,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "aether-segment",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "aether-seed",
+          "amount": 30
+        },
+        {
+          "material": "aether-crystal",
+          "amount": 5
+        }
+      ],
+      "temperature": "-3",
+      "source": "Aether Crystal"
+    },
+    {
+      "id": "burning-spark",
+      "name": "Burning Spark",
+      "workstation": "spark-workshop",
+      "buildTime": 64,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "lava-cap",
+          "amount": 5
+        },
+        {
+          "material": "copper-ingot",
+          "amount": 8
+        },
+        {
+          "material": "aether-crystal",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "burning-spark-block",
+          "amount": 1
+        }
+      ],
+      "temperature": "5",
+      "source": "Spark Workshop"
+    },
+    {
+      "id": "corrupted-aether-purification",
+      "name": "Corrupted Aether Purification",
+      "workstation": "aetheric-collider",
+      "buildTime": 64,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "corrupted-aether",
+          "amount": 1
+        },
+        {
+          "material": "aether-crystal",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "grey-aether",
+          "amount": 1,
+          "chance": 0.75
+        },
+        {
+          "material": "cleansing-fragment",
+          "amount": 1,
+          "chance": 0.25
+        }
+      ],
+      "temperature": "-3",
+      "source": "Aetheric Collider"
+    },
+    {
+      "id": "extract-fireshroom-cluster",
+      "name": "Extract Fireshroom Cluster",
+      "workstation": "plant-extractor",
+      "buildTime": 64,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "fireshroom-cluster",
+          "amount": 2
+        }
+      ],
+      "to": [
+        {
+          "material": "glowshroom",
+          "amount": 5
+        },
+        {
+          "material": "lava-cap",
+          "amount": 5
+        }
+      ],
+      "temperature": "-3",
+      "source": "Plant Extractor"
+    },
+    {
+      "id": "extract-stellar-ice",
+      "name": "Extract Stellar Ice",
+      "workstation": "plant-extractor",
+      "buildTime": 64,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "stellar-ice",
+          "amount": 4
+        }
+      ],
+      "to": [
+        {
+          "material": "stone",
+          "amount": 2
+        },
+        {
+          "material": "stellar-seed",
+          "amount": 1
+        }
+      ],
+      "temperature": "3",
+      "source": "Plant Extractor"
+    },
+    {
+      "id": "extract-copper-cuttings",
+      "name": "Extract Copper Cuttings",
+      "workstation": "plant-extractor",
+      "buildTime": 64,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "copper-cutting",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "copper-sap",
+          "amount": 20
+        },
+        {
+          "material": "copper-seed",
+          "amount": 10
+        }
+      ],
+      "temperature": "-3",
+      "source": "Plant Extractor"
+    },
+    {
+      "id": "extract-aether-apple",
+      "name": "Extract Aether Apple",
+      "workstation": "plant-extractor",
+      "buildTime": 64,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "aether-apple",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "aether-seed",
+          "amount": 40
+        },
+        {
+          "material": "aether-segment",
+          "amount": 20
+        }
+      ],
+      "temperature": "3",
+      "source": "Plant Extractor"
+    },
+    {
+      "id": "scrubby-spark-spark-workshop",
+      "name": "Scrubby Spark",
+      "workstation": "spark-workshop",
+      "buildTime": 128,
+      "fuelRequired": false,
+      "from": [
+        {
+          "material": "sponge",
+          "amount": 2
+        },
+        {
+          "material": "copper-ingot",
+          "amount": 8
+        },
+        {
+          "material": "aether-crystal",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "scrubby-spark-block",
+          "amount": 1
+        }
+      ],
+      "temperature": "3",
+      "source": "Spark Workshop"
+    }
+  ],
+  "material": [
+    {
+      "id": "aether-apple",
+      "name": "Aether Apple",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "aether-tree"
+    },
+    {
+      "id": "aether-crystal",
+      "name": "Aether Crystal",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "aether-seed-crystallization"
+    },
+    {
+      "id": "aether-flower",
+      "name": "Aether Flower",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "aetheric-flower"
+    },
+    {
+      "id": "aether-residue",
+      "name": "Aether Residue",
+      "category": "miscellaneous",
+      "craftable": false,
+      "defaultRecipe": null
+    },
+    {
+      "id": "aether-seed",
+      "name": "Aether Seed",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "extract-aether-flower"
+    },
+    {
+      "id": "aether-segment",
+      "name": "Aether Segment",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "extract-aether-apple"
+    },
+    {
+      "id": "aether-shard",
+      "name": "Aether Shard",
+      "category": "magic-items",
+      "craftable": true,
+      "defaultRecipe": null
+    },
+    {
+      "id": "aetheric-clump",
+      "name": "Aetheric Clump",
+      "category": "magic-items",
+      "craftable": true,
+      "defaultRecipe": "aether-pellet-fusion"
+    },
+    {
+      "id": "aetheric-pellet",
+      "name": "Aetheric Pellet",
+      "category": "magic-items",
+      "craftable": true,
+      "defaultRecipe": "clump-dividing"
+    },
+    {
+      "id": "arty-spark-block",
+      "name": "Arty Spark",
+      "category": "woodland-sparks",
+      "craftable": true,
+      "defaultRecipe": "arty-spark"
+    },
+    {
+      "id": "beelephant-carapace",
+      "name": "Beelephant Carapace",
+      "category": "woodland-items",
+      "craftable": false,
+      "defaultRecipe": null
+    },
+    {
+      "id": "big-vial",
+      "name": "Big Vial",
+      "category": "mountain-items",
+      "craftable": true,
+      "defaultRecipe": "big-vial"
+    },
+    {
+      "id": "black-paint",
+      "name": "Black Paint",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "black-paint"
+    },
+    {
+      "id": "blue-paint",
+      "name": "Blue Paint",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "blue-paint"
+    },
+    {
+      "id": "boomy-spark-block",
+      "name": "Boomy Spark",
+      "category": "mountain-sparks",
+      "craftable": true,
+      "defaultRecipe": "boomy-spark"
+    },
+    {
+      "id": "bumpy-geode",
+      "name": "Bumpy Geode",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": null
+    },
+    {
+      "id": "burning-spark-block",
+      "name": "Burning Spark",
+      "category": "metal-sparks",
+      "craftable": true,
+      "defaultRecipe": "burning-spark"
+    },
+    {
+      "id": "carry-spark-block",
+      "name": "Carry Spark",
+      "category": "woodland-sparks",
+      "craftable": true,
+      "defaultRecipe": "carry-spark"
+    },
+    {
+      "id": "choppy-spark-block",
+      "name": "Choppy Spark",
+      "category": "woodland-sparks",
+      "craftable": true,
+      "defaultRecipe": "choppy-spark"
+    },
+    {
+      "id": "cleansing-fragment",
+      "name": "Cleansing Fragment",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "corrupted-aether-purification"
+    },
+    {
+      "id": "coal",
+      "name": "Coal",
+      "category": "woodland-items",
+      "craftable": true,
+      "defaultRecipe": "coal"
+    },
+    {
+      "id": "copper-cutting",
+      "name": "Copper Cutting",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "copper-bamboo"
+    },
+    {
+      "id": "copper-ingot",
+      "name": "Copper Ingot",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "copper-ore-smelting"
+    },
+    {
+      "id": "copper-ore",
+      "name": "Copper Ore",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "copper-ore-harvesting"
+    },
+    {
+      "id": "copper-sap",
+      "name": "Copper Sap",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "extract-copper-cuttings"
+    },
+    {
+      "id": "copper-seed",
+      "name": "Copper Seed",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "copper-seed-germination"
+    },
+    {
+      "id": "coral",
+      "name": "Coral",
+      "category": "mountain-items",
+      "craftable": true,
+      "defaultRecipe": "coral"
+    },
+    {
+      "id": "coral-seed",
+      "name": "Coral Seed",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "coral-seed-germination"
+    },
+    {
+      "id": "corrupted-aether",
+      "name": "Corrupted Aether",
+      "category": "miscellaneous",
+      "craftable": false,
+      "defaultRecipe": null
+    },
+    {
+      "id": "corrupted-spark-token",
+      "name": "Corrupted Spark Token",
+      "category": "miscellaneous",
+      "craftable": false,
+      "defaultRecipe": null
+    },
+    {
+      "id": "cracked-geode",
+      "name": "Cracked Geode",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": null
+    },
+    {
+      "id": "crafty-spark-block",
+      "name": "Crafty Spark",
+      "category": "woodland-sparks",
+      "craftable": true,
+      "defaultRecipe": "crafty-spark"
+    },
+    {
+      "id": "crangolin-lavascale",
+      "name": "Crangolin Lavascale",
+      "category": "miscellaneous",
+      "craftable": false,
+      "defaultRecipe": null
+    },
+    {
+      "id": "crangolin-scale",
+      "name": "Crangolin Scale",
+      "category": "miscellaneous",
+      "craftable": false,
+      "defaultRecipe": null
+    },
+    {
+      "id": "crashy-spark-block",
+      "name": "Crashy Spark",
+      "category": "mountain-sparks",
+      "craftable": true,
+      "defaultRecipe": "crashy-spark"
+    },
+    {
+      "id": "dowsing-stone",
+      "name": "Dowsing Stone",
+      "category": "mountain-items",
+      "craftable": true,
+      "defaultRecipe": "dowsing-stone"
+    },
+    {
+      "id": "drill-bit",
+      "name": "Drill Bit",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "drill-bit"
+    },
+    {
+      "id": "drilly-spark-block",
+      "name": "Drilly Spark",
+      "category": "metal-sparks",
+      "craftable": true,
+      "defaultRecipe": "drilly-spark"
+    },
+    {
+      "id": "explosives",
+      "name": "Explosives",
+      "category": "mountain-items",
+      "craftable": true,
+      "defaultRecipe": "explosives"
+    },
+    {
+      "id": "fabric",
+      "name": "Fabric",
+      "category": "woodland-items",
+      "craftable": true,
+      "defaultRecipe": "fabric"
+    },
+    {
+      "id": "fertiliser",
+      "name": "Fertiliser",
+      "category": "woodland-items",
+      "craftable": true,
+      "defaultRecipe": "fertiliser"
+    },
+    {
+      "id": "fireshroom-cluster",
+      "name": "Fireshroom Cluster",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "fireshroom-colony"
+    },
+    {
+      "id": "fluted-coral",
+      "name": "Fluted Coral",
+      "category": "mountain-items",
+      "craftable": true,
+      "defaultRecipe": null
+    },
+    {
+      "id": "freezing-spark-block",
+      "name": "Freezing Spark",
+      "category": "metal-sparks",
+      "craftable": true,
+      "defaultRecipe": "freezing-spark"
+    },
+    {
+      "id": "frowl-sac",
+      "name": "Frowl Sac",
+      "category": "mountain-items",
+      "craftable": false,
+      "defaultRecipe": null
+    },
+    {
+      "id": "frozen-log",
+      "name": "Frozen Log",
+      "category": "plateau-items",
+      "craftable": false,
+      "defaultRecipe": null
+    },
+    {
+      "id": "frozen-stone",
+      "name": "Frozen Stone",
+      "category": "plateau-items",
+      "craftable": false,
+      "defaultRecipe": null
+    },
+    {
+      "id": "geode-cluster",
+      "name": "Geode Cluster",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "geode-reef"
+    },
+    {
+      "id": "glowshroom",
+      "name": "Glowshroom",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "break-bumpy-geode"
+    },
+    {
+      "id": "green-paint",
+      "name": "Green Paint",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "green-paint"
+    },
+    {
+      "id": "grey-aether",
+      "name": "Grey Aether",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": null
+    },
+    {
+      "id": "handy-spark-block",
+      "name": "Handy Spark",
+      "category": "metal-sparks",
+      "craftable": true,
+      "defaultRecipe": "handy-spark"
+    },
+    {
+      "id": "hauling-spark-block",
+      "name": "Hauling Spark",
+      "category": "mountain-sparks",
+      "craftable": true,
+      "defaultRecipe": "hauling-spark"
+    },
+    {
+      "id": "ladder",
+      "name": "Ladder",
+      "category": "woodland-items",
+      "craftable": true,
+      "defaultRecipe": "ladder"
+    },
+    {
+      "id": "lava-cap",
+      "name": "Lava Cap",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "extract-fireshroom-cluster"
+    },
+    {
+      "id": "leaf-knot",
+      "name": "Leaf Knot",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "leafy-growth"
+    },
+    {
+      "id": "leaves",
+      "name": "Leaves",
+      "category": "woodland-items",
+      "craftable": true,
+      "defaultRecipe": "leaves-harvesting"
+    },
+    {
+      "id": "limestone",
+      "name": "Limestone",
+      "category": "mountain-items",
+      "craftable": true,
+      "defaultRecipe": "limestone-harvesting"
+    },
+    {
+      "id": "liquid-fertiliser",
+      "name": "Liquid Fertiliser",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "liquid-fertiliser"
+    },
+    {
+      "id": "loamy-spark-block",
+      "name": "Loamy Spark",
+      "category": "woodland-sparks",
+      "craftable": true,
+      "defaultRecipe": "loamy-spark"
+    },
+    {
+      "id": "mantis-stag-antler",
+      "name": "Mantis Stag Antler",
+      "category": "woodland-items",
+      "craftable": false,
+      "defaultRecipe": null
+    },
+    {
+      "id": "miasma",
+      "name": "Miasma",
+      "category": "magic-items",
+      "craftable": false,
+      "defaultRecipe": null
+    },
+    {
+      "id": "miasma-vial",
+      "name": "Miasma Vial",
+      "category": "magic-items",
+      "craftable": true,
+      "defaultRecipe": "miasma-vial"
+    },
+    {
+      "id": "orange-paint",
+      "name": "Orange Paint",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "orange-paint"
+    },
+    {
+      "id": "path-tile",
+      "name": "Path Tile",
+      "category": "mountain-items",
+      "craftable": true,
+      "defaultRecipe": "path-tile"
+    },
+    {
+      "id": "pebble",
+      "name": "Pebble",
+      "category": "mountain-items",
+      "craftable": true,
+      "defaultRecipe": "pebble"
+    },
+    {
+      "id": "pengus-tendon",
+      "name": "Pengus Tendon",
+      "category": "mountain-items",
+      "craftable": false,
+      "defaultRecipe": null
+    },
+    {
+      "id": "puffy-spark-block",
+      "name": "Puffy Spark",
+      "category": "mountain-sparks",
+      "craftable": true,
+      "defaultRecipe": "puffy-spark"
+    },
+    {
+      "id": "purple-paint",
+      "name": "Purple Paint",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "purple-paint"
+    },
+    {
+      "id": "quartz",
+      "name": "Quartz",
+      "category": "mountain-items",
+      "craftable": true,
+      "defaultRecipe": "quartz-harvesting"
+    },
+    {
+      "id": "raw-aether",
+      "name": "Raw Aether",
+      "category": "magic-items",
+      "craftable": true,
+      "defaultRecipe": "miasma-transmutation"
+    },
+    {
+      "id": "red-paint",
+      "name": "Red Paint",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "red-paint"
+    },
+    {
+      "id": "refined-aether",
+      "name": "Refined Aether",
+      "category": "magic-items",
+      "craftable": true,
+      "defaultRecipe": "aether-refinement"
+    },
+    {
+      "id": "rock-teron-shell",
+      "name": "Rock Teron Shell",
+      "category": "mountain-items",
+      "craftable": false,
+      "defaultRecipe": null
+    },
+    {
+      "id": "rocky-spark-block",
+      "name": "Rocky Spark",
+      "category": "mountain-sparks",
+      "craftable": true,
+      "defaultRecipe": "rocky-spark"
+    },
+    {
+      "id": "rope",
+      "name": "Rope",
+      "category": "woodland-items",
+      "craftable": true,
+      "defaultRecipe": "rope"
+    },
+    {
+      "id": "sawn-timber",
+      "name": "Sawn Timber",
+      "category": "woodland-items",
+      "craftable": true,
+      "defaultRecipe": "sawn-timber"
+    },
+    {
+      "id": "scouty-spark-block",
+      "name": "Scouty Spark",
+      "category": "mountain-sparks",
+      "craftable": true,
+      "defaultRecipe": "scouty-spark"
+    },
+    {
+      "id": "scrubby-spark-block",
+      "name": "Scrubby Spark",
+      "category": "metal-sparks",
+      "craftable": true,
+      "defaultRecipe": "scrubby-spark-spark-workshop"
+    },
+    {
+      "id": "shiny-geode",
+      "name": "Shiny Geode",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": null
+    },
+    {
+      "id": "slashy-spark-block",
+      "name": "Slashy Spark",
+      "category": "mountain-sparks",
+      "craftable": true,
+      "defaultRecipe": "slashy-spark"
+    },
+    {
+      "id": "small-vial",
+      "name": "Small Vial",
+      "category": "mountain-items",
+      "craftable": true,
+      "defaultRecipe": "small-vial"
+    },
+    {
+      "id": "sponge",
+      "name": "Sponge",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "sponge"
+    },
+    {
+      "id": "squilican-tube",
+      "name": "Squilican Tube",
+      "category": "mountain-items",
+      "craftable": false,
+      "defaultRecipe": null
+    },
+    {
+      "id": "stellar-fertiliser",
+      "name": "Stellar Fertiliser",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "stellar-fertiliser"
+    },
+    {
+      "id": "stellar-ice",
+      "name": "Stellar Ice",
+      "category": "plateau-items",
+      "craftable": true,
+      "defaultRecipe": "frozen-log-cutting"
+    },
+    {
+      "id": "stellar-leaves",
+      "name": "Stellar Leaves",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "stellar-cactus"
+    },
+    {
+      "id": "stellar-seed",
+      "name": "Stellar Seed",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "extract-stellar-ice"
+    },
+    {
+      "id": "stone",
+      "name": "Stone",
+      "category": "mountain-items",
+      "craftable": true,
+      "defaultRecipe": "stone-harvesting"
+    },
+    {
+      "id": "stone-block",
+      "name": "Stone Block",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "stone-block"
+    },
+    {
+      "id": "stone-plate",
+      "name": "Stone Plate",
+      "category": "mountain-items",
+      "craftable": true,
+      "defaultRecipe": "stone-plate"
+    },
+    {
+      "id": "stone-spike",
+      "name": "Stone Spike",
+      "category": "mountain-items",
+      "craftable": true,
+      "defaultRecipe": "stone-spike"
+    },
+    {
+      "id": "stone-wheel",
+      "name": "Stone Wheel",
+      "category": "mountain-items",
+      "craftable": true,
+      "defaultRecipe": "stone-wheel"
+    },
+    {
+      "id": "stumpy-spark-block",
+      "name": "Stumpy Spark",
+      "category": "woodland-sparks",
+      "craftable": true,
+      "defaultRecipe": "stumpy-spark"
+    },
+    {
+      "id": "tree-bark",
+      "name": "Tree Bark",
+      "category": "woodland-items",
+      "craftable": true,
+      "defaultRecipe": "bark"
+    },
+    {
+      "id": "turpentine",
+      "name": "Turpentine",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "turpentine"
+    },
+    {
+      "id": "volcanic-soil",
+      "name": "Volcanic Soil",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": null
+    },
+    {
+      "id": "white-paint",
+      "name": "White Paint",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "white-paint"
+    },
+    {
+      "id": "wooden-blade",
+      "name": "Wooden Blade",
+      "category": "woodland-items",
+      "craftable": true,
+      "defaultRecipe": "wooden-blade"
+    },
+    {
+      "id": "wooden-log",
+      "name": "Wooden Log",
+      "category": "woodland-items",
+      "craftable": true,
+      "defaultRecipe": "log-harvesting"
+    },
+    {
+      "id": "wooden-panel",
+      "name": "Wooden Panel",
+      "category": "woodland-items",
+      "craftable": true,
+      "defaultRecipe": "wooden-panel"
+    },
+    {
+      "id": "yellow-paint",
+      "name": "Yellow Paint",
+      "category": "miscellaneous",
+      "craftable": true,
+      "defaultRecipe": "yellow-paint"
+    }
+  ],
+  "fuel": [
+    {
+      "id": "coal",
+      "name": "Coal",
+      "amount": 2
+    },
+    {
+      "id": "explosives",
+      "name": "Explosives",
+      "amount": 3
+    },
+    {
+      "id": "fabric",
+      "name": "Fabric",
+      "amount": 4
+    },
+    {
+      "id": "fertiliser",
+      "name": "Fertiliser",
+      "amount": 7.5
+    },
+    {
+      "id": "glowshroom",
+      "name": "Glowshroom",
+      "amount": 3
+    },
+    {
+      "id": "ladder",
+      "name": "Ladder",
+      "amount": 3
+    },
+    {
+      "id": "leaf-knot",
+      "name": "Leaf Knot",
+      "amount": 3
+    },
+    {
+      "id": "leaves",
+      "name": "Leaves",
+      "amount": 12
+    },
+    {
+      "id": "rope",
+      "name": "Rope",
+      "amount": 7.5
+    },
+    {
+      "id": "sawn-timber",
+      "name": "Sawn Timber",
+      "amount": 7.5
+    },
+    {
+      "id": "stellar-fertiliser",
+      "name": "Stellar Fertiliser",
+      "amount": 4
+    },
+    {
+      "id": "stellar-leaves",
+      "name": "Stellar Leaves",
+      "amount": 12
+    },
+    {
+      "id": "tree-bark",
+      "name": "Tree Bark",
+      "amount": 12
+    },
+    {
+      "id": "wooden-blade",
+      "name": "Wooden Blade",
+      "amount": 3
+    },
+    {
+      "id": "wooden-log",
+      "name": "Wooden Log",
+      "amount": 12
+    },
+    {
+      "id": "wooden-panel",
+      "name": "Wooden Panel",
+      "amount": 4
+    }
+  ]
+}

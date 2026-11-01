@@ -1,0 +1,75 @@
+name: Test and deploy
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+
+      - name: Build for GitHub Pages
+        run: npm run build
+        env:
+          # Project sites are served from /<repo-name>/
+          BASE_PATH: /${{ github.event.repository.name }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: build
+          include-hidden-files: true
+
+  deploy:
+    # Only publish from master; pull requests just build and test.
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: site
+          path: site
+
+      # Commit on top of gh-pages instead of force-pushing, so earlier builds stay in history.
+      - name: Publish to gh-pages
+        working-directory: gh-pages
+        run: |
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -a ../site/. .
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to publish."
+          else
+            git commit -m "Deploy ${GITHUB_SHA::7}"
+            git push origin gh-pages
+          fi
