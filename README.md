@@ -4,8 +4,9 @@ A production planner for **Oddsparks**, built on the data and model of the Pirat
 
 - **Target output rates.** Ask for items per second, minute, or hour. A target can also be a
   number of machines, as in PirateSpark.
-- **Spark crews.** Each station holds up to two sparks and their speeds add up (Stumpy 1×,
-  Crafty 1.5×, Handy 2.5×). Set a default crew and override it for each workstation type.
+- **Spark crews.** Machines normally run with two sparks, and their speeds add up (Stumpy 1×,
+  Crafty 1.5×, Handy 2.5×). The default crew is 2 Crafty. You can change it, and override it
+  for each workstation type.
 - **Branching production tree.** Shows which machine makes each item, how many you need, and
   what feeds what. Fuel edges are dashed. Production loops (coal fuelling coal furnaces, aether
   shards feeding the miasma → raw aether → shard chain) appear as "loops back" leaves.
@@ -38,7 +39,8 @@ BASE_PATH=/voidspark npm run build   # then publish build/ (it includes .nojekyl
 `src/lib/engine/solver.ts`:
 
 - crafts/min per machine = `60 × crewSpeed / buildTime`. `buildTime` is the wiki's `duration`:
-  seconds per craft with one Stumpy. PirateSpark used `120 × …`, which doubled every rate. See
+  seconds per craft with one Stumpy. PirateSpark's `120 × speed / buildTime` is the same
+  formula with two identical sparks per machine. See
   [docs/wiki-recipe-audit.md](docs/wiki-recipe-audit.md).
 - Supply-limited stations are capped. The Miasma Collector runs at most 7.5 crafts/min.
 - A fuelled machine burns the chosen fuel's per-minute amount from the game data.

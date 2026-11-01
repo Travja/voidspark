@@ -131,3 +131,15 @@ describe("solver", () => {
     expect(p.buildCost.find((c) => c.material === "wooden-log")!.amount).toBeGreaterThanOrEqual(320);
   });
 });
+
+describe("PirateSpark compatibility", () => {
+  it("matches PirateSpark's rates with a crew of two identical sparks", () => {
+    // PirateSpark: crafts/min = 120 * speed / buildTime (speed 1.5 for crafty)
+    const s = new Solver(base({ defaultCrew: ["spark-crafty", "spark-crafty"] }));
+    for (const id of ["sawn-timber", "coal", "crafty-spark-block", "wooden-log"]) {
+      const r = s.recipeFor(id)!;
+      const out = r.to.find((t) => t.material === id)!.amount;
+      expect(s.outputPerMachine(id)).toBeCloseTo(((120 * 1.5) / r.buildTime) * out);
+    }
+  });
+});

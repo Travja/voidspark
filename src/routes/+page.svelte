@@ -105,8 +105,8 @@
           <CrewPicker {app} />
         </label>
         <p class="muted small">
-          Each station holds up to two sparks and their speeds add up (Stumpy 1×, Crafty 1.5×, Handy 2.5×). You can
-          override the crew per workstation type from the tree or the Machines tab.
+          Machines normally run with two sparks, and their speeds add up (Stumpy 1×, Crafty 1.5×, Handy 2.5×). You
+          can override the crew per workstation type from the tree or the Machines tab.
         </p>
         <label>
           Fuel

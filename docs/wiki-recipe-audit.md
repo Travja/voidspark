@@ -13,8 +13,8 @@ errors below. The wiki's `duration` equals our `buildTime` for every recipe.
 
 | What | Was (PirateSpark) | Now (wiki) |
 | --- | --- | --- |
-| Craft time | `buildTime / 2` seconds per spark | `buildTime` seconds with one Stumpy. The [template docs](https://oddsparks.wiki.gg/wiki/Template:Recipe) say "duration uses the single stumpy rate in seconds (60/rate)". All 16 explicit `per minute` values on the wiki equal `60 / duration`. **Every PirateSpark rate was 2× too high.** |
-| Spark speed | One spark per station | Crews of up to 2 sparks. Speeds add up: Stumpy 1, Crafty 1.5, Handy 2.5 (from the template's calculator buttons). The Furnace infobox lists "2 x 1 Spark" slots. |
+| Craft time | `120 × speed / buildTime` crafts/min: an implicit crew of two identical sparks | `60 × crewSpeed / buildTime`. `buildTime` is seconds with one Stumpy: the [template docs](https://oddsparks.wiki.gg/wiki/Template:Recipe) say "duration uses the single stumpy rate in seconds (60/rate)", and all 16 explicit `per minute` values on the wiki equal `60 / duration`. With the default crew of two sparks this gives the same rates as PirateSpark. |
+| Spark speed | One spark type, always doubled | Crews of 1 or 2 sparks, so mixed crews (Stumpy + Crafty) work. Speeds add up: Stumpy 1, Crafty 1.5, Handy 2.5 (from the template's calculator buttons). The Furnace infobox lists "2 x 1 Spark" slots. Machines normally run with two sparks, so the default crew is 2 Crafty, which is PirateSpark's default. |
 | Handy Spark | Missing | Added, at 2.5× speed |
 | Miasma Collector | Not spark-powered | Spark-powered, capped at 7.5 crafts/min by miasma supply ([Miasma Collector](https://oddsparks.wiki.gg/wiki/Miasma_Collector): 15 miasma/min, "production is capped to 8 seconds") |
 | Green Paint | Black Paint + Yellow Paint | Blue Paint + Yellow Paint |

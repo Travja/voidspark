@@ -68,7 +68,8 @@ export interface GameData {
 /**
  * crafts/min = SECONDS_PER_MINUTE * crewSpeed / buildTime, where crewSpeed sums the speed
  * multipliers of the sparks at the station (Stumpy 1, Crafty 1.5, Handy 2.5). This matches the
- * wiki's Template:Recipe calculator. PirateSpark used an extra factor of 2, which overstated rates.
+ * wiki's Template:Recipe calculator. PirateSpark's `120 * speed / buildTime` is the same formula
+ * with two identical sparks at every station.
  */
 export const SECONDS_PER_MINUTE = 60;
 

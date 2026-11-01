@@ -19,7 +19,8 @@ const newTargetId = () => `t${Date.now().toString(36)}${nextId++}`;
 const defaults = (): AppConfig => ({
   targets: [{ id: "t0", material: "crafty-spark-block", mode: "rate", value: 1 }],
   recipeChoice: {},
-  defaultCrew: ["spark-crafty"],
+  // Machines normally run with two sparks. Matches PirateSpark's default (Crafty, x2).
+  defaultCrew: ["spark-crafty", "spark-crafty"],
   stationCrew: {},
   fuel: { material: "wooden-log", perMinute: GAME.fuels.find((f) => f.id === "wooden-log")!.perMinute },
   unit: "min",
@@ -36,13 +37,16 @@ function load(): AppConfig {
   return defaults();
 }
 
-/** Earlier versions stored one spark per station (`defaultSpark`, `stationSpark`). */
+/**
+ * Earlier versions stored one spark type per station (`defaultSpark`, `stationSpark`) and assumed
+ * two of them, so each becomes a crew of two.
+ */
 function migrate(cfg: AppConfig & { defaultSpark?: string; stationSpark?: Record<string, string> }): AppConfig {
   const { defaultSpark, stationSpark, ...rest } = cfg;
-  if (defaultSpark) rest.defaultCrew = [defaultSpark];
+  if (defaultSpark) rest.defaultCrew = [defaultSpark, defaultSpark];
   if (stationSpark) {
     rest.stationCrew = { ...rest.stationCrew };
-    for (const [ws, id] of Object.entries(stationSpark)) rest.stationCrew[ws] ??= [id];
+    for (const [ws, id] of Object.entries(stationSpark)) rest.stationCrew[ws] ??= [id, id];
   }
   return rest;
 }
