@@ -1,0 +1,106 @@
+{
+  "json": [
+    {
+      "version": "0.2.3",
+      "json": "oddsparks_0_2.json"
+    }
+  ],
+  "spark": [
+    {
+      "id": "stumpy-spark-block",
+      "speed": 1
+    },
+    {
+      "id": "crafty-spark-block",
+      "speed": 1.5
+    }
+  ],
+  "fuel": [
+    {
+      "id": "tree-bark",
+      "name": "Tree Bark",
+      "amount": 12
+    },
+    {
+      "id": "coal",
+      "name": "Coal",
+      "amount": 2
+    },
+    {
+      "id": "fabric",
+      "name": "Fabric",
+      "amount": 4
+    },
+    {
+      "id": "fertiliser",
+      "name": "Fertiliser",
+      "amount": 7.5
+    },
+    {
+      "id": "ladder",
+      "name": "Ladder",
+      "amount": 3
+    },
+    {
+      "id": "leaves",
+      "name": "Leaves",
+      "amount": 12
+    },
+    {
+      "id": "wooden-log",
+      "name": "Wooden Log",
+      "amount": 12
+    },
+    {
+      "id": "sawn-timber",
+      "name": "Sawn Timber",
+      "amount": 7.5
+    },
+    {
+      "id": "wooden-panel",
+      "name": "Wooden Panel",
+      "amount": 4
+    },
+    {
+      "id": "rope",
+      "name": "Rope",
+      "amount": 7.5
+    },
+    {
+      "id": "wooden-blade",
+      "name": "Wooden Blade",
+      "amount": 3
+    },
+    {
+      "id": "explosives",
+      "name": "Explosives",
+      "amount": 3
+    }
+  ],
+  "aetherSource": [
+    "aether-shard",
+    "aetheric-pellet",
+    "aetheric-clump",
+    "raw-aether",
+    "refined-aether"
+  ],
+  "rateDisplay": [
+    {
+      "id": "ips",
+      "name": "Items / Second"
+    },
+    {
+      "id": "ipm",
+      "name": "Items / Minute"
+    },
+    {
+      "id": "iph",
+      "name": "Items / Hour"
+    }
+  ],
+  "ratePrecision": [
+    2,
+    3,
+    4
+  ]
+}

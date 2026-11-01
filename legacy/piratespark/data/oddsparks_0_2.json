@@ -1,0 +1,1849 @@
+{
+  "version": "0.2.3",
+  "spark": [
+    {
+      "id": "spark-stumpy",
+      "name": "Stumpy Spark",
+      "block": "stumpy-spark-block",
+      "speed": 100
+    },
+    {
+      "id": "spark-crafty",
+      "name": "Crafty Spark",
+      "block": "crafty-spark-block",
+      "speed": 150
+    }
+  ],
+  "category": [
+    {
+      "id": "woodland-sparks",
+      "name": "Woodland Sparks"
+    },
+    {
+      "id": "mountain-sparks",
+      "name": "Mountain Sparks"
+    },
+    {
+      "id": "woodland-items",
+      "name": "Woodland Items"
+    },
+    {
+      "id": "mountain-items",
+      "name": "Mountain Items"
+    },
+    {
+      "id": "magic-items",
+      "name": "Magic Items"
+    },
+    {
+      "id": "refiners",
+      "name": "Refiners"
+    },
+    {
+      "id": "assemblers",
+      "name": "Assemblers"
+    },
+    {
+      "id": "harvesters",
+      "name": "Harvesters"
+    },
+    {
+      "id": "miscellaneous",
+      "name": "Miscellaneous"
+    }
+  ],
+  "workstation": [
+    {
+      "category": "refiners",
+      "id": "sawbench",
+      "name": "Sawbench",
+      "cost": [
+        {
+          "id": "wooden-log",
+          "amount": 20
+        }
+      ]
+    },
+    {
+      "category": "refiners",
+      "id": "aetheric-distiller",
+      "name": "Aetheric Distiller",
+      "cost": [
+        {
+          "id": "wooden-panel",
+          "amount": 20
+        },
+        {
+          "id": "beelephant-carapace",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "category": "refiners",
+      "id": "cutter",
+      "name": "Cutter",
+      "cost": [
+        {
+          "id": "wooden-blade",
+          "amount": 20
+        }
+      ]
+    },
+    {
+      "category": "refiners",
+      "id": "stonecutter",
+      "name": "Stonecutter",
+      "cost": [
+        {
+          "id": "stone",
+          "amount": 20
+        }
+      ]
+    },
+    {
+      "category": "refiners",
+      "id": "furnace",
+      "name": "Furnace",
+      "cost": [
+        {
+          "id": "limestone",
+          "amount": 20
+        },
+        {
+          "id": "rock-teron-shell",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "category": "assemblers",
+      "id": "spark-workbench",
+      "name": "Spark Workbench",
+      "cost": [
+        {
+          "id": "wooden-log",
+          "amount": 20
+        },
+        {
+          "id": "aether-shard",
+          "amount": 5
+        }
+      ]
+    },
+    {
+      "category": "assemblers",
+      "id": "spark-workstation",
+      "name": "Spark Workstation",
+      "cost": [
+        {
+          "id": "stone-plate",
+          "amount": 20
+        },
+        {
+          "id": "aether-shard",
+          "amount": 5
+        }
+      ]
+    },
+    {
+      "category": "assemblers",
+      "id": "wood-workshop",
+      "name": "Wood Workshop",
+      "cost": [
+        {
+          "id": "sawn-timber",
+          "amount": 20
+        },
+        {
+          "id": "wooden-panel",
+          "amount": 10
+        }
+      ]
+    },
+    {
+      "category": "assemblers",
+      "id": "loom",
+      "name": "Loom",
+      "cost": [
+        {
+          "id": "stone-plate",
+          "amount": 20
+        },
+        {
+          "id": "pengus-tendon",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "category": "assemblers",
+      "id": "stone-workshop",
+      "name": "Stone Workshop",
+      "cost": [
+        {
+          "id": "stone-plate",
+          "amount": 20
+        },
+        {
+          "id": "pebble",
+          "amount": 20
+        }
+      ]
+    },
+    {
+      "category": "assemblers",
+      "id": "alchemy-lab",
+      "name": "Alchemy Lab",
+      "cost": [
+        {
+          "id": "stone-plate",
+          "amount": 20
+        },
+        {
+          "id": "small-vial",
+          "amount": 10
+        },
+        {
+          "id": "squilican-tube",
+          "amount": 3
+        }
+      ]
+    },
+    {
+      "category": "harvesters",
+      "id": "logger",
+      "name": "Logger",
+      "cost": [
+        {
+          "id": "wooden-log",
+          "amount": 10
+        },
+        {
+          "id": "stone",
+          "amount": 5
+        },
+        {
+          "id": "beelephant-carapace",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "category": "harvesters",
+      "id": "drill",
+      "name": "Drill",
+      "cost": [
+        {
+          "id": "stone-plate",
+          "amount": 20
+        },
+        {
+          "id": "sawn-timber",
+          "amount": 10
+        },
+        {
+          "id": "beelephant-carapace",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "category": "harvesters",
+      "id": "miasma-collector",
+      "name": "Miasma Collector",
+      "cost": [
+        {
+          "id": "stone-plate",
+          "amount": 20
+        },
+        {
+          "id": "fabric",
+          "amount": 10
+        },
+        {
+          "id": "frowl-sac",
+          "amount": 2
+        }
+      ]
+    }
+  ],
+  "process": [
+    {
+      "id": "carry-spark",
+      "name": "Carry Spark",
+      "workstation": "spark-workbench",
+      "buildTime": 32,
+      "from": [
+        {
+          "material": "crafty-spark-block",
+          "amount": 1
+        },
+        {
+          "material": "sawn-timber",
+          "amount": 4
+        }
+      ],
+      "to": [
+        {
+          "material": "carry-spark-block",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "stumpy-spark",
+      "name": "Stumpy Spark",
+      "workstation": "spark-workbench",
+      "buildTime": 32,
+      "from": [
+        {
+          "material": "aether-shard",
+          "amount": 1
+        },
+        {
+          "material": "wooden-log",
+          "amount": 5
+        }
+      ],
+      "to": [
+        {
+          "material": "stumpy-spark-block",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "loamy-spark",
+      "name": "Loamy Spark",
+      "workstation": "spark-workbench",
+      "buildTime": 32,
+      "from": [
+        {
+          "material": "aether-shard",
+          "amount": 5
+        },
+        {
+          "material": "fertiliser",
+          "amount": 3
+        }
+      ],
+      "to": [
+        {
+          "material": "loamy-spark-block",
+          "amount": 5
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "crafty-spark",
+      "name": "Crafty Spark",
+      "workstation": "spark-workbench",
+      "buildTime": 48,
+      "from": [
+        {
+          "material": "stumpy-spark-block",
+          "amount": 2
+        },
+        {
+          "material": "wooden-panel",
+          "amount": 2
+        }
+      ],
+      "to": [
+        {
+          "material": "crafty-spark-block",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "choppy-spark",
+      "name": "Choppy Spark",
+      "workstation": "spark-workbench",
+      "buildTime": 64,
+      "from": [
+        {
+          "material": "stumpy-spark-block",
+          "amount": 3
+        },
+        {
+          "material": "wooden-blade",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "choppy-spark-block",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "arty-spark",
+      "name": "Arty Spark",
+      "workstation": "spark-workbench",
+      "buildTime": 32,
+      "from": [
+        {
+          "material": "stumpy-spark-block",
+          "amount": 2
+        },
+        {
+          "material": "rope",
+          "amount": 5
+        }
+      ],
+      "to": [
+        {
+          "material": "arty-spark-block",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "rocky-spark",
+      "name": "Rocky Spark",
+      "workstation": "spark-workstation",
+      "buildTime": 32,
+      "from": [
+        {
+          "material": "stumpy-spark-block",
+          "amount": 2
+        },
+        {
+          "material": "stone",
+          "amount": 5
+        }
+      ],
+      "to": [
+        {
+          "material": "rocky-spark-block",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "scouty-spark",
+      "name": "Scouty Spark",
+      "workstation": "spark-workstation",
+      "buildTime": 32,
+      "from": [
+        {
+          "material": "stumpy-spark-block",
+          "amount": 1
+        },
+        {
+          "material": "dowsing-stone",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "scouty-spark-block",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "hauling-spark",
+      "name": "Hauling Spark",
+      "workstation": "spark-workstation",
+      "buildTime": 64,
+      "from": [
+        {
+          "material": "carry-spark-block",
+          "amount": 2
+        },
+        {
+          "material": "stone-wheel",
+          "amount": 4
+        }
+      ],
+      "to": [
+        {
+          "material": "hauling-spark-block",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "boomy-spark",
+      "name": "Boomy Spark",
+      "workstation": "spark-workstation",
+      "buildTime": 48,
+      "from": [
+        {
+          "material": "rocky-spark-block",
+          "amount": 3
+        },
+        {
+          "material": "explosives",
+          "amount": 5
+        }
+      ],
+      "to": [
+        {
+          "material": "boomy-spark-block",
+          "amount": 3
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "puffy-spark",
+      "name": "Puffy Spark",
+      "workstation": "spark-workstation",
+      "buildTime": 32,
+      "from": [
+        {
+          "material": "rocky-spark-block",
+          "amount": 1
+        },
+        {
+          "material": "fabric",
+          "amount": 4
+        }
+      ],
+      "to": [
+        {
+          "material": "puffy-spark-block",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "slashy-spark",
+      "name": "Slashy Spark",
+      "workstation": "spark-workstation",
+      "buildTime": 64,
+      "from": [
+        {
+          "material": "rocky-spark-block",
+          "amount": 2
+        },
+        {
+          "material": "choppy-spark-block",
+          "amount": 3
+        }
+      ],
+      "to": [
+        {
+          "material": "slashy-spark-block",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "crashy-spark",
+      "name": "Crashy Spark",
+      "workstation": "spark-workstation",
+      "buildTime": 64,
+      "from": [
+        {
+          "material": "boomy-spark-block",
+          "amount": 2
+        },
+        {
+          "material": "stone-spike",
+          "amount": 7
+        }
+      ],
+      "to": [
+        {
+          "material": "crashy-spark-block",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "bark-harvesting",
+      "name": "Bark Harvesting",
+      "workstation": "logger",
+      "buildTime": 2,
+      "from": [],
+      "to": [
+        {
+          "material": "tree-bark",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "bark",
+      "name": "Bark",
+      "workstation": "sawbench",
+      "buildTime": 8,
+      "from": [
+        {
+          "material": "wooden-log",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "tree-bark",
+          "amount": 2
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "coal",
+      "name": "Coal",
+      "workstation": "furnace",
+      "buildTime": 8,
+      "from": [
+        {
+          "material": "wooden-log",
+          "amount": 3
+        }
+      ],
+      "to": [
+        {
+          "material": "coal",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": true
+    },
+    {
+      "id": "fabric",
+      "name": "Fabric",
+      "workstation": "loom",
+      "buildTime": 8,
+      "from": [
+        {
+          "material": "tree-bark",
+          "amount": 4
+        },
+        {
+          "material": "rope",
+          "amount": 2
+        }
+      ],
+      "to": [
+        {
+          "material": "fabric",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "fertiliser",
+      "name": "Fertiliser",
+      "workstation": "cutter",
+      "buildTime": 24,
+      "from": [
+        {
+          "material": "leaves",
+          "amount": 4
+        }
+      ],
+      "to": [
+        {
+          "material": "fertiliser",
+          "amount": 2
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "ladder",
+      "name": "Ladder",
+      "workstation": "wood-workshop",
+      "buildTime": 32,
+      "from": [
+        {
+          "material": "wooden-log",
+          "amount": 4
+        },
+        {
+          "material": "sawn-timber",
+          "amount": 10
+        }
+      ],
+      "to": [
+        {
+          "material": "ladder",
+          "amount": 2
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "leaves-harvesting",
+      "name": "Leaves Harvesting",
+      "workstation": "logger",
+      "buildTime": 2,
+      "from": [],
+      "to": [
+        {
+          "material": "leaves",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "log-harvesting",
+      "name": "Log Harvesting",
+      "workstation": "logger",
+      "buildTime": 2,
+      "from": [],
+      "to": [
+        {
+          "material": "wooden-log",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "sawn-timber",
+      "name": "Sawn Timber",
+      "workstation": "sawbench",
+      "buildTime": 16,
+      "from": [
+        {
+          "material": "wooden-log",
+          "amount": 2
+        }
+      ],
+      "to": [
+        {
+          "material": "sawn-timber",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "wooden-panel",
+      "name": "Wooden Panel",
+      "workstation": "sawbench",
+      "buildTime": 8,
+      "from": [
+        {
+          "material": "sawn-timber",
+          "amount": 2
+        }
+      ],
+      "to": [
+        {
+          "material": "wooden-panel",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "rope",
+      "name": "Rope",
+      "workstation": "loom",
+      "buildTime": 16,
+      "from": [
+        {
+          "material": "leaves",
+          "amount": 2
+        },
+        {
+          "material": "tree-bark",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "rope",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "wooden-blade",
+      "name": "Wooden Blade",
+      "workstation": "wood-workshop",
+      "buildTime": 48,
+      "from": [
+        {
+          "material": "sawn-timber",
+          "amount": 1
+        },
+        {
+          "material": "wooden-panel",
+          "amount": 2
+        }
+      ],
+      "to": [
+        {
+          "material": "wooden-blade",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "big-vial",
+      "name": "Big Vial",
+      "workstation": "furnace",
+      "buildTime": 128,
+      "from": [
+        {
+          "material": "quartz",
+          "amount": 10
+        }
+      ],
+      "to": [
+        {
+          "material": "big-vial",
+          "amount": 2
+        }
+      ],
+      "fuelRequired": true
+    },
+    {
+      "id": "dowsing-stone",
+      "name": "Dowsing Stone",
+      "workstation": "stone-workshop",
+      "buildTime": 24,
+      "from": [
+        {
+          "material": "quartz",
+          "amount": 1
+        },
+        {
+          "material": "rope",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "dowsing-stone",
+          "amount": 3
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "explosives",
+      "name": "Explosives",
+      "workstation": "wood-workshop",
+      "buildTime": 24,
+      "from": [
+        {
+          "material": "fertiliser",
+          "amount": 2
+        },
+        {
+          "material": "limestone",
+          "amount": 4
+        }
+      ],
+      "to": [
+        {
+          "material": "explosives",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "limestone-harvesting",
+      "name": "Limestone Harvesting",
+      "workstation": "drill",
+      "buildTime": 2,
+      "from": [],
+      "to": [
+        {
+          "material": "limestone",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "limestone",
+      "name": "Limestone",
+      "workstation": "stonecutter",
+      "buildTime": 16,
+      "from": [
+        {
+          "material": "coral",
+          "amount": 4
+        }
+      ],
+      "to": [
+        {
+          "material": "limestone",
+          "amount": 3
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "path-tile",
+      "name": "Path Tile",
+      "workstation": "stone-workshop",
+      "buildTime": 32,
+      "from": [
+        {
+          "material": "pebble",
+          "amount": 10
+        },
+        {
+          "material": "limestone",
+          "amount": 5
+        }
+      ],
+      "to": [
+        {
+          "material": "path-tile",
+          "amount": 5
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "pebble",
+      "name": "Pebble",
+      "workstation": "stonecutter",
+      "buildTime": 32,
+      "from": [
+        {
+          "material": "stone",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "pebble",
+          "amount": 2
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "quartz-harvesting",
+      "name": "Quartz Harvesting",
+      "workstation": "drill",
+      "buildTime": 2,
+      "from": [],
+      "to": [
+        {
+          "material": "quartz",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "quartz",
+      "name": "Quartz",
+      "workstation": "drill",
+      "buildTime": 8,
+      "from": [
+        {
+          "material": "limestone",
+          "amount": 3
+        }
+      ],
+      "to": [
+        {
+          "material": "quartz",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": true
+    },
+    {
+      "id": "small-vial",
+      "name": "Small Vial",
+      "workstation": "furnace",
+      "buildTime": 32,
+      "from": [
+        {
+          "material": "quartz",
+          "amount": 4
+        }
+      ],
+      "to": [
+        {
+          "material": "small-vial",
+          "amount": 2
+        }
+      ],
+      "fuelRequired": true
+    },
+    {
+      "id": "stone-harvesting",
+      "name": "Stone Harvesting",
+      "workstation": "drill",
+      "buildTime": 2,
+      "from": [],
+      "to": [
+        {
+          "material": "stone",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "stone",
+      "name": "Stone",
+      "workstation": "stonecutter",
+      "buildTime": 8,
+      "from": [
+        {
+          "material": "limestone",
+          "amount": 4
+        }
+      ],
+      "to": [
+        {
+          "material": "stone",
+          "amount": 2
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "stone-plate",
+      "name": "Stone Plate",
+      "workstation": "stonecutter",
+      "buildTime": 32,
+      "from": [
+        {
+          "material": "stone",
+          "amount": 2
+        }
+      ],
+      "to": [
+        {
+          "material": "stone-plate",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "stone-spike",
+      "name": "Stone Spike",
+      "workstation": "stone-workshop",
+      "buildTime": 16,
+      "from": [
+        {
+          "material": "wooden-blade",
+          "amount": 1
+        },
+        {
+          "material": "stone-plate",
+          "amount": 4
+        }
+      ],
+      "to": [
+        {
+          "material": "stone-spike",
+          "amount": 4
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "stone-wheel",
+      "name": "Stone Wheel",
+      "workstation": "stone-workshop",
+      "buildTime": 16,
+      "from": [
+        {
+          "material": "path-tile",
+          "amount": 4
+        },
+        {
+          "material": "stone-plate",
+          "amount": 2
+        }
+      ],
+      "to": [
+        {
+          "material": "stone-wheel",
+          "amount": 2
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "clump-dividing",
+      "name": "Clump Dividing",
+      "workstation": "cutter",
+      "buildTime": 128,
+      "from": [
+        {
+          "material": "aetheric-clump",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "aetheric-pellet",
+          "amount": 6
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "pellet-refining",
+      "name": "Pellet Refining",
+      "workstation": "aetheric-distiller",
+      "buildTime": 48,
+      "from": [
+        {
+          "material": "aetheric-pellet",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "aether-shard",
+          "amount": 6
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "raw-distillation",
+      "name": "Raw Distillation",
+      "workstation": "aetheric-distiller",
+      "buildTime": 48,
+      "from": [
+        {
+          "material": "raw-aether",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "aether-shard",
+          "amount": 6
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "refined-distillation",
+      "name": "Refined Distillation",
+      "workstation": "aetheric-distiller",
+      "buildTime": 128,
+      "from": [
+        {
+          "material": "refined-aether",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "aether-shard",
+          "amount": 30
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "miasma-vial",
+      "name": "Miasma Vial",
+      "workstation": "miasma-collector",
+      "buildTime": 16,
+      "from": [
+        {
+          "material": "small-vial",
+          "amount": 2
+        },
+        {
+          "material": "miasma",
+          "amount": 2
+        }
+      ],
+      "to": [
+        {
+          "material": "miasma-vial",
+          "amount": 2
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "miasma-transmutation",
+      "name": "Miasma Transmutation",
+      "workstation": "alchemy-lab",
+      "buildTime": 48,
+      "from": [
+        {
+          "material": "miasma-vial",
+          "amount": 2
+        },
+        {
+          "material": "aether-shard",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "raw-aether",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "aether-refinement",
+      "name": "Aether Refinement",
+      "workstation": "alchemy-lab",
+      "buildTime": 64,
+      "from": [
+        {
+          "material": "raw-aether",
+          "amount": 4
+        },
+        {
+          "material": "big-vial",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "refined-aether",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "blue-paint",
+      "name": "Blue Paint",
+      "workstation": "cutter",
+      "buildTime": 16,
+      "from": [
+        {
+          "material": "quartz",
+          "amount": 5
+        }
+      ],
+      "to": [
+        {
+          "material": "blue-paint",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "turpentine",
+      "name": "Turpentine",
+      "workstation": "cutter",
+      "buildTime": 16,
+      "from": [
+        {
+          "material": "wooden-log",
+          "amount": 5
+        }
+      ],
+      "to": [
+        {
+          "material": "turpentine",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "red-paint",
+      "name": "Red Paint",
+      "workstation": "cutter",
+      "buildTime": 16,
+      "from": [
+        {
+          "material": "tree-bark",
+          "amount": 5
+        }
+      ],
+      "to": [
+        {
+          "material": "red-paint",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "yellow-paint",
+      "name": "Yellow Paint",
+      "workstation": "cutter",
+      "buildTime": 16,
+      "from": [
+        {
+          "material": "leaves",
+          "amount": 5
+        }
+      ],
+      "to": [
+        {
+          "material": "yellow-paint",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "black-paint",
+      "name": "Black Paint",
+      "workstation": "cutter",
+      "buildTime": 16,
+      "from": [
+        {
+          "material": "pebble",
+          "amount": 5
+        }
+      ],
+      "to": [
+        {
+          "material": "black-paint",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "white-paint",
+      "name": "White Paint",
+      "workstation": "cutter",
+      "buildTime": 16,
+      "from": [
+        {
+          "material": "limestone",
+          "amount": 5
+        }
+      ],
+      "to": [
+        {
+          "material": "white-paint",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "green-paint",
+      "name": "Green Paint",
+      "workstation": "stone-workshop",
+      "buildTime": 16,
+      "from": [
+        {
+          "material": "black-paint",
+          "amount": 1
+        },
+        {
+          "material": "yellow-paint",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "green-paint",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "orange-paint",
+      "name": "Orange Paint",
+      "workstation": "stone-workshop",
+      "buildTime": 16,
+      "from": [
+        {
+          "material": "red-paint",
+          "amount": 1
+        },
+        {
+          "material": "yellow-paint",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "orange-paint",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    },
+    {
+      "id": "purple-paint",
+      "name": "Purple Paint",
+      "workstation": "stone-workshop",
+      "buildTime": 16,
+      "from": [
+        {
+          "material": "red-paint",
+          "amount": 1
+        },
+        {
+          "material": "blue-paint",
+          "amount": 1
+        }
+      ],
+      "to": [
+        {
+          "material": "purple-paint",
+          "amount": 1
+        }
+      ],
+      "fuelRequired": false
+    }
+  ],
+  "material": [
+    {
+      "category": "woodland-sparks",
+      "id": "carry-spark-block",
+      "name": "Carry Spark",
+      "craftable": true
+    },
+    {
+      "category": "woodland-sparks",
+      "id": "stumpy-spark-block",
+      "name": "Stumpy Spark",
+      "craftable": true
+    },
+    {
+      "category": "woodland-sparks",
+      "id": "loamy-spark-block",
+      "name": "Loamy Spark",
+      "craftable": true
+    },
+    {
+      "category": "woodland-sparks",
+      "id": "crafty-spark-block",
+      "name": "Crafty Spark",
+      "craftable": true
+    },
+    {
+      "category": "woodland-sparks",
+      "id": "choppy-spark-block",
+      "name": "Choppy Spark",
+      "craftable": true
+    },
+    {
+      "category": "mountain-sparks",
+      "id": "rocky-spark-block",
+      "name": "Rocky Spark",
+      "craftable": true
+    },
+    {
+      "category": "mountain-sparks",
+      "id": "scouty-spark-block",
+      "name": "Scouty Spark",
+      "craftable": true
+    },
+    {
+      "category": "mountain-sparks",
+      "id": "hauling-spark-block",
+      "name": "Hauling Spark",
+      "craftable": true
+    },
+    {
+      "category": "mountain-sparks",
+      "id": "boomy-spark-block",
+      "name": "Boomy Spark",
+      "craftable": true
+    },
+    {
+      "category": "mountain-sparks",
+      "id": "puffy-spark-block",
+      "name": "Puffy Spark",
+      "craftable": true
+    },
+    {
+      "category": "mountain-sparks",
+      "id": "slashy-spark-block",
+      "name": "Slashy Spark",
+      "craftable": true
+    },
+    {
+      "category": "mountain-sparks",
+      "id": "crashy-spark-block",
+      "name": "Crashy Spark",
+      "craftable": true
+    },
+    {
+      "category": "woodland-items",
+      "id": "beelephant-carapace",
+      "name": "Beelephant Carapace",
+      "craftable": false
+    },
+    {
+      "category": "woodland-items",
+      "id": "tree-bark",
+      "name": "Tree Bark",
+      "craftable": true
+    },
+    {
+      "category": "woodland-items",
+      "id": "coal",
+      "name": "Coal",
+      "craftable": true
+    },
+    {
+      "category": "woodland-items",
+      "id": "mantis-stag-antler",
+      "name": "Mantis Stag Antler",
+      "craftable": false
+    },
+    {
+      "category": "woodland-items",
+      "id": "fabric",
+      "name": "Fabric",
+      "craftable": true
+    },
+    {
+      "category": "woodland-items",
+      "id": "fertiliser",
+      "name": "Fertiliser",
+      "craftable": true
+    },
+    {
+      "category": "woodland-items",
+      "id": "ladder",
+      "name": "Ladder",
+      "craftable": true
+    },
+    {
+      "category": "woodland-items",
+      "id": "leaves",
+      "name": "Leaves",
+      "craftable": true
+    },
+    {
+      "category": "woodland-items",
+      "id": "wooden-log",
+      "name": "Wooden Log",
+      "craftable": true
+    },
+    {
+      "category": "woodland-items",
+      "id": "sawn-timber",
+      "name": "Sawn Timber",
+      "craftable": true
+    },
+    {
+      "category": "woodland-items",
+      "id": "wooden-panel",
+      "name": "Wooden Panel",
+      "craftable": true
+    },
+    {
+      "category": "woodland-items",
+      "id": "rope",
+      "name": "Rope",
+      "craftable": true
+    },
+    {
+      "category": "woodland-items",
+      "id": "wooden-blade",
+      "name": "Wooden Blade",
+      "craftable": true
+    },
+    {
+      "category": "mountain-items",
+      "id": "big-vial",
+      "name": "Big Vial",
+      "craftable": true
+    },
+    {
+      "category": "mountain-items",
+      "id": "coral",
+      "name": "Coral",
+      "craftable": false
+    },
+    {
+      "category": "mountain-items",
+      "id": "dowsing-stone",
+      "name": "Dowsing Stone",
+      "craftable": true
+    },
+    {
+      "category": "mountain-items",
+      "id": "frowl-sac",
+      "name": "Frowl Sac",
+      "craftable": false
+    },
+    {
+      "category": "mountain-items",
+      "id": "pengus-tendon",
+      "name": "Pengus Tendon",
+      "craftable": false
+    },
+    {
+      "category": "mountain-items",
+      "id": "rock-teron-shell",
+      "name": "Rock Teron Shell",
+      "craftable": false
+    },
+    {
+      "category": "mountain-items",
+      "id": "squilican-tube",
+      "name": "Squilican Tube",
+      "craftable": false
+    },
+    {
+      "category": "mountain-items",
+      "id": "explosives",
+      "name": "Explosives",
+      "craftable": true
+    },
+    {
+      "category": "mountain-items",
+      "id": "fluted-coral",
+      "name": "Fluted Coral",
+      "craftable": false
+    },
+    {
+      "category": "mountain-items",
+      "id": "limestone",
+      "name": "Limestone",
+      "craftable": true
+    },
+    {
+      "category": "mountain-items",
+      "id": "path-tile",
+      "name": "Path Tile",
+      "craftable": true
+    },
+    {
+      "category": "mountain-items",
+      "id": "pebble",
+      "name": "Pebble",
+      "craftable": true
+    },
+    {
+      "category": "mountain-items",
+      "id": "quartz",
+      "name": "Quartz",
+      "craftable": true
+    },
+    {
+      "category": "mountain-items",
+      "id": "small-vial",
+      "name": "Small Vial",
+      "craftable": true
+    },
+    {
+      "category": "mountain-items",
+      "id": "stone",
+      "name": "Stone",
+      "craftable": true
+    },
+    {
+      "category": "mountain-items",
+      "id": "stone-plate",
+      "name": "Stone Plate",
+      "craftable": true
+    },
+    {
+      "category": "mountain-items",
+      "id": "stone-spike",
+      "name": "Stone Spike",
+      "craftable": true
+    },
+    {
+      "category": "mountain-items",
+      "id": "stone-wheel",
+      "name": "Stone Wheel",
+      "craftable": true
+    },
+    {
+      "category": "magic-items",
+      "id": "aetheric-clump",
+      "name": "Aetheric Clump",
+      "craftable": false
+    },
+    {
+      "category": "magic-items",
+      "id": "aetheric-pellet",
+      "name": "Aetheric Pellet",
+      "craftable": true
+    },
+    {
+      "category": "magic-items",
+      "id": "aether-shard",
+      "name": "Aether Shard",
+      "craftable": true
+    },
+    {
+      "category": "magic-items",
+      "id": "miasma-vial",
+      "name": "Miasma Vial",
+      "craftable": true
+    },
+    {
+      "category": "magic-items",
+      "id": "raw-aether",
+      "name": "Raw Aether",
+      "craftable": true
+    },
+    {
+      "category": "magic-items",
+      "id": "refined-aether",
+      "name": "Refined Aether",
+      "craftable": true
+    },
+    {
+      "category": "magic-items",
+      "id": "miasma",
+      "name": "Miasma",
+      "craftable": false
+    },
+    {
+      "category": "woodland-sparks",
+      "id": "arty-spark-block",
+      "name": "Arty Spark",
+      "craftable": true
+    },
+    {
+      "category": "miscellaneous",
+      "id": "blue-paint",
+      "name": "Blue Paint",
+      "craftable": true
+    },
+    {
+      "category": "miscellaneous",
+      "id": "turpentine",
+      "name": "Turpentine",
+      "craftable": true
+    },
+    {
+      "category": "miscellaneous",
+      "id": "red-paint",
+      "name": "Red Paint",
+      "craftable": true
+    },
+    {
+      "category": "miscellaneous",
+      "id": "aether-residue",
+      "name": "Aether Residue",
+      "craftable": false
+    },
+    {
+      "category": "miscellaneous",
+      "id": "yellow-paint",
+      "name": "Yellow Paint",
+      "craftable": true
+    },
+    {
+      "category": "miscellaneous",
+      "id": "black-paint",
+      "name": "Black Paint",
+      "craftable": true
+    },
+    {
+      "category": "miscellaneous",
+      "id": "white-paint",
+      "name": "White Paint",
+      "craftable": true
+    },
+    {
+      "category": "miscellaneous",
+      "id": "green-paint",
+      "name": "Green Paint",
+      "craftable": true
+    },
+    {
+      "category": "miscellaneous",
+      "id": "orange-paint",
+      "name": "Orange Paint",
+      "craftable": true
+    },
+    {
+      "category": "miscellaneous",
+      "id": "purple-paint",
+      "name": "Purple Paint",
+      "craftable": true
+    }
+  ],
+  "fuel": [
+    {
+      "id": "tree-bark",
+      "name": "Tree Bark",
+      "amount": 12
+    },
+    {
+      "id": "coal",
+      "name": "Coal",
+      "amount": 2
+    },
+    {
+      "id": "fabric",
+      "name": "Fabric",
+      "amount": 4
+    },
+    {
+      "id": "fertiliser",
+      "name": "Fertiliser",
+      "amount": 7.5
+    },
+    {
+      "id": "ladder",
+      "name": "Ladder",
+      "amount": 3
+    },
+    {
+      "id": "leaves",
+      "name": "Leaves",
+      "amount": 12
+    },
+    {
+      "id": "wooden-log",
+      "name": "Wooden Log",
+      "amount": 12
+    },
+    {
+      "id": "sawn-timber",
+      "name": "Sawn Timber",
+      "amount": 7.5
+    },
+    {
+      "id": "wooden-panel",
+      "name": "Wooden Panel",
+      "amount": 4
+    },
+    {
+      "id": "rope",
+      "name": "Rope",
+      "amount": 7.5
+    },
+    {
+      "id": "wooden-blade",
+      "name": "Wooden Blade",
+      "amount": 3
+    },
+    {
+      "id": "explosives",
+      "name": "Explosives",
+      "amount": 3
+    }
+  ]
+}
