@@ -80,7 +80,6 @@ select {
 
 main {
   min-width: 0;
-  overflow-x: auto;
 }
 
 button,
@@ -253,6 +252,11 @@ aside {
   padding-left: 22px;
 }
 
+/* Safety net for very deep trees; kept on the tree (not <main>) so the sticky tabs still work. */
+.tree.root {
+  overflow-x: auto;
+}
+
 .tree.root > .branch {
   margin-bottom: 14px;
 }
@@ -402,7 +406,8 @@ aside {
 .node select {
   font-size: 12px;
   padding: 2px 6px;
-  max-width: 260px;
+  max-width: min(260px, 100%);
+  min-width: 0;
 }
 
 /* ---------- Tables ---------- */
@@ -480,4 +485,336 @@ th {
 footer {
   margin-top: 24px;
   text-align: center;
+}
+
+/* ---------- Build plan (flow diagram) ---------- */
+
+.station-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.station-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.station-chip select {
+  font-size: 12px;
+  padding: 2px 4px;
+  max-width: 128px;
+}
+
+.flow-viewport.panning {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.toolbar button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.flow-viewport {
+  overflow: auto;
+  cursor: grab;
+  max-height: 78vh;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.flow-sizer {
+  position: relative;
+}
+
+.flow-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+}
+
+.flow-edges {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+
+.edge {
+  fill: none;
+  stroke: var(--line);
+  transition: opacity 0.12s;
+}
+
+.edge.hot {
+  stroke: var(--accent);
+}
+
+.edge.fuel {
+  stroke: var(--fuel);
+  stroke-dasharray: 6 4;
+}
+
+.edge.dim,
+.edge-label.dim,
+.flow-card.dim {
+  opacity: 0.18;
+}
+
+.arrowhead {
+  fill: var(--line);
+}
+
+.edge-label {
+  position: absolute;
+  transform: translate(-100%, -105%);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 5px;
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: auto;
+}
+
+.edge-label.fuel {
+  color: var(--fuel);
+}
+
+.flow-card {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 10px;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+  transition: opacity 0.12s;
+}
+
+.flow-card:hover,
+.flow-card.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.flow-card.kind-raw {
+  background: var(--raw-soft);
+}
+
+.flow-card.kind-loop {
+  background: var(--loop-soft);
+  border-style: dashed;
+}
+
+.flow-card.kind-target {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.card-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+}
+
+.tag.target {
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+.flow-details {
+  margin-top: 14px;
+}
+
+.flow-details h4 {
+  margin: 8px 0 4px;
+  font-size: 13px;
+}
+
+.detail-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 6px 0;
+}
+
+.detail-controls label {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
+.flow-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+}
+
+/* ---------- Sticky tabs, collapsible settings ---------- */
+
+.tabs {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 6px 0;
+  background: var(--bg);
+}
+
+.settings summary {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.settings summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings summary h2::before {
+  content: "▸ ";
+  color: var(--muted);
+}
+
+.settings[open] summary h2::before {
+  content: "▾ ";
+}
+
+.settings[open] summary {
+  margin-bottom: 10px;
+}
+
+.settings summary h2 {
+  margin: 0;
+}
+
+/* ---------- Phones ---------- */
+
+@media (max-width: 600px) {
+  .app {
+    padding: 10px;
+  }
+
+  .top {
+    margin-bottom: 10px;
+  }
+
+  aside {
+    gap: 10px;
+  }
+
+  .card {
+    padding: 10px 12px;
+  }
+
+  /* Tree: shallow indent so deep chains still fit. */
+  .tree .tree {
+    margin-left: 6px;
+    padding-left: 12px;
+  }
+
+  .tree .tree > .branch::before,
+  .tree .tree > .branch::after {
+    left: -12px;
+  }
+
+  .tree .tree > .branch::after {
+    width: 10px;
+  }
+
+  .node {
+    gap: 6px;
+    padding: 6px 8px;
+  }
+
+  .node .icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .node-machine .icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .twisty {
+    width: 12px;
+  }
+
+  .toolbar .muted.small {
+    display: none;
+  }
+
+  /* Inputs & cost: let rows wrap instead of overflowing. */
+  .two-col table,
+  .two-col tbody,
+  .two-col tr {
+    display: block;
+  }
+
+  .two-col tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px 8px;
+    padding: 6px 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .two-col td {
+    display: block;
+    padding: 0;
+    border: none;
+  }
+
+  .two-col td:last-child:has(select) {
+    flex-basis: 100%;
+  }
+
+  .two-col select {
+    width: 100%;
+  }
+
+  .flow-viewport {
+    max-height: 70vh;
+    padding: 8px;
+  }
+
+  .station-chip select {
+    max-width: 110px;
+  }
 }

@@ -125,6 +125,29 @@ export interface TreeNode {
   truncated?: boolean;
 }
 
+/**
+ * A node in the build diagram: a group of machines running one recipe, a raw supply, an input
+ * supplied separately to avoid a loop, or a target.
+ */
+export interface FlowNode {
+  id: string;
+  kind: "recipe" | "raw" | "loop" | "target";
+  material: string;
+  /** For recipe nodes. */
+  line?: RecipePlan;
+  /** Items/min supplied (raw, loop) or delivered (target). */
+  rate: number;
+}
+
+/** Items moving from one diagram node to another. */
+export interface FlowEdge {
+  from: string;
+  to: string;
+  material: string;
+  rate: number;
+  fuel: boolean;
+}
+
 export interface Plan {
   materials: Map<string, MaterialPlan>;
   recipes: Map<string, RecipePlan>;
@@ -135,6 +158,8 @@ export interface Plan {
   stations: StationSummary[];
   buildCost: { material: string; amount: number }[];
   trees: TreeNode[];
+  /** Machine groups and what feeds what, for the build diagram. */
+  flow: { nodes: FlowNode[]; edges: FlowEdge[] };
   warnings: string[];
 }
 
@@ -148,7 +173,14 @@ interface Totals {
   raw: Map<string, number>;
   /** material -> items/min supplied from outside to avoid a loop */
   loop: Map<string, number>;
+  /** edgeKey(from, to, material, fuel) -> items/min; from/to are flow node ids */
+  edges: Map<string, number>;
 }
+
+const SEP = "\u0000";
+const edgeKey = (from: string, to: string, material: string, fuel: boolean) =>
+  [from, to, material, fuel ? "1" : "0"].join(SEP);
+const emptyTotals = (): Totals => ({ crafts: new Map(), runFor: new Map(), raw: new Map(), loop: new Map(), edges: new Map() });
 
 const EPS = 1e-9;
 /** The tree view is capped for display; plan totals are always exact. */
@@ -156,6 +188,15 @@ const TREE_NODE_BUDGET = 1500;
 const TREE_MAX_DEPTH = 30;
 
 const add = (m: Map<string, number>, k: string, v: number) => m.set(k, (m.get(k) ?? 0) + v);
+
+/** target += source * scale */
+function mergeInto(target: Totals, source: Totals, scale: number) {
+  for (const [k, v] of source.crafts) add(target.crafts, k, v * scale);
+  for (const [k, v] of source.runFor) if (!target.runFor.has(k)) target.runFor.set(k, v);
+  for (const [k, v] of source.raw) add(target.raw, k, v * scale);
+  for (const [k, v] of source.loop) add(target.loop, k, v * scale);
+  for (const [k, v] of source.edges) add(target.edges, k, v * scale);
+}
 
 export class Solver {
   constructor(
@@ -263,7 +304,7 @@ export class Solver {
     const hit = this.unitCache.get(key);
     if (hit) return hit;
 
-    const t: Totals = { crafts: new Map(), runFor: new Map(), raw: new Map(), loop: new Map() };
+    const t = emptyTotals();
     const recipe = this.recipeFor(material);
     if (!recipe) {
       t.raw.set(material, 1);
@@ -277,13 +318,13 @@ export class Solver {
         if (next.has(e.material)) {
           add(t.raw, e.material, need);
           add(t.loop, e.material, need);
+          add(t.edges, edgeKey(`loop:${e.material}`, recipe.id, e.material, e.fuel), need);
           continue;
         }
+        const childRecipe = this.recipeFor(e.material);
+        add(t.edges, edgeKey(childRecipe ? childRecipe.id : `raw:${e.material}`, recipe.id, e.material, e.fuel), need);
         const sub = this.unit(e.material, next);
-        for (const [k, v] of sub.crafts) add(t.crafts, k, v * need);
-        for (const [k, v] of sub.runFor) if (!t.runFor.has(k)) t.runFor.set(k, v);
-        for (const [k, v] of sub.raw) add(t.raw, k, v * need);
-        for (const [k, v] of sub.loop) add(t.loop, k, v * need);
+        mergeInto(t, sub, need);
       }
     }
     this.unitCache.set(key, t);
@@ -350,18 +391,16 @@ export class Solver {
     const warnings: string[] = [];
     const targets = this.cfg.targets.filter((t) => this.data.materials.has(t.material));
     const demand = new Map<string, number>();
-    const totals: Totals = { crafts: new Map(), runFor: new Map(), raw: new Map(), loop: new Map() };
+    const totals = emptyTotals();
     for (const t of targets) {
       if (t.mode === "machines" && !this.recipeFor(t.material)) {
         warnings.push(`${this.name(t.material)} has no recipe selected, so set its target as a rate.`);
       }
       const rate = this.targetRate(t);
       add(demand, t.material, rate);
-      const u = this.unit(t.material, new Set());
-      for (const [k, v] of u.crafts) add(totals.crafts, k, v * rate);
-      for (const [k, v] of u.runFor) if (!totals.runFor.has(k)) totals.runFor.set(k, v);
-      for (const [k, v] of u.raw) add(totals.raw, k, v * rate);
-      for (const [k, v] of u.loop) add(totals.loop, k, v * rate);
+      mergeInto(totals, this.unit(t.material, new Set()), rate);
+      const r = this.recipeFor(t.material);
+      add(totals.edges, edgeKey(r ? r.id : `raw:${t.material}`, `target:${t.material}`, t.material, false), rate);
     }
 
     const recipes = new Map<string, RecipePlan>();
@@ -462,6 +501,25 @@ export class Solver {
 
     const trees = this.buildTrees(targets.map((t) => ({ material: t.material, rate: this.targetRate(t), id: t.id })));
 
+    // Build diagram: one node per recipe line, raw supply, loop break and target.
+    const flowNodes = new Map<string, FlowNode>();
+    for (const rp of recipes.values()) {
+      flowNodes.set(rp.recipe.id, { id: rp.recipe.id, kind: "recipe", material: rp.primary, line: rp, rate: rp.crafts });
+    }
+    const flowEdges: FlowEdge[] = [];
+    for (const [key, rate] of totals.edges) {
+      if (rate <= EPS) continue;
+      const [from, to, material, fuel] = key.split(SEP);
+      for (const id of [from, to]) {
+        if (flowNodes.has(id)) continue;
+        const [kind, m] = id.split(/:(.*)/s) as ["raw" | "loop" | "target", string];
+        flowNodes.set(id, { id, kind, material: m, rate: 0 });
+      }
+      if (!flowNodes.get(to)!.line) flowNodes.get(to)!.rate += rate;
+      if (!flowNodes.get(from)!.line) flowNodes.get(from)!.rate += rate;
+      flowEdges.push({ from, to, material, rate, fuel: fuel === "1" });
+    }
+
     return {
       materials,
       recipes,
@@ -471,6 +529,7 @@ export class Solver {
       stations,
       buildCost: [...cost].map(([material, amount]) => ({ material, amount })),
       trees,
+      flow: { nodes: [...flowNodes.values()], edges: flowEdges },
       warnings,
     };
   }

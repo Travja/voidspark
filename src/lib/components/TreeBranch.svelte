@@ -80,7 +80,7 @@
           {/if}
         </div>
         {#if node.truncated}
-          <div class="small muted">… inputs not shown (tree too large). The Machines tab includes them.</div>
+          <div class="small muted">… inputs not shown (tree too large). The Build plan includes them.</div>
         {/if}
         {#if node.byproducts.some((b) => b.rate > 1e-9)}
           <div class="node-byproducts small muted" title="Extra output: surplus, not fed into other lines">
