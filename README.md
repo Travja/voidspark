@@ -1,6 +1,8 @@
 # VoidSpark
 
-A production planner for **Oddsparks**, built on the data and model of the PirateSpark calculator.
+A production planner for **Oddsparks**. Recipes, items, and icons come from the
+[Oddsparks Wiki](https://oddsparks.wiki.gg), including the 1.0 content: copper, geodes,
+greenhouses, the Arboretum, and the metal sparks. It started from the PirateSpark calculator.
 
 - **Target output rates.** Ask for items per second, minute, or hour. A target can also be a
   number of machines, as in PirateSpark.
@@ -12,6 +14,9 @@ A production planner for **Oddsparks**, built on the data and model of the Pirat
   shards feeding the miasma → raw aether → shard chain) appear as "loops back" leaves.
 - **Recipe choices.** Pick between recipes, or mark any material as supplied externally,
   directly in the tree.
+- **Byproducts.** Recipes with several outputs (Plant Extractor, Geode Breaker…) are credited
+  for all of them. A material that byproducts already cover needs no machines of its own, and
+  extra output shows up as surplus. Random outputs count at their expected value.
 - **Machines view.** Totals per workstation, rounded up, with load %. Each line shows what it
   consumes and what it feeds.
 - **Inputs & cost.** Raw inputs needed, and the material cost to build every machine.
@@ -24,7 +29,13 @@ npm run dev        # local dev server
 npm test           # solver tests (vitest)
 npm run check      # svelte-check type checking
 npm run build      # static site into build/
+npm run import:wiki  # refresh src/lib/data/oddsparks.json and icons from the wiki
 ```
+
+The importer writes [docs/wiki-import-report.md](docs/wiki-import-report.md), listing every
+judgement call: conflicting wiki entries, excluded buildings, and default recipes. It needs
+network access to `oddsparks.wiki.gg`. Behind an HTTPS proxy, run it with
+`NODE_USE_ENV_PROXY=1`.
 
 Built with SvelteKit 2 and Svelte 5 (runes) using `@sveltejs/adapter-static`. The app is a
 single client-rendered page (`ssr = false`, `prerender = true`) because the plan is kept in
@@ -44,13 +55,16 @@ BASE_PATH=/voidspark npm run build   # then publish build/ (it includes .nojekyl
   [docs/wiki-recipe-audit.md](docs/wiki-recipe-audit.md).
 - Supply-limited stations are capped. The Miasma Collector runs at most 7.5 crafts/min.
 - A fuelled machine burns the chosen fuel's per-minute amount from the game data.
-- Each material's recipe gives a "per unit of output" cost in inputs and fuel. Total
-  production `G` for target demand `d` solves `(I − A)·G = d`, so loops need no special
-  handling. If a loop consumes at least as much as it produces, you get an error instead of
-  a plan.
+- The unknowns are crafts/min per recipe. Each recipe is tied to the material it runs for,
+  and that material's net production (every recipe's outputs, minus inputs and fuel) must
+  meet its demand. That's a linear system, so loops (coal fuelling coal, Fertiliser
+  Enrichment, the aether apple ↔ seed cycle) need no special handling. When byproducts cover
+  a material, its own recipe is switched off. When one recipe is chosen for two of its
+  outputs, the more demanding output drives it.
 - The tree splits each material's production between the branches that consume it. A loop is
   credited to the highest node in the tree that it returns to. Tests check that the branch
-  totals add up to the global totals.
+  totals add up to the global totals. The 1.0 graph is dense, so the tree is built
+  breadth-first with a size limit.
 
 ## Layout
 
@@ -61,14 +75,17 @@ BASE_PATH=/voidspark npm run build   # then publish build/ (it includes .nojekyl
 | `src/lib/engine/data.ts` | Typed access to game data, plus facts the JSON lacks (spark-powered stations) |
 | `src/lib/engine/solver.ts` | Rates, machine counts, loops, trees, station and cost summaries. Framework-free |
 | `src/lib/components/` | Tree, machines, inputs views, and recipe/spark/material pickers |
-| `src/lib/data/oddsparks_0_2.json` | Game data recovered from PirateSpark (game version 0.2.3) |
-| `src/lib/assets/img/` | Material and workstation icons recovered from PirateSpark |
+| `src/lib/data/oddsparks.json` | Game data imported from the wiki (generated, don't hand-edit) |
+| `scripts/import-wiki.mjs` | The wiki importer, including its overrides (excluded buildings, caps, defaults) |
+| `src/lib/assets/img/` | Icons: PirateSpark's originals plus new ones from the wiki |
 | `legacy/piratespark/` | Recovered original calculator source, for reference |
 
 ## Known gaps
 
-- The data covers the original 56 recipes, checked against the wiki on 2026-11-01. About 100
-  1.0 recipes (copper, geodes, greenhouses…) aren't included yet. See
-  [docs/wiki-recipe-audit.md](docs/wiki-recipe-audit.md).
-- Recipes are treated as single-output. Byproducts and randomised outputs aren't credited.
-- Temperature (heaters/coolers) isn't modelled.
+- Temperature (heaters/coolers) isn't modelled. "Overclocked" recipes come in as alternates.
+- Greenhouse and Arboretum recipes have growth `cycles` that the wiki doesn't explain, so they
+  are treated as ordinary recipes and tagged "≈ growth".
+- The Ancient Printer/Generator/Greenhouse, Tailor's Tent, Aetheric Converter Feeder, and the
+  shrines are left out. They are fixed ruins, cosmetic, or one-off repairs.
+- The wiki is missing region categories for most 1.0 items (they're grouped under
+  Miscellaneous) and a build cost for the Spark Workshop.

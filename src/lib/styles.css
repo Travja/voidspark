@@ -376,6 +376,30 @@ aside {
   border: 1px solid var(--raw);
 }
 
+.tag.byproduct,
+.tag.surplus {
+  color: var(--raw);
+  background: var(--raw-soft);
+}
+
+.tag.chance,
+.tag.approx {
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.kind-byproduct > .node {
+  background: var(--raw-soft);
+  border-style: dashed;
+}
+
+.node-byproducts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
 .tag.loop {
   color: var(--loop);
   border: 1px solid var(--loop);

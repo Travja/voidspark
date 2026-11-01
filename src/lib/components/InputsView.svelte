@@ -8,6 +8,7 @@
 
   let { plan, solver, app }: { plan: Plan; solver: Solver; app: AppState } = $props();
   const unit = $derived(app.cfg.unit);
+  const u = $derived(UNIT_FACTOR[unit]);
 </script>
 
 <div class="two-col">
@@ -20,8 +21,23 @@
         {#each plan.rawInputs as r (r.material)}
           <tr>
             <td><span class="cell-mat"><Icon id={r.material} size={24} /> {displayName(r.material)}</span></td>
-            <td class="num">{fmt(r.gross * UNIT_FACTOR[unit])}/{unit}</td>
+            <td class="num">{fmt(r.supplied * u)}/{unit}</td>
             <td><RecipePicker material={r.material} {solver} {app} /></td>
+          </tr>
+        {/each}
+      </tbody>
+    </table>
+  </section>
+  <section class="card">
+    <h3>Surplus</h3>
+    <p class="muted small">Byproducts made beyond what the plan uses. Store them, burn them, or sell them.</p>
+    {#if !plan.surplus.length}<p class="muted">None.</p>{/if}
+    <table>
+      <tbody>
+        {#each plan.surplus as r (r.material)}
+          <tr>
+            <td><span class="cell-mat"><Icon id={r.material} size={24} /> {displayName(r.material)}</span></td>
+            <td class="num">{fmt(r.surplus * u)}/{unit}</td>
           </tr>
         {/each}
       </tbody>
@@ -30,6 +46,7 @@
   <section class="card">
     <h3>Build cost</h3>
     <p class="muted small">To place every machine in the Machines tab (rounded up).</p>
+    {#if !plan.buildCost.length}<p class="muted">No build costs listed on the wiki for these machines.</p>{/if}
     <table>
       <tbody>
         {#each plan.buildCost as c (c.material)}

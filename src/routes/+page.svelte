@@ -54,7 +54,7 @@
     <Icon id="crafty-spark-block" size={36} />
     <div>
       <h1>VoidSpark</h1>
-      <div class="muted small">Oddsparks production planner · game data v{GAME.version}</div>
+      <div class="muted small">Oddsparks production planner · data from the Oddsparks Wiki ({GAME.version.replace("wiki ", "")})</div>
     </div>
   </header>
 
@@ -147,7 +147,7 @@
     </main>
   </div>
   <footer class="muted small">
-    Built on the recovered <a href="https://github.com/Travja/voidspark/tree/master/legacy/piratespark">PirateSpark</a>
-    data and model. Recipes checked against the <a href="https://oddsparks.wiki.gg">Oddsparks Wiki</a>; 1.0-only content is not included yet.
+    Recipes, items and icons from the <a href="https://oddsparks.wiki.gg">Oddsparks Wiki</a> (CC BY-SA). Built on the
+    recovered <a href="https://github.com/Travja/voidspark/tree/master/legacy/piratespark">PirateSpark</a> calculator.
   </footer>
 </div>

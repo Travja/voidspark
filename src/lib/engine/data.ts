@@ -1,8 +1,13 @@
-import raw from "../data/oddsparks_0_2.json";
+import raw from "../data/oddsparks.json";
 
 export interface Amount {
   material: string;
   amount: number;
+}
+
+export interface Output extends Amount {
+  /** Probability of this output per craft (randomised recipes). Absent means always. */
+  chance?: number;
 }
 
 export interface Recipe {
@@ -13,7 +18,13 @@ export interface Recipe {
   buildTime: number;
   fuelRequired: boolean;
   from: Amount[];
-  to: Amount[];
+  to: Output[];
+  /** Growth cycles (greenhouse / arboretum). The wiki doesn't define it, so rates are approximate. */
+  cycles?: number;
+  /** Preferred temperature from the wiki. Not modelled. */
+  temperature?: string;
+  /** Wiki page the recipe was imported from. */
+  source?: string;
 }
 
 export interface Material {
@@ -21,6 +32,8 @@ export interface Material {
   name: string;
   category: string;
   craftable: boolean;
+  /** Recipe used unless the player picks another. null: supplied externally by default. */
+  defaultRecipe?: string | null;
 }
 
 export interface Workstation {
@@ -28,7 +41,7 @@ export interface Workstation {
   name: string;
   category: string;
   cost: { id: string; amount: number }[];
-  /** False for stations that run without a spark working them. */
+  /** False for stations that run without a spark working them (e.g. the Arboretum). */
   sparkPowered: boolean;
   /** How many sparks can work the station at once. Their speeds add up. */
   sparkSlots: number;
@@ -58,7 +71,7 @@ export interface GameData {
   workstations: Map<string, Workstation>;
   recipes: Recipe[];
   recipesById: Map<string, Recipe>;
-  /** Recipes that produce a material, in data-file order. */
+  /** Recipes that produce a material, best first (the default recipe leads). */
   recipesFor: Map<string, Recipe[]>;
   sparks: SparkType[];
   fuels: FuelOption[];
@@ -79,20 +92,28 @@ export const SECONDS_PER_MINUTE = 60;
  */
 export const DEFAULT_SPARK_SLOTS = 2;
 
-/** Workstations that are not driven by a spark (none known in the current data). */
-const NOT_SPARK_POWERED = new Set<string>();
+/** Expected units of `material` per craft, counting the chance of randomised outputs. */
+export function expectedOutput(recipe: Recipe, material: string): number {
+  return recipe.to.reduce((n, t) => (t.material === material ? n + t.amount * (t.chance ?? 1) : n), 0);
+}
 
-/**
- * Supply caps. Miasma Collector: miasma arrives at 15/min and a craft uses 2, so at most 7.5
- * crafts/min ("production is capped to 8 seconds", oddsparks.wiki.gg/wiki/Miasma_Collector).
- */
-const CRAFT_CAP: Record<string, number> = { "miasma-collector": 7.5 };
+export function inputAmount(recipe: Recipe, material: string): number {
+  return recipe.from.reduce((n, f) => (f.material === material ? n + f.amount : n), 0);
+}
 
 interface RawData {
   version: string;
-  spark: { id: string; name: string; block: string; speed: number }[];
+  spark: SparkType[];
   category: { id: string; name: string }[];
-  workstation: { id: string; name: string; category: string; cost: { id: string; amount: number }[] }[];
+  workstation: {
+    id: string;
+    name: string;
+    category: string;
+    cost: { id: string; amount: number }[];
+    sparkPowered?: boolean;
+    sparkSlots?: number;
+    craftCap?: number;
+  }[];
   process: Recipe[];
   material: Material[];
   fuel: { id: string; name: string; amount: number }[];
@@ -100,14 +121,13 @@ interface RawData {
 
 export function loadGameData(json: RawData = raw as RawData): GameData {
   const materials = new Map(json.material.map((m) => [m.id, m]));
-  const workstations = new Map(
+  const workstations = new Map<string, Workstation>(
     json.workstation.map((w) => [
       w.id,
       {
         ...w,
-        sparkPowered: !NOT_SPARK_POWERED.has(w.id),
-        sparkSlots: DEFAULT_SPARK_SLOTS,
-        craftCap: CRAFT_CAP[w.id],
+        sparkPowered: w.sparkPowered ?? true,
+        sparkSlots: w.sparkSlots ?? DEFAULT_SPARK_SLOTS,
       },
     ]),
   );
@@ -115,9 +135,15 @@ export function loadGameData(json: RawData = raw as RawData): GameData {
   for (const r of json.process) {
     for (const t of r.to) {
       const list = recipesFor.get(t.material) ?? [];
-      list.push(r);
+      if (!list.includes(r)) list.push(r);
       recipesFor.set(t.material, list);
     }
+  }
+  // Default recipe first, then recipes where the material is the main output, then byproducts.
+  for (const [m, list] of recipesFor) {
+    const def = materials.get(m)?.defaultRecipe;
+    const rank = (r: Recipe) => (r.id === def ? 0 : r.to[0].material === m ? 1 : 2);
+    list.sort((a, b) => rank(a) - rank(b));
   }
   return {
     version: json.version,

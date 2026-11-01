@@ -50,7 +50,17 @@
             ↻ loops back up the tree
           </span>
         {/if}
-        {#if node.kind === "craft" && Math.abs(node.gross - node.rate) > 1e-6}
+        {#if node.kind === "byproduct"}
+          <span class="tag byproduct" title="Covered by the extra output of another recipe in this plan">
+            ♻ byproduct of another line
+          </span>
+        {/if}
+        {#if node.kind === "craft" && node.fromByproducts > 1e-6}
+          <span class="muted small" title="Covered by the extra output of another recipe in this plan">
+            ({fmt(node.fromByproducts * u)}/{unit} from byproducts)
+          </span>
+        {/if}
+        {#if node.kind === "craft" && Math.abs(node.gross - (node.rate - node.fromByproducts)) > 1e-6}
           <span class="muted small" title="Gross output including what gets fed back into the loop">
             (makes {fmt(node.gross * u)}/{unit})
           </span>
@@ -70,8 +80,27 @@
           </span>
           <CrewPicker workstation={node.recipe.workstation} {app} />
           <RecipePicker material={node.material} {solver} {app} />
+          {#if node.recipe.to.some((t) => t.chance)}
+            <span class="tag chance" title="Randomised outputs counted at their expected value">🎲 random</span>
+          {/if}
+          {#if node.recipe.cycles}
+            <span
+              class="tag approx"
+              title="Growth recipe ({node.recipe.cycles} cycles); the wiki doesn't say exactly how cycles work, so this rate is approximate"
+            >
+              ≈ growth
+            </span>
+          {/if}
         </div>
-      {:else if node.kind === "raw"}
+        {#if node.byproducts.some((b) => b.rate > 1e-9)}
+          <div class="node-byproducts small muted">
+            also makes
+            {#each node.byproducts as b (b.material)}
+              <span class="cell-mat"><Icon id={b.material} size={16} /> {displayName(b.material)} {fmt(b.rate * u)}/{unit}</span>
+            {/each}
+          </div>
+        {/if}
+      {:else if node.kind === "raw" || node.kind === "byproduct"}
         <div class="node-machine">
           <RecipePicker material={node.material} {solver} {app} />
         </div>

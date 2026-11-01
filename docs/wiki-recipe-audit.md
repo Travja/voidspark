@@ -26,18 +26,9 @@ errors below. The wiki's `duration` equals our `buildTime` for every recipe.
 - The second "Raw Distillation" entry (4 shards) belongs to the Aetheric Distiller **Shrine**, a
   different building. The regular distiller makes 6.
 
-## Not modelled yet (1.0 content)
+## 1.0 content
 
-- **100 recipes** use buildings or items we don't have.
-  - 14 new buildings: Aetheric Collider, Aetheric Converter Feeder, Ancient Generator,
-    Ancient Greenhouse, Ancient Printer, Arboretum, Geode Breaker, Greenhouse, Ore Miner,
-    Plant Extractor, Spark Workshop, Tailor's Tent, Crafty Spark Shrine, and the Aetheric
-    Distiller Shrine.
-  - 44 new items: the copper chain, geodes, stellar/frozen materials, corrupted/grey aether,
-    the Drilly, Scrubby, Freezing, and Burning sparks, and more.
-- **3 new alternates** for existing items: Stumpy Spark at the Spark Workstation, Slashy Spark
-  at the Spark Workbench, and Coral at the Stonecutter.
-- **New mechanics** the solver doesn't model:
-  - 24 recipes have multiple outputs, and 6 have randomised outputs.
-  - 133 recipes list a `temperature`. Heaters and coolers speed up some stations, e.g.
-    "Overclocked Wood Harvesting" at 1.33 s.
+Imported on 2026-11-01 by `scripts/import-wiki.mjs`: 110 recipes, 102 items, 21 workstations.
+See [wiki-import-report.md](wiki-import-report.md) for how each conflicting or excluded wiki
+entry was handled. The solver credits multi-output and randomised recipes. Temperature isn't
+modelled, and growth `cycles` are approximate.

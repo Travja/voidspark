@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "prepare": "svelte-kit sync || echo ''",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "import:wiki": "node scripts/import-wiki.mjs"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.10",
