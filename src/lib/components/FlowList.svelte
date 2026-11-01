@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Flow } from "../engine/solver";
-  import { fmt } from "../format";
-  import { UNIT_FACTOR, type RateUnit } from "../state.svelte";
+  import { fmtRateShort } from "../format";
+  import type { RateUnit } from "../state.svelte";
   import Icon from "./Icon.svelte";
   import { displayName } from "./icons";
 
@@ -13,7 +13,7 @@
     {#each flows as f, i (`${f.material}${f.fuel}${i}`)}
       <li>
         <Icon id={f.material} size={18} />
-        {displayName(f.material)} <span class="rate">{fmt(f.rate * UNIT_FACTOR[unit])}</span>
+        {displayName(f.material)} <span class="rate" title="{+f.rate.toPrecision(4)}/min">{fmtRateShort(f.rate, unit)}</span>
         {#if f.fuel}<span title="as fuel"> 🔥</span>{/if}
       </li>
     {/each}

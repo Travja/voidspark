@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Flow, Plan, Solver } from "../engine/solver";
-  import { fmt } from "../format";
-  import { UNIT_FACTOR, type AppState } from "../state.svelte";
+  import { fmt, fmtLoad, fmtRateShort } from "../format";
+  import type { AppState } from "../state.svelte";
   import CrewPicker from "./CrewPicker.svelte";
   import FlowList from "./FlowList.svelte";
   import Icon from "./Icon.svelte";
@@ -11,7 +11,6 @@
   let { plan, solver, app }: { plan: Plan; solver: Solver; app: AppState } = $props();
 
   const unit = $derived(app.cfg.unit);
-  const u = $derived(UNIT_FACTOR[unit]);
   const total = $derived(plan.stations.reduce((n, s) => n + s.machinesBuilt, 0));
 
   /**
@@ -72,8 +71,8 @@
                 {#if l.recipe.to.some((t) => t.chance)}<div class="tag chance" title="Randomised outputs counted at their expected value">🎲 random</div>{/if}
                 {#if l.recipe.cycles}<div class="tag approx" title="Growth recipe ({l.recipe.cycles} cycles); the wiki doesn't say exactly how cycles work, so this rate is approximate">≈ growth</div>{/if}
               </td>
-              <td class="num"><strong>{l.machinesBuilt}</strong> <span class="muted small">({fmt(l.machines, 2)})</span></td>
-              <td class="num">{l.machinesBuilt ? `${Math.round((l.machines / l.machinesBuilt) * 100)}%` : "–"}</td>
+              <td class="num" title="{fmt(l.machines, 3)} machines exactly"><strong>{l.machinesBuilt}</strong></td>
+              <td class="num">{fmtLoad(l.machines)}</td>
               <td><FlowList flows={l.outputs} {unit} /></td>
               <td><FlowList flows={l.inputs} {unit} /></td>
               <td>
@@ -88,7 +87,7 @@
                       {:else}
                         → <span class="tag surplus">surplus</span>
                       {/if}
-                      <span class="rate">{fmt(f.rate * u)}</span>
+                      <span class="rate" title="{+f.rate.toPrecision(4)}/min">{fmtRateShort(f.rate, unit)}</span>
                       {#if f.fuel}<span title="as fuel"> 🔥</span>{/if}
                     </li>
                   {:else}

@@ -1,14 +1,13 @@
 <script lang="ts">
   import type { Plan, Solver } from "../engine/solver";
-  import { fmt } from "../format";
-  import { UNIT_FACTOR, type AppState } from "../state.svelte";
+  import { fmt, fmtRate } from "../format";
+  import type { AppState } from "../state.svelte";
   import Icon from "./Icon.svelte";
   import { displayName } from "./icons";
   import RecipePicker from "./RecipePicker.svelte";
 
   let { plan, solver, app }: { plan: Plan; solver: Solver; app: AppState } = $props();
   const unit = $derived(app.cfg.unit);
-  const u = $derived(UNIT_FACTOR[unit]);
 </script>
 
 <div class="two-col">
@@ -27,11 +26,11 @@
                   class="tag loop"
                   title="Also made in this plan, but this much is needed further down its own chain. Bring it in separately so the line doesn't loop."
                 >
-                  ↻ {fmt(r.loopSupplied * u)} to avoid a loop
+                  ↻ {fmtRate(r.loopSupplied, unit)} to avoid a loop
                 </div>
               {/if}
             </td>
-            <td class="num">{fmt(r.supplied * u)}/{unit}</td>
+            <td class="num">{fmtRate(r.supplied, unit)}</td>
             <td><RecipePicker material={r.material} {solver} {app} /></td>
           </tr>
         {/each}
@@ -47,7 +46,7 @@
         {#each plan.surplus as r (r.material)}
           <tr>
             <td><span class="cell-mat"><Icon id={r.material} size={24} /> {displayName(r.material)}</span></td>
-            <td class="num">{fmt(r.surplus * u)}/{unit}</td>
+            <td class="num">{fmtRate(r.surplus, unit)}</td>
           </tr>
         {/each}
       </tbody>

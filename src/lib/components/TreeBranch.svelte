@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Solver, TreeNode } from "../engine/solver";
-  import { fmt } from "../format";
-  import { UNIT_FACTOR, type AppState } from "../state.svelte";
+  import { fmt, fmtLoad, fmtRate } from "../format";
+  import type { AppState } from "../state.svelte";
   import Icon from "./Icon.svelte";
   import { displayName } from "./icons";
   import RecipePicker from "./RecipePicker.svelte";
@@ -24,7 +24,6 @@
 
   const isCollapsed = $derived(collapsed.has(node.id));
   const unit = $derived(app.cfg.unit);
-  const u = $derived(UNIT_FACTOR[unit]);
   const built = $derived(Math.ceil(node.machines - 1e-9));
 </script>
 
@@ -42,7 +41,7 @@
     <div class="node-main">
       <div class="node-title">
         <strong>{displayName(node.material)}</strong>
-        <span class="rate">{fmt(node.rate * u)}/{unit}</span>
+        <span class="rate" title="{+node.rate.toPrecision(4)}/min">{fmtRate(node.rate, unit)}</span>
         {#if node.fuel}<span class="tag fuel" title="Burnt as fuel">🔥 fuel</span>{/if}
         {#if node.kind === "raw"}<span class="tag raw">raw input</span>{/if}
         {#if node.kind === "loop"}
@@ -60,7 +59,7 @@
           <span class="machines" title="{fmt(node.machines, 3)} exact">
             {built} × {displayName(node.recipe.workstation)}
           </span>
-          <span class="muted small">({fmt(node.machines, 2)} exact)</span>
+          <span class="muted small" title="{fmt(node.machines, 3)} machines exactly">· {fmtLoad(node.machines)} busy</span>
           <span class="crew">
             {#each node.crew as s, i (i)}
               <Icon id={s.block} size={18} title="{s.name} · {s.speed / 100}×" />
@@ -87,7 +86,7 @@
           <div class="node-byproducts small muted" title="Extra output: surplus, not fed into other lines">
             surplus
             {#each node.byproducts as b (b.material)}
-              <span class="cell-mat"><Icon id={b.material} size={16} /> {displayName(b.material)} {fmt(b.rate * u)}/{unit}</span>
+              <span class="cell-mat"><Icon id={b.material} size={16} /> {displayName(b.material)} {fmtRate(b.rate, unit)}</span>
             {/each}
           </div>
         {/if}
