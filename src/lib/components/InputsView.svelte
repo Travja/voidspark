@@ -20,7 +20,17 @@
       <tbody>
         {#each plan.rawInputs as r (r.material)}
           <tr>
-            <td><span class="cell-mat"><Icon id={r.material} size={24} /> {displayName(r.material)}</span></td>
+            <td>
+              <span class="cell-mat"><Icon id={r.material} size={24} /> {displayName(r.material)}</span>
+              {#if r.loopSupplied > 1e-7}
+                <div
+                  class="tag loop"
+                  title="Also made in this plan, but this much is needed further down its own chain. Bring it in separately so the line doesn't loop."
+                >
+                  ↻ {fmt(r.loopSupplied * u)} to avoid a loop
+                </div>
+              {/if}
+            </td>
             <td class="num">{fmt(r.supplied * u)}/{unit}</td>
             <td><RecipePicker material={r.material} {solver} {app} /></td>
           </tr>
@@ -30,7 +40,7 @@
   </section>
   <section class="card">
     <h3>Surplus</h3>
-    <p class="muted small">Byproducts made beyond what the plan uses. Store them, burn them, or sell them.</p>
+    <p class="muted small">Byproducts. They are never fed back into the lines, so store them, burn them, or use them elsewhere.</p>
     {#if !plan.surplus.length}<p class="muted">None.</p>{/if}
     <table>
       <tbody>

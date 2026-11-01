@@ -376,7 +376,6 @@ aside {
   border: 1px solid var(--raw);
 }
 
-.tag.byproduct,
 .tag.surplus {
   color: var(--raw);
   background: var(--raw-soft);
@@ -386,11 +385,6 @@ aside {
 .tag.approx {
   color: var(--muted);
   border: 1px solid var(--border);
-}
-
-.kind-byproduct > .node {
-  background: var(--raw-soft);
-  border-style: dashed;
 }
 
 .node-byproducts {

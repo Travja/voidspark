@@ -14,9 +14,10 @@ greenhouses, the Arboretum, and the metal sparks. It started from the PirateSpar
   shards feeding the miasma → raw aether → shard chain) appear as "loops back" leaves.
 - **Recipe choices.** Pick between recipes, or mark any material as supplied externally,
   directly in the tree.
-- **Byproducts.** Recipes with several outputs (Plant Extractor, Geode Breaker…) are credited
-  for all of them. A material that byproducts already cover needs no machines of its own, and
-  extra output shows up as surplus. Random outputs count at their expected value.
+- **One-way production lines.** Every line flows from raw inputs toward its target and never
+  loops back. Extra outputs from multi-output recipes (Plant Extractor, Geode Breaker…) are
+  listed as surplus. They aren't fed back into earlier machines or into other lines, so belts
+  don't cross back over the build. Random outputs count at their expected value.
 - **Machines view.** Totals per workstation, rounded up, with load %. Each line shows what it
   consumes and what it feeds.
 - **Inputs & cost.** Raw inputs needed, and the material cost to build every machine.
@@ -55,16 +56,15 @@ BASE_PATH=/voidspark npm run build   # then publish build/ (it includes .nojekyl
   [docs/wiki-recipe-audit.md](docs/wiki-recipe-audit.md).
 - Supply-limited stations are capped. The Miasma Collector runs at most 7.5 crafts/min.
 - A fuelled machine burns the chosen fuel's per-minute amount from the game data.
-- The unknowns are crafts/min per recipe. Each recipe is tied to the material it runs for,
-  and that material's net production (every recipe's outputs, minus inputs and fuel) must
-  meet its demand. That's a linear system, so loops (coal fuelling coal, Fertiliser
-  Enrichment, the aether apple ↔ seed cycle) need no special handling. When byproducts cover
-  a material, its own recipe is switched off. When one recipe is chosen for two of its
-  outputs, the more demanding output drives it.
-- The tree splits each material's production between the branches that consume it. A loop is
-  credited to the highest node in the tree that it returns to. Tests check that the branch
-  totals add up to the global totals. The 1.0 graph is dense, so the tree is built
-  breadth-first with a size limit.
+- Each target expands into its own tree. Every node is sized for exactly what its parent
+  pulls, and the Machines tab sums the branches. Extra outputs are surplus and are never
+  credited anywhere.
+- If an input already appears further up its own chain (coal fuelling the coal furnace,
+  enrichment recipes, seed ↔ plant cycles), it isn't produced in a loop. It's flagged to be
+  supplied separately. The importer picks loop-free default recipes, so this only happens
+  when you choose a looping recipe or fuel.
+- Totals are computed from memoised per-unit costs, so they stay exact. The tree view is built
+  breadth-first with a display size limit.
 
 ## Layout
 

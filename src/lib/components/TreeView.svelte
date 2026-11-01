@@ -30,8 +30,8 @@
     <button onclick={() => (collapsed = new Set())}>Expand all</button>
     <button onclick={collapseToTargets}>Collapse to targets</button>
     <span class="muted small">
-      Each row feeds the row it hangs from. Machine counts are for that branch only. The Machines tab has the
-      combined totals.
+      Each row feeds only the row it hangs from, so every line flows one way. Extra outputs are surplus. Machine
+      counts are for that branch only; the Machines tab has the combined totals.
     </span>
   </div>
   <ul class="tree root">

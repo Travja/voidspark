@@ -484,6 +484,75 @@ async function main() {
     m.defaultRecipe = def;
   }
 
+  // 6b. Defaults must not loop: a later machine should never feed an earlier one. Swap the
+  //     cheapest alternative recipe into each loop until none are left; if a loop has no
+  //     loop-free alternative, supply one of its materials externally.
+  const byId = new Map(processes.map((p) => [p.id, p]));
+  const matById = new Map(materials.map((m) => [m.id, m]));
+  const loopMembers = () => {
+    // Tarjan SCCs over "material -> inputs of its default recipe".
+    let i = 0;
+    const idx = new Map(), low = new Map(), st = [], on = new Set(), inLoop = new Set();
+    const visit = (v) => {
+      idx.set(v, i);
+      low.set(v, i++);
+      st.push(v);
+      on.add(v);
+      const r = byId.get(matById.get(v)?.defaultRecipe);
+      for (const f of r?.from ?? []) {
+        if (!idx.has(f.material)) {
+          visit(f.material);
+          low.set(v, Math.min(low.get(v), low.get(f.material)));
+        } else if (on.has(f.material)) low.set(v, Math.min(low.get(v), idx.get(f.material)));
+      }
+      if (low.get(v) === idx.get(v)) {
+        const comp = [];
+        let w;
+        do {
+          w = st.pop();
+          on.delete(w);
+          comp.push(w);
+        } while (w !== v);
+        const self = (byId.get(matById.get(v)?.defaultRecipe)?.from ?? []).some((f) => f.material === v);
+        if (comp.length > 1 || self) comp.forEach((c) => inLoop.add(c));
+      }
+    };
+    for (const m of materials) if (!idx.has(m.id)) visit(m.id);
+    return inLoop;
+  };
+  for (let guard = 0; guard < 100; guard++) {
+    const loops = loopMembers();
+    if (!loops.size) break;
+    let best = null;
+    for (const mid of loops) {
+      const m = matById.get(mid);
+      const current = byId.get(m.defaultRecipe);
+      for (const alt of processes.filter((p) => p.to.some((t) => t.material === mid) && p.id !== m.defaultRecipe)) {
+        const before = m.defaultRecipe;
+        m.defaultRecipe = alt.id;
+        const after = loopMembers();
+        m.defaultRecipe = before;
+        if (after.size >= loops.size || after.has(mid)) continue;
+        const cost = rank(alt, mid) - rank(current, mid);
+        if (!best || after.size < best.after || (after.size === best.after && cost < best.cost)) best = { m, alt, cost, after: after.size };
+      }
+    }
+    if (best) {
+      report.decisions.push(
+        `**${best.m.name}** defaults to ${best.alt.name} (${workstations.find((w) => w.id === best.alt.workstation)?.name}) instead of ${byId.get(best.m.defaultRecipe).name}, which looped back into its own chain.`,
+      );
+      best.m.defaultRecipe = best.alt.id;
+      continue;
+    }
+    // No alternative breaks it: supply the loop member with the fewest consumers externally.
+    const consumers = (mid) => processes.filter((p) => p.from.some((f) => f.material === mid)).length;
+    const victim = [...loops].map((id) => matById.get(id)).sort((a, b) => consumers(a.id) - consumers(b.id))[0];
+    report.decisions.push(
+      `**${victim.name}** is supplied externally by default: every recipe for it loops back into its own chain.`,
+    );
+    victim.defaultRecipe = null;
+  }
+
   // 7. Icons for anything new.
   if (WITH_IMAGES) {
     const need = [...materials, ...workstations].filter((e) => !existsSync(join(IMG_DIR, `${e.id}.png`)));

@@ -46,23 +46,11 @@
         {#if node.fuel}<span class="tag fuel" title="Burnt as fuel">🔥 fuel</span>{/if}
         {#if node.kind === "raw"}<span class="tag raw">raw input</span>{/if}
         {#if node.kind === "loop"}
-          <span class="tag loop" title="Taken from the production of this material further up the tree">
-            ↻ loops back up the tree
-          </span>
-        {/if}
-        {#if node.kind === "byproduct"}
-          <span class="tag byproduct" title="Covered by the extra output of another recipe in this plan">
-            ♻ byproduct of another line
-          </span>
-        {/if}
-        {#if node.kind === "craft" && node.fromByproducts > 1e-6}
-          <span class="muted small" title="Covered by the extra output of another recipe in this plan">
-            ({fmt(node.fromByproducts * u)}/{unit} from byproducts)
-          </span>
-        {/if}
-        {#if node.kind === "craft" && Math.abs(node.gross - (node.rate - node.fromByproducts)) > 1e-6}
-          <span class="muted small" title="Gross output including what gets fed back into the loop">
-            (makes {fmt(node.gross * u)}/{unit})
+          <span
+            class="tag loop"
+            title="This item is already made further up this chain. Feeding it back would loop the line, so bring it in separately (or pick another recipe for it)."
+          >
+            ↻ supply separately (would loop)
           </span>
         {/if}
       </div>
@@ -92,15 +80,18 @@
             </span>
           {/if}
         </div>
+        {#if node.truncated}
+          <div class="small muted">… inputs not shown (tree too large). The Machines tab includes them.</div>
+        {/if}
         {#if node.byproducts.some((b) => b.rate > 1e-9)}
-          <div class="node-byproducts small muted">
-            also makes
+          <div class="node-byproducts small muted" title="Extra output: surplus, not fed into other lines">
+            surplus
             {#each node.byproducts as b (b.material)}
               <span class="cell-mat"><Icon id={b.material} size={16} /> {displayName(b.material)} {fmt(b.rate * u)}/{unit}</span>
             {/each}
           </div>
         {/if}
-      {:else if node.kind === "raw" || node.kind === "byproduct"}
+      {:else if node.kind === "raw" || node.kind === "loop"}
         <div class="node-machine">
           <RecipePicker material={node.material} {solver} {app} />
         </div>

@@ -14,20 +14,26 @@
   const u = $derived(UNIT_FACTOR[unit]);
   const total = $derived(plan.stations.reduce((n, s) => n + s.machinesBuilt, 0));
 
-  /** Where each output goes: consumer recipes (labelled by what they make), targets, surplus. */
+  /**
+   * Where each output goes. Only a material's chosen recipe feeds other machines and targets;
+   * any other recipe's copy of it is a byproduct and goes to surplus.
+   */
   function feeds(outputs: Flow[], recipeId: string) {
     const rows: { material: string; to: string; rate: number; fuel: boolean; kind: "use" | "target" | "surplus" }[] = [];
     for (const o of outputs) {
       const mp = plan.materials.get(o.material);
-      if (!mp || mp.produced <= 0) continue;
-      // This recipe's share of the material's total production.
-      const share = o.rate / mp.produced;
+      if (!mp) continue;
+      if (mp.recipe?.id !== recipeId) {
+        rows.push({ material: o.material, to: "", rate: o.rate, fuel: false, kind: "surplus" });
+        continue;
+      }
+      // Share of this material's supply (chosen recipe + outside supply) coming from this line.
+      const share = o.rate / (o.rate + mp.supplied);
       for (const c of mp.consumers) {
         if (c.recipe === recipeId) continue;
         rows.push({ material: o.material, to: c.material, rate: c.rate * share, fuel: c.fuel, kind: "use" });
       }
       if (mp.targetRate > 0) rows.push({ material: o.material, to: "", rate: mp.targetRate * share, fuel: false, kind: "target" });
-      if (mp.surplus > 0) rows.push({ material: o.material, to: "", rate: mp.surplus * share, fuel: false, kind: "surplus" });
     }
     return rows.filter((r) => r.rate > 1e-9);
   }

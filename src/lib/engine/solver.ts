@@ -7,17 +7,18 @@
  *   A fuelled station burns `fuel.perMinute` items of the chosen fuel per minute while running.
  *   Randomised outputs count at their expected value (amount * chance).
  *
- * The unknowns are crafts/min for each active recipe. Every active recipe is tied to one
- * "primary" material, and the net production of that material (all recipes' outputs, minus all
- * inputs and fuel) must equal its demand. That is a square linear system, so loops such as coal
- * fuelling coal furnaces, or Fertiliser Enrichment consuming fertiliser, need no special cases.
- * Byproducts are credited: when they already cover a material, that material's own recipe is
- * switched off (x = 0) and the extra is reported as surplus.
+ * Production flows one way: from raw inputs toward the targets. Each target expands into its
+ * own tree and every node is sized for exactly what its parent pulls, so no belt has to run
+ * back up the line:
+ *   - Extra outputs (byproducts) are surplus. They are never fed back into earlier machines or
+ *     credited against other branches.
+ *   - If an input already appears further up its own chain (coal fuelling the coal furnace,
+ *     a seed that comes from the plant it grows), it is not produced in a loop. It becomes a
+ *     separate input, supplied from outside that chain.
  */
 import {
   expectedOutput,
   GAME,
-  inputAmount,
   SECONDS_PER_MINUTE,
   type GameData,
   type Recipe,
@@ -47,7 +48,7 @@ export interface PlanConfig {
 
 export interface Edge {
   material: string;
-  /** Units of `material` consumed per unit of the parent's output. */
+  /** Units of `material` consumed per craft. */
   perUnit: number;
   fuel: boolean;
 }
@@ -63,15 +64,15 @@ export interface Flow {
 
 export interface RecipePlan {
   recipe: Recipe;
-  /** The material this recipe is run for. */
+  /** The material this recipe is run for (the first one, if several pick the same recipe). */
   primary: string;
   crew: SparkType[];
-  /** Crafts per minute across all machines. */
+  /** Crafts per minute across all branches. */
   crafts: number;
   craftsPerMachine: number;
-  /** Exact machines needed (fractional). */
+  /** Exact machines needed (fractional), summed over branches. */
   machines: number;
-  /** Machines to build (ceil). */
+  /** Machines to build (ceil of the sum). */
   machinesBuilt: number;
   inputs: Flow[];
   outputs: Flow[];
@@ -79,18 +80,18 @@ export interface RecipePlan {
 
 export interface MaterialPlan {
   material: string;
-  /** Recipe chosen for this material (may be idle if byproducts cover it). */
+  /** Recipe chosen for this material. */
   recipe: Recipe | null;
   produced: number;
   consumed: number;
   /** Items/min asked for directly by targets. */
   targetRate: number;
-  /** Items/min that must come from outside the plan. */
+  /** Items/min that must come from outside the plan (raw inputs and loop breaks). */
   supplied: number;
-  /** Items/min made but not used. */
+  /** Part of `supplied` that is only external because producing it in-line would loop. */
+  loopSupplied: number;
+  /** Items/min made but not used: byproducts. */
   surplus: number;
-  /** Fraction of production that comes from this material's own recipe (rest: byproducts). */
-  ownShare: number;
   producers: Flow[];
   consumers: Flow[];
 }
@@ -107,24 +108,20 @@ export interface TreeNode {
   id: string;
   material: string;
   /**
-   * craft: made by its recipe. raw: supplied from outside. loop: fed back from further up the
-   * tree. byproduct: covered by another recipe's extra output.
+   * craft: made by its recipe here. raw: supplied from outside. loop: already made further up
+   * this chain, so supplied separately instead of looping back.
    */
-  kind: "craft" | "raw" | "loop" | "byproduct";
+  kind: "craft" | "raw" | "loop";
   /** Items/min this node delivers to its parent (or to the target, for roots). */
   rate: number;
-  /** Items/min the machines in this branch make, including the loop-back share. */
-  gross: number;
   machines: number;
   recipe: Recipe | null;
   crew: SparkType[];
   fuel: boolean;
-  /** Items/min of `rate` covered by byproducts made elsewhere in the plan. */
-  fromByproducts: number;
-  /** Other outputs this branch's machines make. */
+  /** Other outputs this branch's machines make (surplus). */
   byproducts: Flow[];
   children: TreeNode[];
-  /** Inputs not expanded because the tree hit its size limit. */
+  /** Inputs not shown because the tree hit its display size limit (totals still count them). */
   truncated?: boolean;
 }
 
@@ -141,10 +138,24 @@ export interface Plan {
   warnings: string[];
 }
 
+/** What delivering one unit/min of a material costs, all the way down its chain. */
+interface Totals {
+  /** recipe id -> crafts/min */
+  crafts: Map<string, number>;
+  /** recipe id -> material it was run for */
+  runFor: Map<string, string>;
+  /** material -> items/min supplied from outside */
+  raw: Map<string, number>;
+  /** material -> items/min supplied from outside to avoid a loop */
+  loop: Map<string, number>;
+}
+
 const EPS = 1e-9;
-/** Tree size limits; see buildTrees. */
+/** The tree view is capped for display; plan totals are always exact. */
 const TREE_NODE_BUDGET = 1500;
 const TREE_MAX_DEPTH = 30;
+
+const add = (m: Map<string, number>, k: string, v: number) => m.set(k, (m.get(k) ?? 0) + v);
 
 export class Solver {
   constructor(
@@ -201,15 +212,8 @@ export class Solver {
     return this.cfg.fuel.perMinute / this.craftsPerMinute(recipe);
   }
 
-  /** Net units of `material` per craft of `recipe` (outputs minus inputs and fuel). */
-  private net(recipe: Recipe, material: string): number {
-    let n = expectedOutput(recipe, material) - inputAmount(recipe, material);
-    if (material === this.cfg.fuel.material) n -= this.fuelPerCraft(recipe);
-    return n;
-  }
-
   /** Inputs (with fuel) per craft of `recipe`. */
-  private craftInputs(recipe: Recipe): Edge[] {
+  craftInputs(recipe: Recipe): Edge[] {
     const out = recipe.from.map((f) => ({ material: f.material, perUnit: f.amount, fuel: false }));
     const fuel = this.fuelPerCraft(recipe);
     if (fuel > 0) out.push({ material: this.cfg.fuel.material, perUnit: fuel, fuel: true });
@@ -222,191 +226,96 @@ export class Solver {
     return t.value;
   }
 
-  // --- global solve ------------------------------------------------------------------------------
+  // --- per-unit totals -------------------------------------------------------------------------
 
-  /** Recipes needed for the targets, each tied to the first material that pulled it in. */
-  private activeRecipes(roots: string[]): Map<string, string> {
-    const primary = new Map<string, string>();
+  private reachCache = new Map<string, Set<string>>();
+
+  /** Every material that can appear below `material` in its chain. */
+  private reach(material: string): Set<string> {
+    const hit = this.reachCache.get(material);
+    if (hit) return hit;
     const seen = new Set<string>();
-    const queue = [...roots];
-    while (queue.length) {
-      const m = queue.shift()!;
-      if (seen.has(m)) continue;
-      seen.add(m);
+    const stack = [material];
+    while (stack.length) {
+      const m = stack.pop()!;
       const r = this.recipeFor(m);
-      if (!r) continue;
-      if (!primary.has(r.id)) primary.set(r.id, m);
-      for (const e of this.craftInputs(r)) queue.push(e.material);
-    }
-    return primary;
-  }
-
-  private solveLinear(M: number[][], b: number[]): number[] {
-    const n = b.length;
-    const A = M.map((row, i) => [...row, b[i]]);
-    for (let c = 0; c < n; c++) {
-      let p = c;
-      for (let r = c + 1; r < n; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r;
-      if (Math.abs(A[p][c]) < 1e-12) throw new SingularError(c);
-      [A[c], A[p]] = [A[p], A[c]];
-      for (let r = 0; r < n; r++) {
-        if (r === c || A[r][c] === 0) continue;
-        const f = A[r][c] / A[c][c];
-        for (let k = c; k <= n; k++) A[r][k] -= f * A[c][k];
-      }
-    }
-    return A.map((row, i) => row[n] / row[i]);
-  }
-
-  private solveRates(demand: Map<string, number>): { rates: Map<string, number>; primary: Map<string, string> } {
-    const primary = this.activeRecipes([...demand.keys()]);
-    const ids = [...primary.keys()];
-    const recipes = ids.map((id) => this.data.recipesById.get(id)!);
-    const off = new Set<string>();
-    let x: number[] = [];
-
-    const balance = (m: string) =>
-      recipes.reduce((n, r, j) => n + this.net(r, m) * (x[j] ?? 0), 0) - (demand.get(m) ?? 0);
-
-    for (let iter = 0; iter < 60; iter++) {
-      const M = recipes.map((_, i) =>
-        off.has(ids[i]) ? recipes.map((__, j) => (i === j ? 1 : 0)) : recipes.map((r) => this.net(r, primary.get(ids[i])!)),
-      );
-      const b = recipes.map((_, i) => (off.has(ids[i]) ? 0 : (demand.get(primary.get(ids[i])!) ?? 0)));
-      try {
-        x = this.solveLinear(M, b);
-      } catch (e) {
-        if (!(e instanceof SingularError)) throw e;
-        throw new Error(
-          `Can't balance ${this.name(primary.get(ids[e.column])!)}: its production loop consumes at least as much as it makes. Pick a different recipe or supply it externally.`,
-        );
-      }
-      let changed = false;
-      // Byproducts already cover a material: switch its recipe off.
-      x.forEach((v, j) => {
-        if (v < -EPS && !off.has(ids[j])) {
-          off.add(ids[j]);
-          changed = true;
-        }
-      });
-      // A switched-off recipe whose material ran short again: switch it back on.
-      for (const id of off) {
-        if (balance(primary.get(id)!) < -1e-7) {
-          off.delete(id);
-          changed = true;
+      for (const e of r ? this.craftInputs(r) : []) {
+        if (!seen.has(e.material)) {
+          seen.add(e.material);
+          stack.push(e.material);
         }
       }
-      // A recipe chosen for several of its outputs: let the most demanding one drive it.
-      for (const [j, r] of recipes.entries()) {
-        if (off.has(ids[j])) continue;
-        for (const t of r.to) {
-          if (t.material === primary.get(ids[j]) || this.recipeFor(t.material)?.id !== r.id) continue;
-          if (balance(t.material) < -1e-7) {
-            primary.set(ids[j], t.material);
-            changed = true;
-          }
-        }
-      }
-      if (!changed) break;
     }
-    return { rates: new Map(ids.map((id, j) => [id, Math.max(0, x[j] ?? 0)])), primary };
+    this.reachCache.set(material, seen);
+    return seen;
   }
 
-  // --- tree ------------------------------------------------------------------------------------
+  private unitCache = new Map<string, Totals>();
 
-  private ownShare = new Map<string, number>();
+  /**
+   * Totals for delivering one unit/min of `material` below `ancestors`. Only ancestors that can
+   * reappear below this material change the answer, so they alone form the cache key.
+   */
+  private unit(material: string, ancestors: Set<string>): Totals {
+    const below = this.reach(material);
+    const relevant = [...ancestors].filter((a) => below.has(a)).sort();
+    const key = `${material}|${relevant.join(",")}`;
+    const hit = this.unitCache.get(key);
+    if (hit) return hit;
 
-  /** Inputs per unit of `material` made by its own recipe, scaled by its own share of supply. */
-  private treeEdges(material: string): Edge[] {
-    const r = this.recipeFor(material);
-    const share = this.ownShare.get(material) ?? 0;
-    if (!r || share <= 0) return [];
-    const out = expectedOutput(r, material);
-    return this.craftInputs(r).map((e) => ({ ...e, perUnit: (e.perUnit / out) * share }));
+    const t: Totals = { crafts: new Map(), runFor: new Map(), raw: new Map(), loop: new Map() };
+    const recipe = this.recipeFor(material);
+    if (!recipe) {
+      t.raw.set(material, 1);
+    } else {
+      const crafts = 1 / expectedOutput(recipe, material);
+      t.crafts.set(recipe.id, crafts);
+      t.runFor.set(recipe.id, material);
+      const next = new Set(relevant).add(material);
+      for (const e of this.craftInputs(recipe)) {
+        const need = crafts * e.perUnit;
+        if (next.has(e.material)) {
+          add(t.raw, e.material, need);
+          add(t.loop, e.material, need);
+          continue;
+        }
+        const sub = this.unit(e.material, next);
+        for (const [k, v] of sub.crafts) add(t.crafts, k, v * need);
+        for (const [k, v] of sub.runFor) if (!t.runFor.has(k)) t.runFor.set(k, v);
+        for (const [k, v] of sub.raw) add(t.raw, k, v * need);
+        for (const [k, v] of sub.loop) add(t.loop, k, v * need);
+      }
+    }
+    this.unitCache.set(key, t);
+    return t;
   }
 
-  /** Strongly connected components of the tree graph: materials that can loop into each other. */
-  private sccOf = new Map<string, number>();
+  // --- tree (display) ----------------------------------------------------------------------------
 
-  private computeSccs(materials: Iterable<string>) {
-    // Tarjan's algorithm.
-    let index = 0;
-    let comp = 0;
-    const idx = new Map<string, number>();
-    const low = new Map<string, number>();
-    const stack: string[] = [];
-    const onStack = new Set<string>();
-    const visit = (v: string) => {
-      idx.set(v, index);
-      low.set(v, index++);
-      stack.push(v);
-      onStack.add(v);
-      for (const e of this.treeEdges(v)) {
-        const w = e.material;
-        if (!idx.has(w)) {
-          visit(w);
-          low.set(v, Math.min(low.get(v)!, low.get(w)!));
-        } else if (onStack.has(w)) low.set(v, Math.min(low.get(v)!, idx.get(w)!));
-      }
-      if (low.get(v) === idx.get(v)) {
-        let w: string;
-        do {
-          w = stack.pop()!;
-          onStack.delete(w);
-          this.sccOf.set(w, comp);
-        } while (w !== v);
-        comp++;
-      }
+  private node(material: string, rate: number, id: string, fuel: boolean): TreeNode {
+    const recipe = this.recipeFor(material);
+    const base: TreeNode = { id, material, kind: "raw", rate, machines: 0, recipe: null, crew: [], fuel, byproducts: [], children: [] };
+    if (!recipe) return base;
+    const crafts = rate / expectedOutput(recipe, material);
+    return {
+      ...base,
+      kind: "craft",
+      machines: crafts / this.craftsPerMinute(recipe),
+      recipe,
+      crew: this.crewFor(recipe.workstation),
+      byproducts: recipe.to
+        .filter((t) => t.material !== material)
+        .map((t) => ({ material: t.material, rate: crafts * t.amount * (t.chance ?? 1), fuel: false })),
     };
-    for (const m of materials) if (!idx.has(m)) visit(m);
   }
 
-  private grossCache = new Map<string, number>();
-
-  /**
-   * Gross units of `material` to make per unit delivered, counting loops back into `material`
-   * that do not pass through `ancestors` (those belong to an ancestor's node). Only materials in
-   * the same loop group (strongly connected component) can feed back, so the solve is limited to
-   * that group, and so is the cache key.
-   */
-  private grossFactor(material: string, ancestors: Set<string>): number {
-    const comp = this.sccOf.get(material);
-    const group = [...this.sccOf].filter(([, c]) => c === comp).map(([m]) => m);
-    const selfLoop = this.treeEdges(material).some((e) => e.material === material);
-    if (group.length === 1 && !selfLoop) return 1;
-    const blocked = group.filter((m) => ancestors.has(m)).sort();
-    const key = `${material}|${blocked.join(",")}`;
-    const hit = this.grossCache.get(key);
-    if (hit !== undefined) return hit;
-    const nodes = group.filter((m) => !ancestors.has(m));
-    const idx = new Map(nodes.map((m, i) => [m, i]));
-    const M = nodes.map((_, i) => nodes.map((__, j) => (i === j ? 1 : 0)));
-    nodes.forEach((m, j) => {
-      for (const e of this.treeEdges(m)) {
-        const i = idx.get(e.material);
-        if (i !== undefined) M[i][j] -= e.perUnit;
-      }
-    });
-    let x = 1;
-    try {
-      x = this.solveLinear(M, nodes.map((m) => (m === material ? 1 : 0)))[idx.get(material)!];
-    } catch {
-      x = 1;
-    }
-    this.grossCache.set(key, x);
-    return x;
-  }
-
-  /**
-   * Build the trees breadth-first with a node budget. The 1.0 recipe graph is dense enough that
-   * fully expanding every path explodes, so past the budget nodes are left collapsed (truncated).
-   */
+  /** Breadth-first so that, past the display budget, the deepest levels are the ones collapsed. */
   private buildTrees(roots: { material: string; rate: number; id: string }[]): TreeNode[] {
     type Job = { node: TreeNode; ancestors: Set<string>; depth: number };
     let budget = TREE_NODE_BUDGET;
     const queue: Job[] = [];
     const trees = roots.map((r) => {
-      const node = this.makeNode(r.material, r.rate, r.id, false);
+      const node = this.node(r.material, r.rate, r.id, false);
       queue.push({ node, ancestors: new Set(), depth: 0 });
       return node;
     });
@@ -418,15 +327,15 @@ export class Solver {
         continue;
       }
       const below = new Set(ancestors).add(node.material);
-      const crafts = node.gross / expectedOutput(node.recipe, node.material);
+      const crafts = node.rate / expectedOutput(node.recipe, node.material);
       for (const e of this.craftInputs(node.recipe)) {
         const rate = crafts * e.perUnit;
         const id = `${node.id}/${e.material}${e.fuel ? "~fuel" : ""}`;
         budget--;
         if (below.has(e.material)) {
-          node.children.push({ ...this.emptyNode(id, e.material, rate, e.fuel), kind: "loop" });
+          node.children.push({ ...this.node(e.material, rate, id, e.fuel), kind: "loop", machines: 0, recipe: null, crew: [], byproducts: [] });
         } else {
-          const child = this.makeNode(e.material, rate, id, e.fuel, below);
+          const child = this.node(e.material, rate, id, e.fuel);
           node.children.push(child);
           queue.push({ node: child, ancestors: below, depth: depth + 1 });
         }
@@ -435,69 +344,35 @@ export class Solver {
     return trees;
   }
 
-  private emptyNode(id: string, material: string, rate: number, fuel: boolean): TreeNode {
-    return {
-      id,
-      material,
-      kind: "raw",
-      rate,
-      gross: rate,
-      machines: 0,
-      recipe: null,
-      crew: [],
-      fuel,
-      fromByproducts: 0,
-      byproducts: [],
-      children: [],
-    };
-  }
-
-  private makeNode(material: string, rate: number, id: string, fuel: boolean, ancestors = new Set<string>()): TreeNode {
-    const base = this.emptyNode(id, material, rate, fuel);
-    const recipe = this.recipeFor(material);
-    const share = this.ownShare.get(material) ?? (recipe ? 1 : 0);
-    if (!recipe) return base;
-    if (share <= EPS) return { ...base, kind: "byproduct", recipe };
-    const made = rate * share;
-    const gross = made * this.grossFactor(material, ancestors);
-    const crafts = gross / expectedOutput(recipe, material);
-    return {
-      ...base,
-      kind: "craft",
-      gross,
-      machines: crafts / this.craftsPerMinute(recipe),
-      recipe,
-      crew: this.crewFor(recipe.workstation),
-      fromByproducts: rate - made,
-      byproducts: recipe.to
-        .filter((t) => t.material !== material)
-        .map((t) => ({ material: t.material, rate: crafts * t.amount * (t.chance ?? 1), fuel: false })),
-    };
-  }
-
   // --- plan --------------------------------------------------------------------------------------
 
   plan(): Plan {
     const warnings: string[] = [];
+    const targets = this.cfg.targets.filter((t) => this.data.materials.has(t.material));
     const demand = new Map<string, number>();
-    for (const t of this.cfg.targets) {
-      if (!this.data.materials.has(t.material)) continue;
+    const totals: Totals = { crafts: new Map(), runFor: new Map(), raw: new Map(), loop: new Map() };
+    for (const t of targets) {
       if (t.mode === "machines" && !this.recipeFor(t.material)) {
         warnings.push(`${this.name(t.material)} has no recipe selected, so set its target as a rate.`);
       }
-      demand.set(t.material, (demand.get(t.material) ?? 0) + this.targetRate(t));
+      const rate = this.targetRate(t);
+      add(demand, t.material, rate);
+      const u = this.unit(t.material, new Set());
+      for (const [k, v] of u.crafts) add(totals.crafts, k, v * rate);
+      for (const [k, v] of u.runFor) if (!totals.runFor.has(k)) totals.runFor.set(k, v);
+      for (const [k, v] of u.raw) add(totals.raw, k, v * rate);
+      for (const [k, v] of u.loop) add(totals.loop, k, v * rate);
     }
 
-    const { rates, primary } = this.solveRates(demand);
-
     const recipes = new Map<string, RecipePlan>();
-    for (const [id, crafts] of rates) {
+    for (const [id, crafts] of totals.crafts) {
+      if (crafts <= EPS) continue;
       const recipe = this.data.recipesById.get(id)!;
       const cpm = this.craftsPerMinute(recipe);
       const machines = crafts / cpm;
       recipes.set(id, {
         recipe,
-        primary: primary.get(id)!,
+        primary: totals.runFor.get(id)!,
         crew: this.crewFor(recipe.workstation),
         crafts,
         craftsPerMachine: cpm,
@@ -518,9 +393,9 @@ export class Solver {
           produced: 0,
           consumed: 0,
           targetRate: demand.get(m) ?? 0,
-          supplied: 0,
+          supplied: totals.raw.get(m) ?? 0,
+          loopSupplied: totals.loop.get(m) ?? 0,
           surplus: 0,
-          ownShare: 0,
           producers: [],
           consumers: [],
         };
@@ -529,8 +404,8 @@ export class Solver {
       return mp;
     };
     for (const m of demand.keys()) mat(m);
+    for (const m of totals.raw.keys()) mat(m);
     for (const rp of recipes.values()) {
-      if (rp.crafts <= EPS) continue;
       for (const o of rp.outputs) {
         const mp = mat(o.material);
         mp.produced += o.rate;
@@ -543,15 +418,14 @@ export class Solver {
       }
     }
     for (const mp of materials.values()) {
-      const balance = mp.produced - mp.consumed - mp.targetRate;
-      if (balance < -1e-7) mp.supplied = -balance;
-      else if (balance > 1e-7) mp.surplus = balance;
-      const own = mp.recipe ? recipes.get(mp.recipe.id) : undefined;
-      const ownMade = own && own.primary === mp.material ? own.crafts * expectedOutput(own.recipe, mp.material) : 0;
-      mp.ownShare = mp.produced > EPS ? Math.min(1, ownMade / mp.produced) : mp.recipe ? 1 : 0;
-      this.ownShare.set(mp.material, mp.ownShare);
-      if (mp.recipe && mp.supplied > 1e-7) {
-        warnings.push(`${this.name(mp.material)} is short by ${+mp.supplied.toFixed(3)}/min; supply the rest externally.`);
+      const extra = mp.produced + mp.supplied - mp.consumed - mp.targetRate;
+      mp.surplus = extra > 1e-7 ? extra : 0;
+    }
+    for (const mp of materials.values()) {
+      if (mp.loopSupplied > 1e-7) {
+        warnings.push(
+          `${this.name(mp.material)} (${+mp.loopSupplied.toFixed(3)}/min) is needed further down its own chain. Supply it separately rather than looping it back, or pick another recipe.`,
+        );
       }
     }
 
@@ -570,9 +444,7 @@ export class Solver {
     );
 
     const byStation = new Map<string, StationSummary>();
-    const recipeOrder = [...recipes.values()]
-      .filter((rp) => rp.crafts > EPS)
-      .sort((a, b) => (level.get(a.primary) ?? 99) - (level.get(b.primary) ?? 99));
+    const recipeOrder = [...recipes.values()].sort((a, b) => (level.get(a.primary) ?? 99) - (level.get(b.primary) ?? 99));
     for (const rp of recipeOrder) {
       const ws = rp.recipe.workstation;
       const s = byStation.get(ws) ?? { workstation: ws, machinesExact: 0, machinesBuilt: 0, lines: [] };
@@ -585,17 +457,10 @@ export class Solver {
 
     const cost = new Map<string, number>();
     for (const s of stations) {
-      for (const c of this.data.workstations.get(s.workstation)?.cost ?? []) {
-        cost.set(c.id, (cost.get(c.id) ?? 0) + c.amount * s.machinesBuilt);
-      }
+      for (const c of this.data.workstations.get(s.workstation)?.cost ?? []) add(cost, c.id, c.amount * s.machinesBuilt);
     }
 
-    this.computeSccs(materials.keys());
-    const trees = this.buildTrees(
-      this.cfg.targets
-        .filter((t) => this.data.materials.has(t.material))
-        .map((t) => ({ material: t.material, rate: this.targetRate(t), id: t.id })),
-    );
+    const trees = this.buildTrees(targets.map((t) => ({ material: t.material, rate: this.targetRate(t), id: t.id })));
 
     return {
       materials,
@@ -612,12 +477,6 @@ export class Solver {
 
   name(material: string): string {
     return this.data.materials.get(material)?.name ?? this.data.workstations.get(material)?.name ?? material;
-  }
-}
-
-class SingularError extends Error {
-  constructor(readonly column: number) {
-    super("singular");
   }
 }
 

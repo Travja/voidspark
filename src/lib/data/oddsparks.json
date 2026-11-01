@@ -3085,7 +3085,7 @@
       "name": "Aether Seed",
       "category": "miscellaneous",
       "craftable": true,
-      "defaultRecipe": "extract-aether-segment"
+      "defaultRecipe": "extract-aether-flower"
     },
     {
       "id": "aether-segment",
@@ -3190,7 +3190,7 @@
       "name": "Cleansing Fragment",
       "category": "miscellaneous",
       "craftable": true,
-      "defaultRecipe": "cleansing-fragment-enrichment"
+      "defaultRecipe": "corrupted-aether-purification"
     },
     {
       "id": "coal",
@@ -3232,7 +3232,7 @@
       "name": "Copper Seed",
       "category": "miscellaneous",
       "craftable": true,
-      "defaultRecipe": "copper-sap-beading"
+      "defaultRecipe": "copper-seed-germination"
     },
     {
       "id": "coral",
@@ -3351,7 +3351,7 @@
       "name": "Fluted Coral",
       "category": "mountain-items",
       "craftable": true,
-      "defaultRecipe": "fluted-coral-reef"
+      "defaultRecipe": null
     },
     {
       "id": "freezing-spark-block",
@@ -3393,7 +3393,7 @@
       "name": "Glowshroom",
       "category": "miscellaneous",
       "craftable": true,
-      "defaultRecipe": "extract-fireshroom-cluster"
+      "defaultRecipe": "break-bumpy-geode"
     },
     {
       "id": "green-paint",
@@ -3666,7 +3666,7 @@
       "name": "Stellar Seed",
       "category": "miscellaneous",
       "craftable": true,
-      "defaultRecipe": "extract-stellar-leaves"
+      "defaultRecipe": "extract-stellar-ice"
     },
     {
       "id": "stone",
