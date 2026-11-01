@@ -1,8 +1,7 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
+import { sveltekit } from "@sveltejs/kit/vite";
+import { defineConfig } from "vitest/config";
 
-// Relative base so the build works from a GitHub Pages sub-path (/voidspark/).
 export default defineConfig({
-  base: "./",
-  plugins: [react()],
+  plugins: [sveltekit()],
+  test: { include: ["src/**/*.test.ts"] },
 });

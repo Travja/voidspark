@@ -21,15 +21,21 @@ A production planner for **Oddsparks**, built on the data and model of the Pirat
 npm install
 npm run dev        # local dev server
 npm test           # solver tests (vitest)
-npm run build      # type-check + production build into dist/
+npm run check      # svelte-check type checking
+npm run build      # static site into build/
 ```
 
-`vite.config.ts` uses a relative `base`, so `dist/` can be published to the `gh-pages` branch
-as-is.
+Built with SvelteKit 2 and Svelte 5 (runes) using `@sveltejs/adapter-static`. The app is a
+single client-rendered page (`ssr = false`, `prerender = true`) because the plan is kept in
+localStorage. To publish to GitHub Pages at `/voidspark/`:
+
+```bash
+BASE_PATH=/voidspark npm run build   # then publish build/ (it includes .nojekyll)
+```
 
 ## How the numbers work
 
-`src/engine/solver.ts`:
+`src/lib/engine/solver.ts`:
 
 - crafts/min per machine = `120 × sparkSpeed / buildTime`. This is PirateSpark's model:
   one spark at 100% does 2 work units per second.
@@ -46,16 +52,18 @@ as-is.
 
 | Path | What |
 | --- | --- |
-| `src/engine/data.ts` | Typed access to game data, plus facts the JSON lacks (spark-powered stations) |
-| `src/engine/solver.ts` | Rates, machine counts, loops, trees, station and cost summaries |
-| `src/components/` | Tree, machines, inputs views, and recipe/spark/material pickers |
-| `src/data/oddsparks_0_2.json` | Game data recovered from PirateSpark (game version 0.2.3) |
-| `src/assets/img/` | Material and workstation icons recovered from PirateSpark |
+| `src/routes/+page.svelte` | The app page: targets, settings, tabs |
+| `src/lib/state.svelte.ts` | Reactive app state (`$state`), persisted to localStorage |
+| `src/lib/engine/data.ts` | Typed access to game data, plus facts the JSON lacks (spark-powered stations) |
+| `src/lib/engine/solver.ts` | Rates, machine counts, loops, trees, station and cost summaries. Framework-free |
+| `src/lib/components/` | Tree, machines, inputs views, and recipe/spark/material pickers |
+| `src/lib/data/oddsparks_0_2.json` | Game data recovered from PirateSpark (game version 0.2.3) |
+| `src/lib/assets/img/` | Material and workstation icons recovered from PirateSpark |
 | `legacy/piratespark/` | Recovered original calculator source, for reference |
 
 ## Known gaps
 
 - The game data is from **0.2.3**. Recipes, build times, and fuel values may have changed since.
-  Edit `src/data/oddsparks_0_2.json` to update them.
+  Edit `src/lib/data/oddsparks_0_2.json` to update them.
 - Recipes are treated as single-output. Byproducts aren't credited.
 - Spark speeds are Stumpy 100% and Crafty 150%, from PirateSpark's data.

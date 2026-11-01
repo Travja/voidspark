@@ -5,22 +5,21 @@
   "description": "Oddsparks production calculator: target rates, per-station spark types, and a branching production tree.",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev": "vite dev",
+    "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run",
-    "typecheck": "tsc -b"
-  },
-  "dependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "prepare": "svelte-kit sync || echo ''",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "test": "vitest run"
   },
   "devDependencies": {
-    "@types/react": "^18.3.31",
-    "@types/react-dom": "^18.3.7",
-    "@vitejs/plugin-react": "^4.7.0",
+    "@sveltejs/adapter-static": "^3.0.10",
+    "@sveltejs/kit": "^2.70.3",
+    "@sveltejs/vite-plugin-svelte": "^6.2.4",
+    "svelte": "^5.57.3",
+    "svelte-check": "^4.7.8",
     "typescript": "^5.9.3",
-    "vite": "^6.4.5",
+    "vite": "^7.3.7",
     "vitest": "^3.2.7"
   }
 }

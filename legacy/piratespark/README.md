@@ -7,7 +7,7 @@ build on the `gh-pages` branch:
 - `src/**` came from the `sourcesContent` of `static/js/main.f14757fd.js.map`.
 - `data/*.json` was pulled out of the minified bundle. Webpack inlines JSON modules as
   `JSON.parse('…')`, and JSON files have no source map entries.
-- Images (now in `/src/assets/img` of VoidSpark) came from the bundle's inlined base64 data
+- Images (now in `src/lib/assets/img`) came from the bundle's inlined base64 data
   URIs and from `static/media/*`.
 
 Only the calculator code is kept: `pages/Calculator` and `store/calculator`. The admin
@@ -15,7 +15,7 @@ template scaffolding it shipped with (auth pages, Firebase helpers, layout compo
 SCSS) is left out on purpose.
 
 It is here for reference only. It is not built or run. VoidSpark (repository root) replaces
-the calculation code with a general solver, `src/engine/solver.ts`.
+the calculation code with a general solver, `src/lib/engine/solver.ts`.
 
 ## Notes on the original model
 
