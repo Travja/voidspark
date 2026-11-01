@@ -12,6 +12,12 @@
       "name": "Crafty Spark",
       "block": "crafty-spark-block",
       "speed": 150
+    },
+    {
+      "id": "spark-handy",
+      "name": "Handy Spark",
+      "block": "handy-spark-block",
+      "speed": 250
     }
   ],
   "category": [
@@ -954,7 +960,7 @@
     {
       "id": "quartz",
       "name": "Quartz",
-      "workstation": "drill",
+      "workstation": "furnace",
       "buildTime": 8,
       "from": [
         {
@@ -1353,7 +1359,7 @@
       "buildTime": 16,
       "from": [
         {
-          "material": "black-paint",
+          "material": "blue-paint",
           "amount": 1
         },
         {

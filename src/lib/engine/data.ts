@@ -9,7 +9,7 @@ export interface Recipe {
   id: string;
   name: string;
   workstation: string;
-  /** Work units per craft. One spark at 100% speed does 2 work units per second. */
+  /** Seconds per craft with one Stumpy Spark working the station (the wiki's `duration`). */
   buildTime: number;
   fuelRequired: boolean;
   from: Amount[];
@@ -28,8 +28,12 @@ export interface Workstation {
   name: string;
   category: string;
   cost: { id: string; amount: number }[];
-  /** False for stations that run without a spark working them, e.g. the miasma collector. */
+  /** False for stations that run without a spark working them. */
   sparkPowered: boolean;
+  /** How many sparks can work the station at once. Their speeds add up. */
+  sparkSlots: number;
+  /** Hard limit on crafts per minute regardless of crew, e.g. a supply-limited collector. */
+  craftCap?: number;
 }
 
 export interface SparkType {
@@ -61,11 +65,27 @@ export interface GameData {
   categories: { id: string; name: string }[];
 }
 
-/** Workstations that are not driven by a spark (rate is unaffected by spark speed). */
-const NOT_SPARK_POWERED = new Set(["miasma-collector"]);
+/**
+ * crafts/min = SECONDS_PER_MINUTE * crewSpeed / buildTime, where crewSpeed sums the speed
+ * multipliers of the sparks at the station (Stumpy 1, Crafty 1.5, Handy 2.5). This matches the
+ * wiki's Template:Recipe calculator. PirateSpark used an extra factor of 2, which overstated rates.
+ */
+export const SECONDS_PER_MINUTE = 60;
 
-/** One work unit per half second at 100% speed: crafts/min = WORK_PER_MINUTE * speed / buildTime. */
-export const WORK_PER_MINUTE = 120;
+/**
+ * Sparks per station. The wiki's recipe calculator offers crews of up to two sparks for every
+ * recipe, and the Furnace infobox lists "2 x 1 Spark" slots.
+ */
+export const DEFAULT_SPARK_SLOTS = 2;
+
+/** Workstations that are not driven by a spark (none known in the current data). */
+const NOT_SPARK_POWERED = new Set<string>();
+
+/**
+ * Supply caps. Miasma Collector: miasma arrives at 15/min and a craft uses 2, so at most 7.5
+ * crafts/min ("production is capped to 8 seconds", oddsparks.wiki.gg/wiki/Miasma_Collector).
+ */
+const CRAFT_CAP: Record<string, number> = { "miasma-collector": 7.5 };
 
 interface RawData {
   version: string;
@@ -80,7 +100,15 @@ interface RawData {
 export function loadGameData(json: RawData = raw as RawData): GameData {
   const materials = new Map(json.material.map((m) => [m.id, m]));
   const workstations = new Map(
-    json.workstation.map((w) => [w.id, { ...w, sparkPowered: !NOT_SPARK_POWERED.has(w.id) }]),
+    json.workstation.map((w) => [
+      w.id,
+      {
+        ...w,
+        sparkPowered: !NOT_SPARK_POWERED.has(w.id),
+        sparkSlots: DEFAULT_SPARK_SLOTS,
+        craftCap: CRAFT_CAP[w.id],
+      },
+    ]),
   );
   const recipesFor = new Map<string, Recipe[]>();
   for (const r of json.process) {

@@ -19,8 +19,8 @@ const newTargetId = () => `t${Date.now().toString(36)}${nextId++}`;
 const defaults = (): AppConfig => ({
   targets: [{ id: "t0", material: "crafty-spark-block", mode: "rate", value: 1 }],
   recipeChoice: {},
-  defaultSpark: "spark-crafty",
-  stationSpark: {},
+  defaultCrew: ["spark-crafty"],
+  stationCrew: {},
   fuel: { material: "wooden-log", perMinute: GAME.fuels.find((f) => f.id === "wooden-log")!.perMinute },
   unit: "min",
   view: "tree",
@@ -29,11 +29,22 @@ const defaults = (): AppConfig => ({
 function load(): AppConfig {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null");
-    if (saved && Array.isArray(saved.targets)) return { ...defaults(), ...saved };
+    if (saved && Array.isArray(saved.targets)) return migrate({ ...defaults(), ...saved });
   } catch {
     /* storage unavailable */
   }
   return defaults();
+}
+
+/** Earlier versions stored one spark per station (`defaultSpark`, `stationSpark`). */
+function migrate(cfg: AppConfig & { defaultSpark?: string; stationSpark?: Record<string, string> }): AppConfig {
+  const { defaultSpark, stationSpark, ...rest } = cfg;
+  if (defaultSpark) rest.defaultCrew = [defaultSpark];
+  if (stationSpark) {
+    rest.stationCrew = { ...rest.stationCrew };
+    for (const [ws, id] of Object.entries(stationSpark)) rest.stationCrew[ws] ??= [id];
+  }
+  return rest;
 }
 
 /** Reactive app state. Mutate `cfg` directly or use the helpers. */
@@ -70,13 +81,13 @@ export class AppState {
     this.cfg.recipeChoice[material] = recipe;
   }
 
-  setStationSpark(workstation: string, spark: string | null) {
-    if (spark === null) delete this.cfg.stationSpark[workstation];
-    else this.cfg.stationSpark[workstation] = spark;
+  setStationCrew(workstation: string, crew: string[] | null) {
+    if (crew === null) delete this.cfg.stationCrew[workstation];
+    else this.cfg.stationCrew[workstation] = crew;
   }
 
   clearOverrides() {
-    this.cfg.stationSpark = {};
+    this.cfg.stationCrew = {};
     this.cfg.recipeChoice = {};
   }
 }

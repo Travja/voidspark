@@ -20,8 +20,10 @@ the calculation code with a general solver, `src/lib/engine/solver.ts`.
 ## Notes on the original model
 
 - Crafts per minute per workstation = `120 * sparkSpeed / buildTime`
-  (`60 * 2 * sparkSpeed * nWstn / buildTime` in `calculate/chain.js`).
-- One global spark speed: stumpy = 1.0, crafty = 1.5. The miasma collector ignores it.
+  (`60 * 2 * sparkSpeed * nWstn / buildTime` in `calculate/chain.js`). The wiki shows the factor
+  should be 60 (see `docs/wiki-recipe-audit.md`), so these rates are 2× too high.
+- One global spark speed: stumpy = 1.0, crafty = 1.5. The miasma collector ignores it, which
+  is also wrong per the wiki.
 - Fuel: `fuel.amount` items per minute for each workstation whose recipe has `fuelRequired`.
 - Aether, miasma, and coal-as-fuel loops are each special-cased in `aether.js`, `miasma.js`,
   and `fuel.js`.

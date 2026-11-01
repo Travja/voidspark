@@ -5,7 +5,7 @@
   import Icon from "./Icon.svelte";
   import { displayName } from "./icons";
   import RecipePicker from "./RecipePicker.svelte";
-  import SparkPicker from "./SparkPicker.svelte";
+  import CrewPicker from "./CrewPicker.svelte";
   import TreeBranch from "./TreeBranch.svelte";
 
   let {
@@ -63,10 +63,12 @@
             {built} × {displayName(node.recipe.workstation)}
           </span>
           <span class="muted small">({fmt(node.machines, 2)} exact)</span>
-          {#if node.spark}
-            <Icon id={node.spark.block} size={18} title="{node.spark.name} · {node.spark.speed}%" />
-          {/if}
-          <SparkPicker workstation={node.recipe.workstation} {app} />
+          <span class="crew">
+            {#each node.crew as s, i (i)}
+              <Icon id={s.block} size={18} title="{s.name} · {s.speed / 100}×" />
+            {/each}
+          </span>
+          <CrewPicker workstation={node.recipe.workstation} {app} />
           <RecipePicker material={node.material} {solver} {app} />
         </div>
       {:else if node.kind === "raw"}

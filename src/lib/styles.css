@@ -355,6 +355,11 @@ aside {
   font-weight: 600;
 }
 
+.crew {
+  display: inline-flex;
+  gap: 2px;
+}
+
 .tag {
   font-size: 11px;
   border-radius: 999px;

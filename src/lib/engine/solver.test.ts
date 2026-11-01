@@ -4,8 +4,8 @@ import { EXTERNAL, makePlan, Solver, type PlanConfig, type TreeNode } from "./so
 const base = (over: Partial<PlanConfig> = {}): PlanConfig => ({
   targets: [],
   recipeChoice: {},
-  defaultSpark: "spark-stumpy",
-  stationSpark: {},
+  defaultCrew: ["spark-stumpy"],
+  stationCrew: {},
   fuel: { material: "wooden-log", perMinute: 12 },
   ...over,
 });
@@ -24,52 +24,68 @@ function sumTree(node: TreeNode, acc = new Map<string, number>()) {
 }
 
 describe("solver", () => {
-  it("sizes a simple chain with stumpy sparks", () => {
+  it("sizes a simple chain with one stumpy per station", () => {
     const p = makePlan(base({ targets: [target("sawn-timber", 60)] }));
-    // sawbench: 120 / 16 = 7.5 crafts/min -> 7.5 timber/min each
-    expect(p.materials.get("sawn-timber")!.machines).toBeCloseTo(8);
-    // 2 logs per timber, logger makes 120 / 2 = 60 logs/min
+    // sawbench: 16 s per craft -> 60 / 16 = 3.75 timber/min each
+    expect(p.materials.get("sawn-timber")!.machines).toBeCloseTo(16);
+    // 2 logs per timber, logger: 2 s per log -> 30 logs/min
     expect(p.materials.get("wooden-log")!.gross).toBeCloseTo(120);
-    expect(p.materials.get("wooden-log")!.machines).toBeCloseTo(2);
+    expect(p.materials.get("wooden-log")!.machines).toBeCloseTo(4);
   });
 
   it("applies crafty spark speed globally", () => {
-    const p = makePlan(base({ targets: [target("sawn-timber", 60)], defaultSpark: "spark-crafty" }));
-    expect(p.materials.get("sawn-timber")!.machines).toBeCloseTo(60 / 11.25);
-    expect(p.materials.get("sawn-timber")!.machinesBuilt).toBe(6);
-    expect(p.materials.get("wooden-log")!.machines).toBeCloseTo(120 / 90);
+    const p = makePlan(base({ targets: [target("sawn-timber", 60)], defaultCrew: ["spark-crafty"] }));
+    expect(p.materials.get("sawn-timber")!.machines).toBeCloseTo(60 / 5.625);
+    expect(p.materials.get("sawn-timber")!.machinesBuilt).toBe(11);
+    expect(p.materials.get("wooden-log")!.machines).toBeCloseTo(120 / 45);
   });
 
-  it("applies per-workstation spark overrides", () => {
+  it("adds up the speeds of a mixed crew", () => {
+    // Wiki: "1 Stumpy & 1 Crafty" = 2.5x
+    const s = new Solver(base({ defaultCrew: ["spark-stumpy", "spark-crafty"] }));
+    expect(s.crewSpeed("sawbench")).toBeCloseTo(2.5);
+    expect(s.outputPerMachine("sawn-timber")).toBeCloseTo((60 * 2.5) / 16);
+  });
+
+  it("trims crews to the station's spark slots", () => {
+    const s = new Solver(base({ defaultCrew: ["spark-handy", "spark-handy", "spark-handy"] }));
+    expect(s.crewFor("sawbench")).toHaveLength(2);
+    expect(s.crewSpeed("sawbench")).toBeCloseTo(5);
+  });
+
+  it("applies per-workstation crew overrides", () => {
     const p = makePlan(
-      base({ targets: [target("sawn-timber", 60)], stationSpark: { sawbench: "spark-crafty" } }),
+      base({ targets: [target("sawn-timber", 60)], stationCrew: { sawbench: ["spark-crafty", "spark-crafty"] } }),
     );
-    expect(p.materials.get("sawn-timber")!.spark!.id).toBe("spark-crafty");
+    expect(p.materials.get("sawn-timber")!.crew.map((c) => c.id)).toEqual(["spark-crafty", "spark-crafty"]);
     expect(p.materials.get("sawn-timber")!.machines).toBeCloseTo(60 / 11.25);
-    expect(p.materials.get("wooden-log")!.machines).toBeCloseTo(2);
+    expect(p.materials.get("wooden-log")!.machines).toBeCloseTo(4);
   });
 
   it("converts a machine-count target into a rate", () => {
     const p = makePlan(base({ targets: [target("sawn-timber", 2, "machines")] }));
-    expect(p.materials.get("sawn-timber")!.gross).toBeCloseTo(15);
+    expect(p.materials.get("sawn-timber")!.gross).toBeCloseTo(7.5);
   });
 
-  it("ignores spark speed on the miasma collector", () => {
-    const s = new Solver(base({ defaultSpark: "spark-crafty" }));
-    expect(s.outputPerMachine("miasma-vial")).toBeCloseTo((120 / 16) * 2);
+  it("caps the miasma collector at its miasma supply", () => {
+    // 1 stumpy: 60 / 16 = 3.75 crafts/min, under the cap
+    expect(new Solver(base()).outputPerMachine("miasma-vial")).toBeCloseTo(3.75 * 2);
+    // 2 crafty: 11.25 crafts/min, capped to 7.5 (15 miasma/min, 2 per craft)
+    const s = new Solver(base({ defaultCrew: ["spark-crafty", "spark-crafty"] }));
+    expect(s.outputPerMachine("miasma-vial")).toBeCloseTo(7.5 * 2);
   });
 
   it("closes the coal-fuels-coal loop", () => {
-    // One furnace: 15 coal/min, burns 2 coal/min -> 13 net
+    // One furnace: 60 / 8 = 7.5 coal/min, burns 2 coal/min -> 5.5 net
     const p = makePlan(
-      base({ targets: [target("coal", 13)], fuel: { material: "coal", perMinute: 2 } }),
+      base({ targets: [target("coal", 5.5)], fuel: { material: "coal", perMinute: 2 } }),
     );
     const coal = p.materials.get("coal")!;
-    expect(coal.gross).toBeCloseTo(15);
+    expect(coal.gross).toBeCloseTo(7.5);
     expect(coal.machines).toBeCloseTo(1);
-    expect(p.materials.get("wooden-log")!.gross).toBeCloseTo(45);
+    expect(p.materials.get("wooden-log")!.gross).toBeCloseTo(22.5);
     const tree = p.trees[0];
-    expect(tree.gross).toBeCloseTo(15);
+    expect(tree.gross).toBeCloseTo(7.5);
     const loop = tree.children.find((c) => c.kind === "loop")!;
     expect(loop.material).toBe("coal");
     expect(loop.fuel).toBe(true);
@@ -110,8 +126,8 @@ describe("solver", () => {
   it("aggregates stations and build cost", () => {
     const p = makePlan(base({ targets: [target("sawn-timber", 60)] }));
     const sawbench = p.stations.find((s) => s.workstation === "sawbench")!;
-    expect(sawbench.machinesBuilt).toBe(8);
+    expect(sawbench.machinesBuilt).toBe(16);
     // sawbench costs 20 wooden logs
-    expect(p.buildCost.find((c) => c.material === "wooden-log")!.amount).toBeGreaterThanOrEqual(160);
+    expect(p.buildCost.find((c) => c.material === "wooden-log")!.amount).toBeGreaterThanOrEqual(320);
   });
 });

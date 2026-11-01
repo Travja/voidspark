@@ -1,9 +1,9 @@
 /**
  * VoidSpark production solver.
  *
- * Model (kept compatible with PirateSpark):
- *   crafts/min per machine = 120 * (sparkSpeed / 100) / buildTime
- *   Stations that aren't spark-powered always run at 100%.
+ * Model (checked against oddsparks.wiki.gg Template:Recipe):
+ *   crafts/min per machine = 60 * crewSpeed / buildTime, capped by the station's craftCap.
+ *   crewSpeed is the sum of the sparks working the station (Stumpy 1, Crafty 1.5, Handy 2.5).
  *   A fuelled station burns `fuel.perMinute` items of the chosen fuel per minute while running.
  *
  * Everything is expressed per unit of output. A[i][j] is how many units of material i are
@@ -11,7 +11,7 @@
  * production G solves (I - A) G = d. Loops (coal fuelling the coal furnace, aether shards
  * feeding the aether chain) fall out of the same solve with no special cases.
  */
-import { GAME, WORK_PER_MINUTE, type GameData, type Recipe, type SparkType } from "./data";
+import { GAME, SECONDS_PER_MINUTE, type GameData, type Recipe, type SparkType } from "./data";
 
 export const EXTERNAL = "external";
 
@@ -27,10 +27,10 @@ export interface PlanConfig {
   targets: Target[];
   /** material -> recipe id, or EXTERNAL to treat it as a supplied raw input. */
   recipeChoice: Record<string, string>;
-  /** Spark id used at every spark-powered workstation unless overridden. */
-  defaultSpark: string;
-  /** workstation id -> spark id. */
-  stationSpark: Record<string, string>;
+  /** Spark ids working every spark-powered workstation unless overridden. Speeds add up. */
+  defaultCrew: string[];
+  /** workstation id -> spark ids working it. */
+  stationCrew: Record<string, string[]>;
   fuel: { material: string; perMinute: number };
 }
 
@@ -57,7 +57,8 @@ export interface Flow {
 export interface MaterialPlan {
   material: string;
   recipe: Recipe | null;
-  spark: SparkType | null;
+  /** Sparks working each machine; empty for raw inputs and unpowered stations. */
+  crew: SparkType[];
   /** Total items/min produced (or supplied, for raw inputs). */
   gross: number;
   /** Items/min asked for directly by targets. */
@@ -89,7 +90,7 @@ export interface TreeNode {
   gross: number;
   machines: number;
   recipe: Recipe | null;
-  spark: SparkType | null;
+  crew: SparkType[];
   fuel: boolean;
   children: TreeNode[];
 }
@@ -122,17 +123,29 @@ export class Solver {
     return options.find((r) => r.id === choice) ?? options[0];
   }
 
-  sparkFor(workstation: string): SparkType | null {
+  /** Sparks working one machine of this workstation type (trimmed to its slot count). */
+  crewFor(workstation: string): SparkType[] {
     const ws = this.data.workstations.get(workstation);
-    if (ws && !ws.sparkPowered) return null;
-    const id = this.cfg.stationSpark[workstation] ?? this.cfg.defaultSpark;
-    return this.data.sparks.find((s) => s.id === id) ?? this.data.sparks[0];
+    if (ws && !ws.sparkPowered) return [];
+    const ids = this.cfg.stationCrew[workstation] ?? this.cfg.defaultCrew;
+    const crew = ids
+      .map((id) => this.data.sparks.find((s) => s.id === id))
+      .filter((s): s is SparkType => !!s)
+      .slice(0, ws?.sparkSlots ?? ids.length);
+    return crew.length ? crew : [this.data.sparks[0]];
+  }
+
+  /** Combined speed multiplier of the crew (1 = one Stumpy). */
+  crewSpeed(workstation: string): number {
+    const ws = this.data.workstations.get(workstation);
+    if (ws && !ws.sparkPowered) return 1;
+    return this.crewFor(workstation).reduce((n, s) => n + s.speed / 100, 0);
   }
 
   craftsPerMinute(recipe: Recipe): number {
-    const spark = this.sparkFor(recipe.workstation);
-    const speed = spark ? spark.speed / 100 : 1;
-    return (WORK_PER_MINUTE * speed) / recipe.buildTime;
+    const rate = (SECONDS_PER_MINUTE * this.crewSpeed(recipe.workstation)) / recipe.buildTime;
+    const cap = this.data.workstations.get(recipe.workstation)?.craftCap;
+    return cap !== undefined ? Math.min(rate, cap) : rate;
   }
 
   outputPerMachine(material: string): number {
@@ -242,7 +255,7 @@ export class Solver {
   ): TreeNode {
     const recipe = this.recipeFor(material);
     if (!recipe) {
-      return { id, material, kind: "raw", rate, gross: rate, machines: 0, recipe: null, spark: null, fuel, children: [] };
+      return { id, material, kind: "raw", rate, gross: rate, machines: 0, recipe: null, crew: [], fuel, children: [] };
     }
     const gross = rate * this.grossFactor(material, ancestors);
     const node: TreeNode = {
@@ -253,7 +266,7 @@ export class Solver {
       gross,
       machines: gross / this.outputPerMachine(material),
       recipe,
-      spark: this.sparkFor(recipe.workstation),
+      crew: this.crewFor(recipe.workstation),
       fuel,
       children: [],
     };
@@ -271,7 +284,7 @@ export class Solver {
           gross: childRate,
           machines: 0,
           recipe: null,
-          spark: null,
+          crew: [],
           fuel: e.fuel,
           children: [],
         });
@@ -305,7 +318,7 @@ export class Solver {
       materials.set(m, {
         material: m,
         recipe,
-        spark: recipe ? this.sparkFor(recipe.workstation) : null,
+        crew: recipe ? this.crewFor(recipe.workstation) : [],
         gross: g,
         targetRate: demand.get(m) ?? 0,
         machines,

@@ -1,5 +1,6 @@
 <script lang="ts">
   import "$lib/styles.css";
+  import CrewPicker from "$lib/components/CrewPicker.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import InputsView from "$lib/components/InputsView.svelte";
   import MachinesView from "$lib/components/MachinesView.svelte";
@@ -22,7 +23,7 @@
   });
   const u = $derived(UNIT_FACTOR[app.cfg.unit]);
   const hasOverrides = $derived(
-    Object.keys(app.cfg.stationSpark).length + Object.keys(app.cfg.recipeChoice).length > 0,
+    Object.keys(app.cfg.stationCrew).length + Object.keys(app.cfg.recipeChoice).length > 0,
   );
 
   const tabs: { id: View; label: string }[] = [
@@ -100,14 +101,13 @@
           </select>
         </label>
         <label>
-          Default spark at workstations
-          <select bind:value={app.cfg.defaultSpark}>
-            {#each GAME.sparks as s (s.id)}
-              <option value={s.id}>{s.name} ({s.speed}% speed)</option>
-            {/each}
-          </select>
+          Sparks per workstation
+          <CrewPicker {app} />
         </label>
-        <p class="muted small">You can override the spark per workstation type from the tree or the Machines tab.</p>
+        <p class="muted small">
+          Each station holds up to two sparks and their speeds add up (Stumpy 1×, Crafty 1.5×, Handy 2.5×). You can
+          override the crew per workstation type from the tree or the Machines tab.
+        </p>
         <label>
           Fuel
           <select value={app.cfg.fuel.material} onchange={(e) => setFuel(e.currentTarget.value)}>
@@ -117,7 +117,7 @@
           </select>
         </label>
         {#if hasOverrides}
-          <button onclick={() => app.clearOverrides()} title="Clear per-station spark overrides and recipe choices">
+          <button onclick={() => app.clearOverrides()} title="Clear per-station spark crews and recipe choices">
             Clear overrides
           </button>
         {/if}
@@ -148,6 +148,6 @@
   </div>
   <footer class="muted small">
     Built on the recovered <a href="https://github.com/Travja/voidspark/tree/master/legacy/piratespark">PirateSpark</a>
-    data and model. Recipes match game version {GAME.version} and may be out of date.
+    data and model. Recipes checked against the <a href="https://oddsparks.wiki.gg">Oddsparks Wiki</a>; 1.0-only content is not included yet.
   </footer>
 </div>

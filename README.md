@@ -4,8 +4,8 @@ A production planner for **Oddsparks**, built on the data and model of the Pirat
 
 - **Target output rates.** Ask for items per second, minute, or hour. A target can also be a
   number of machines, as in PirateSpark.
-- **Spark types.** Set a default spark (Stumpy 100% or Crafty 150%) and override it for each
-  workstation type. The miasma collector isn't spark-driven, so spark speed doesn't affect it.
+- **Spark crews.** Each station holds up to two sparks and their speeds add up (Stumpy 1×,
+  Crafty 1.5×, Handy 2.5×). Set a default crew and override it for each workstation type.
 - **Branching production tree.** Shows which machine makes each item, how many you need, and
   what feeds what. Fuel edges are dashed. Production loops (coal fuelling coal furnaces, aether
   shards feeding the miasma → raw aether → shard chain) appear as "loops back" leaves.
@@ -37,8 +37,10 @@ BASE_PATH=/voidspark npm run build   # then publish build/ (it includes .nojekyl
 
 `src/lib/engine/solver.ts`:
 
-- crafts/min per machine = `120 × sparkSpeed / buildTime`. This is PirateSpark's model:
-  one spark at 100% does 2 work units per second.
+- crafts/min per machine = `60 × crewSpeed / buildTime`. `buildTime` is the wiki's `duration`:
+  seconds per craft with one Stumpy. PirateSpark used `120 × …`, which doubled every rate. See
+  [docs/wiki-recipe-audit.md](docs/wiki-recipe-audit.md).
+- Supply-limited stations are capped. The Miasma Collector runs at most 7.5 crafts/min.
 - A fuelled machine burns the chosen fuel's per-minute amount from the game data.
 - Each material's recipe gives a "per unit of output" cost in inputs and fuel. Total
   production `G` for target demand `d` solves `(I − A)·G = d`, so loops need no special
@@ -63,7 +65,8 @@ BASE_PATH=/voidspark npm run build   # then publish build/ (it includes .nojekyl
 
 ## Known gaps
 
-- The game data is from **0.2.3**. Recipes, build times, and fuel values may have changed since.
-  Edit `src/lib/data/oddsparks_0_2.json` to update them.
-- Recipes are treated as single-output. Byproducts aren't credited.
-- Spark speeds are Stumpy 100% and Crafty 150%, from PirateSpark's data.
+- The data covers the original 56 recipes, checked against the wiki on 2026-11-01. About 100
+  1.0 recipes (copper, geodes, greenhouses…) aren't included yet. See
+  [docs/wiki-recipe-audit.md](docs/wiki-recipe-audit.md).
+- Recipes are treated as single-output. Byproducts and randomised outputs aren't credited.
+- Temperature (heaters/coolers) isn't modelled.

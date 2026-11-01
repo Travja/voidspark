@@ -6,7 +6,7 @@
   import Icon from "./Icon.svelte";
   import { displayName } from "./icons";
   import RecipePicker from "./RecipePicker.svelte";
-  import SparkPicker from "./SparkPicker.svelte";
+  import CrewPicker from "./CrewPicker.svelte";
 
   let { plan, solver, app }: { plan: Plan; solver: Solver; app: AppState } = $props();
 
@@ -27,7 +27,7 @@
         <h3>{s.machinesBuilt} × {displayName(s.workstation)}</h3>
         <span class="muted small">{fmt(s.machinesExact, 2)} exact</span>
         <span class="spacer"></span>
-        <label class="small">Spark <SparkPicker workstation={s.workstation} {app} /></label>
+        <label class="small">Sparks <CrewPicker workstation={s.workstation} {app} /></label>
       </header>
       <table>
         <thead>
