@@ -1,6 +1,7 @@
 <script lang="ts">
   import "$lib/styles.css";
   import CrewPicker from "$lib/components/CrewPicker.svelte";
+  import { crewLabel } from "$lib/components/crews";
   import Icon from "$lib/components/Icon.svelte";
   import InputsView from "$lib/components/InputsView.svelte";
   import FlowDiagram from "$lib/components/FlowDiagram.svelte";
@@ -42,6 +43,17 @@
     const value = mode === "rate" ? solver.targetRate(t) : t.value / (solver.outputPerMachine(t.material) || 1);
     app.updateTarget(t.id, { mode, value: +value.toPrecision(6) });
   }
+
+  // Settings start collapsed on phones so the results are near the top.
+  let settingsOpen = $state(typeof matchMedia === "undefined" || matchMedia("(min-width: 861px)").matches);
+  const unitName = { sec: "sec", min: "min", hr: "hr" } as const;
+  const settingsSummary = $derived(
+    [
+      crewLabel(app.cfg.defaultCrew.map((id) => GAME.sparks.find((s) => s.id === id)!).filter(Boolean)),
+      `per ${unitName[app.cfg.unit]}`,
+      `${GAME.fuels.find((f) => f.id === app.cfg.fuel.material)?.name ?? "no"} fuel`,
+    ].join(" · "),
+  );
 
   function setFuel(id: string) {
     const f = GAME.fuels.find((x) => x.id === id)!;
@@ -90,8 +102,11 @@
         <button onclick={() => app.addTarget("sawn-timber")}>+ Add target</button>
       </section>
 
-      <section class="card">
-        <h2>Settings</h2>
+      <details class="card settings" bind:open={settingsOpen}>
+        <summary>
+          <h2>Settings</h2>
+          {#if !settingsOpen}<span class="muted small">{settingsSummary}</span>{/if}
+        </summary>
         <label>
           Rate unit
           <select bind:value={app.cfg.unit}>
@@ -121,7 +136,7 @@
             Clear overrides
           </button>
         {/if}
-      </section>
+      </details>
     </aside>
 
     <main>

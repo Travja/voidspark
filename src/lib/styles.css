@@ -80,7 +80,6 @@ select {
 
 main {
   min-width: 0;
-  overflow-x: auto;
 }
 
 button,
@@ -253,6 +252,11 @@ aside {
   padding-left: 22px;
 }
 
+/* Safety net for very deep trees; kept on the tree (not <main>) so the sticky tabs still work. */
+.tree.root {
+  overflow-x: auto;
+}
+
 .tree.root > .branch {
   margin-bottom: 14px;
 }
@@ -402,7 +406,8 @@ aside {
 .node select {
   font-size: 12px;
   padding: 2px 6px;
-  max-width: 260px;
+  max-width: min(260px, 100%);
+  min-width: 0;
 }
 
 /* ---------- Tables ---------- */
@@ -674,4 +679,142 @@ footer {
   align-items: center;
   gap: 6px;
   padding: 2px 0;
+}
+
+/* ---------- Sticky tabs, collapsible settings ---------- */
+
+.tabs {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 6px 0;
+  background: var(--bg);
+}
+
+.settings summary {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.settings summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings summary h2::before {
+  content: "▸ ";
+  color: var(--muted);
+}
+
+.settings[open] summary h2::before {
+  content: "▾ ";
+}
+
+.settings[open] summary {
+  margin-bottom: 10px;
+}
+
+.settings summary h2 {
+  margin: 0;
+}
+
+/* ---------- Phones ---------- */
+
+@media (max-width: 600px) {
+  .app {
+    padding: 10px;
+  }
+
+  .top {
+    margin-bottom: 10px;
+  }
+
+  aside {
+    gap: 10px;
+  }
+
+  .card {
+    padding: 10px 12px;
+  }
+
+  /* Tree: shallow indent so deep chains still fit. */
+  .tree .tree {
+    margin-left: 6px;
+    padding-left: 12px;
+  }
+
+  .tree .tree > .branch::before,
+  .tree .tree > .branch::after {
+    left: -12px;
+  }
+
+  .tree .tree > .branch::after {
+    width: 10px;
+  }
+
+  .node {
+    gap: 6px;
+    padding: 6px 8px;
+  }
+
+  .node .icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .node-machine .icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .twisty {
+    width: 12px;
+  }
+
+  .toolbar .muted.small {
+    display: none;
+  }
+
+  /* Inputs & cost: let rows wrap instead of overflowing. */
+  .two-col table,
+  .two-col tbody,
+  .two-col tr {
+    display: block;
+  }
+
+  .two-col tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px 8px;
+    padding: 6px 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .two-col td {
+    display: block;
+    padding: 0;
+    border: none;
+  }
+
+  .two-col td:last-child:has(select) {
+    flex-basis: 100%;
+  }
+
+  .two-col select {
+    width: 100%;
+  }
+
+  .flow-viewport {
+    max-height: 70vh;
+    padding: 8px;
+  }
+
+  .station-chip select {
+    max-width: 110px;
+  }
 }

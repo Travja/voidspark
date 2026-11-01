@@ -30,6 +30,14 @@
 
   let hovered = $state<string | null>(null);
   let selected = $state<string | null>(null);
+  let details = $state<HTMLElement>();
+
+  // On small screens the details panel opens below the diagram, off-screen: bring it into view.
+  $effect(() => {
+    if (selected && details && details.getBoundingClientRect().top > innerHeight - 80) {
+      details.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  });
   /** "auto": fit when that stays legible (>= 75%), otherwise 100%. */
   let zoom = $state<"auto" | "fit" | number>("auto");
   let viewport = $state<HTMLDivElement>();
@@ -51,7 +59,8 @@
   // Drag the background to pan.
   let drag = $state<{ x: number; y: number; left: number; top: number } | null>(null);
   function startPan(e: PointerEvent) {
-    if (!viewport || (e.target as HTMLElement).closest(".flow-card, .edge-label") || e.button !== 0) return;
+    // Mouse only: on touch screens the browser's own scrolling already pans the diagram.
+    if (e.pointerType !== "mouse" || !viewport || (e.target as HTMLElement).closest(".flow-card, .edge-label") || e.button !== 0) return;
     drag = { x: e.clientX, y: e.clientY, left: viewport.scrollLeft, top: viewport.scrollTop };
     viewport.setPointerCapture(e.pointerId);
   }
@@ -235,7 +244,7 @@
     {@const n = selectedNode}
     {@const fedBy = plan.flow.edges.filter((e) => e.to === n.id)}
     {@const feeds = plan.flow.edges.filter((e) => e.from === n.id)}
-    <section class="card flow-details">
+    <section class="card flow-details" bind:this={details}>
       <header class="card-row">
         <Icon id={n.line ? n.line.recipe.workstation : n.material} size={32} />
         <h3>{nodeLabel(n.id)}</h3>
