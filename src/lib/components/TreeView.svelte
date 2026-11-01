@@ -31,7 +31,7 @@
     <button onclick={collapseToTargets}>Collapse to targets</button>
     <span class="muted small">
       Each row feeds only the row it hangs from, so every line flows one way. Extra outputs are surplus. Machine
-      counts are for that branch only; the Machines tab has the combined totals.
+      counts are for that branch only; the Build plan has the combined totals.
     </span>
   </div>
   <ul class="tree root">

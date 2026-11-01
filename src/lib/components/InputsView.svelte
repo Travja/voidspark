@@ -54,7 +54,7 @@
   </section>
   <section class="card">
     <h3>Build cost</h3>
-    <p class="muted small">To place every machine in the Machines tab (rounded up).</p>
+    <p class="muted small">To place every machine in the Build plan (rounded up).</p>
     {#if !plan.buildCost.length}<p class="muted">No build costs listed on the wiki for these machines.</p>{/if}
     <table>
       <tbody>

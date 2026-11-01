@@ -481,3 +481,197 @@ footer {
   margin-top: 24px;
   text-align: center;
 }
+
+/* ---------- Build plan (flow diagram) ---------- */
+
+.station-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.station-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.station-chip select {
+  font-size: 12px;
+  padding: 2px 4px;
+  max-width: 128px;
+}
+
+.flow-viewport.panning {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.toolbar button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.flow-viewport {
+  overflow: auto;
+  cursor: grab;
+  max-height: 78vh;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.flow-sizer {
+  position: relative;
+}
+
+.flow-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+}
+
+.flow-edges {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+
+.edge {
+  fill: none;
+  stroke: var(--line);
+  transition: opacity 0.12s;
+}
+
+.edge.hot {
+  stroke: var(--accent);
+}
+
+.edge.fuel {
+  stroke: var(--fuel);
+  stroke-dasharray: 6 4;
+}
+
+.edge.dim,
+.edge-label.dim,
+.flow-card.dim {
+  opacity: 0.18;
+}
+
+.arrowhead {
+  fill: var(--line);
+}
+
+.edge-label {
+  position: absolute;
+  transform: translate(-100%, -105%);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 5px;
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: auto;
+}
+
+.edge-label.fuel {
+  color: var(--fuel);
+}
+
+.flow-card {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 10px;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+  transition: opacity 0.12s;
+}
+
+.flow-card:hover,
+.flow-card.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.flow-card.kind-raw {
+  background: var(--raw-soft);
+}
+
+.flow-card.kind-loop {
+  background: var(--loop-soft);
+  border-style: dashed;
+}
+
+.flow-card.kind-target {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.card-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+}
+
+.tag.target {
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+.flow-details {
+  margin-top: 14px;
+}
+
+.flow-details h4 {
+  margin: 8px 0 4px;
+  font-size: 13px;
+}
+
+.detail-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 6px 0;
+}
+
+.detail-controls label {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
+.flow-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+}

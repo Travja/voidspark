@@ -18,8 +18,11 @@ greenhouses, the Arboretum, and the metal sparks. It started from the PirateSpar
   loops back. Extra outputs from multi-output recipes (Plant Extractor, Geode Breaker…) are
   listed as surplus. They aren't fed back into earlier machines or into other lines, so belts
   don't cross back over the build. Random outputs count at their expected value.
-- **Machines view.** Totals per workstation, rounded up, with load %. Each line shows what it
-  consumes and what it feeds.
+- **Build plan.** A diagram of what to build. Each card is a group of machines running one
+  recipe ("2 × Sawbench, Sawn Timber, 89% busy"). Arrows show which group feeds which, with
+  the item and rate on each arrow. Raw inputs are on the left and targets on the right. Hover
+  a card to trace its connections, and click it for details and its crew and recipe pickers.
+  Totals per workstation sit above the diagram.
 - **Inputs & cost.** Raw inputs needed, and the material cost to build every machine.
 
 ## Development
@@ -57,7 +60,7 @@ BASE_PATH=/voidspark npm run build   # then publish build/ (it includes .nojekyl
 - Supply-limited stations are capped. The Miasma Collector runs at most 7.5 crafts/min.
 - A fuelled machine burns the chosen fuel's per-minute amount from the game data.
 - Each target expands into its own tree. Every node is sized for exactly what its parent
-  pulls, and the Machines tab sums the branches. Extra outputs are surplus and are never
+  pulls, and the Build plan sums the branches into one group per recipe. Extra outputs are surplus and are never
   credited anywhere.
 - If an input already appears further up its own chain (coal fuelling the coal furnace,
   enrichment recipes, seed ↔ plant cycles), it isn't produced in a loop. It's flagged to be
@@ -65,6 +68,9 @@ BASE_PATH=/voidspark npm run build   # then publish build/ (it includes .nojekyl
   when you choose a looping recipe or fuel.
 - Totals are computed from memoised per-unit costs, so they stay exact. The tree view is built
   breadth-first with a display size limit.
+- The Build plan's layout (`src/lib/engine/layout.ts`) is a simplified layered graph layout.
+  Each group sits one column left of the furthest group it feeds, and barycenter sweeps order
+  each column to reduce crossing arrows.
 
 ## Layout
 

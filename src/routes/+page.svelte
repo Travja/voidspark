@@ -3,7 +3,7 @@
   import CrewPicker from "$lib/components/CrewPicker.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import InputsView from "$lib/components/InputsView.svelte";
-  import MachinesView from "$lib/components/MachinesView.svelte";
+  import FlowDiagram from "$lib/components/FlowDiagram.svelte";
   import MaterialPicker from "$lib/components/MaterialPicker.svelte";
   import TreeView from "$lib/components/TreeView.svelte";
   import { GAME } from "$lib/engine/data";
@@ -28,7 +28,7 @@
 
   const tabs: { id: View; label: string }[] = [
     { id: "tree", label: "Production tree" },
-    { id: "machines", label: "Machines" },
+    { id: "machines", label: "Build plan" },
     { id: "inputs", label: "Inputs & cost" },
   ];
 
@@ -106,7 +106,7 @@
         </label>
         <p class="muted small">
           Machines normally run with two sparks, and their speeds add up (Stumpy 1×, Crafty 1.5×, Handy 2.5×). You
-          can override the crew per workstation type from the tree or the Machines tab.
+          can override the crew per workstation type from the tree or the Build plan.
         </p>
         <label>
           Fuel
@@ -139,7 +139,7 @@
         {#if app.cfg.view === "tree"}
           <TreeView trees={result.plan.trees} {solver} {app} />
         {:else if app.cfg.view === "machines"}
-          <MachinesView plan={result.plan} {solver} {app} />
+          <FlowDiagram plan={result.plan} {solver} {app} />
         {:else}
           <InputsView plan={result.plan} {solver} {app} />
         {/if}
