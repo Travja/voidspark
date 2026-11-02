@@ -5,10 +5,13 @@
   import Icon from "./Icon.svelte";
   import { displayName } from "./icons";
   import RecipePicker from "./RecipePicker.svelte";
+  import Staffing from "./Staffing.svelte";
 
   let { plan, solver, app }: { plan: Plan; solver: Solver; app: AppState } = $props();
   const unit = $derived(app.cfg.unit);
 </script>
+
+<Staffing {plan} {app} />
 
 <div class="two-col">
   <section class="card">

@@ -7,23 +7,49 @@
   import Icon from "./Icon.svelte";
   import { displayName } from "./icons";
   import RecipePicker from "./RecipePicker.svelte";
+  import Staffing from "./Staffing.svelte";
 
   let { plan, solver, app }: { plan: Plan; solver: Solver; app: AppState } = $props();
 
-  const CARD_W = 210;
-  const COL_GAP = 130;
-  const ROW_GAP = 18;
+  /** "auto": top-to-bottom on narrow screens (phones), left-to-right otherwise. */
+  let direction = $state<"auto" | "lr" | "tb">("auto");
+  let viewportWidth = $state(1000);
+  const dir = $derived(direction === "auto" ? (viewportWidth < 700 ? "tb" : "lr") : direction);
+
+  // Left-to-right: arrows enter along the card's side, so tall cards spread many inputs.
+  // Top-to-bottom: arrows enter along the top, so cards stay a fixed height.
   const nodeHeight = (n: FlowNode, ins: number, outs: number) =>
-    n.kind === "recipe" ? Math.max(86, 24 * Math.max(ins, outs) + 14) : Math.max(54, 22 * outs + 12);
+    dir === "tb"
+      ? n.kind === "recipe"
+        ? 86
+        : 56
+      : n.kind === "recipe"
+        ? Math.max(86, 24 * Math.max(ins, outs) + 14)
+        : Math.max(54, 22 * outs + 12);
 
   const layout = $derived(
     layoutFlow(plan.flow.nodes, plan.flow.edges, {
-      cardWidth: CARD_W,
-      columnGap: COL_GAP,
-      rowGap: ROW_GAP,
+      direction: dir,
+      cardWidth: dir === "tb" ? 168 : 210,
+      columnGap: dir === "tb" ? 72 : 130,
+      rowGap: dir === "tb" ? 12 : 18,
       height: nodeHeight,
     }),
   );
+
+  /** Top-to-bottom: labels above each card's top edge, staggered when they would collide. */
+  const labelOffset = $derived.by(() => {
+    const offsets = new Map<(typeof layout.edges)[number], number>();
+    if (layout.direction !== "tb") return offsets;
+    const byTarget = new Map<string, (typeof layout.edges)[number][]>();
+    for (const e of layout.edges) byTarget.set(e.edge.to, [...(byTarget.get(e.edge.to) ?? []), e]);
+    for (const list of byTarget.values()) {
+      list.sort((a, b) => a.x2 - b.x2);
+      const tight = list.length > 1 && (list[list.length - 1].x2 - list[0].x2) / (list.length - 1) < 70;
+      list.forEach((e, i) => offsets.set(e, tight && i % 2 ? 20 : 0));
+    }
+    return offsets;
+  });
   const unit = $derived(app.cfg.unit);
   const maxRate = $derived(Math.max(1e-9, ...plan.flow.edges.map((e) => e.rate)));
   const total = $derived(plan.stations.reduce((n, s) => n + s.machinesBuilt, 0));
@@ -41,7 +67,6 @@
   /** "auto": fit when that stays legible (>= 75%), otherwise 100%. */
   let zoom = $state<"auto" | "fit" | number>("auto");
   let viewport = $state<HTMLDivElement>();
-  let viewportWidth = $state(1000);
 
   const VIEWPORT_PADDING = 24;
   const fitScale = $derived(Math.min(1, (viewportWidth - VIEWPORT_PADDING - 2) / Math.max(1, layout.width)));
@@ -49,11 +74,19 @@
     zoom === "fit" ? fitScale : zoom === "auto" ? (fitScale >= 0.75 ? fitScale : 1) : zoom,
   );
 
-  // When the diagram doesn't fit, start at the target end (right), where the plan begins.
+  // When the diagram doesn't fit, start at the target end, where the plan begins.
   $effect(() => {
-    void layout;
-    void scale;
-    if (viewport && layout.width * scale > viewport.clientWidth) viewport.scrollLeft = viewport.scrollWidth;
+    const target = layout.nodes.find((n) => n.node.kind === "target");
+    if (!viewport || !target) return;
+    const cx = (target.x + target.width / 2) * scale;
+    const cy = (target.y + target.height / 2) * scale;
+    const el = viewport;
+    // Wait a frame so the browser has laid out the new diagram size before scrolling.
+    const frame = requestAnimationFrame(() => {
+      el.scrollLeft = Math.max(0, cx - el.clientWidth / 2);
+      el.scrollTop = Math.max(0, cy - el.clientHeight / 2);
+    });
+    return () => cancelAnimationFrame(frame);
   });
 
   // Drag the background to pan.
@@ -109,6 +142,7 @@
 </script>
 
 {#if plan.flow.nodes.length}
+  <Staffing {plan} {app} />
   <div class="station-strip">
     <span class="muted small">{total} machines:</span>
     {#each plan.stations as s (s.workstation)}
@@ -122,10 +156,14 @@
 
   <div class="toolbar">
     <span class="muted small">
-      Raw inputs on the left, your targets on the right. Each card is a group of machines running one recipe, and
-      arrows show what it feeds. Hover a card to trace it, click it for details, and drag the background to pan.
+      {dir === "tb" ? "Raw inputs at the top, your targets at the bottom." : "Raw inputs on the left, your targets on the right."}
+      Each card is a group of machines running one recipe, and arrows show what it feeds. Hover or tap a card to
+      trace it and see details.
     </span>
     <span class="spacer"></span>
+    <span class="muted small">Layout</span>
+    <button class:active={dir === "lr"} title="Left to right" onclick={() => (direction = "lr")}>↔ Across</button>
+    <button class:active={dir === "tb"} title="Top to bottom" onclick={() => (direction = "tb")}>↕ Down</button>
     <span class="muted small">Zoom</span>
     <button class:active={scale === fitScale && zoom !== 0.75 && zoom !== 1} onclick={() => (zoom = "fit")}>Overview</button>
     <button class:active={zoom === 0.75} onclick={() => (zoom = 0.75)}>75%</button>
@@ -168,10 +206,11 @@
         {#each layout.edges as e (`label:${e.edge.from}>${e.edge.to}>${e.edge.material}>${e.edge.fuel}`)}
           <div
             class="edge-label"
+            class:tb={layout.direction === "tb"}
             class:dim={!linked(e.edge)}
             class:fuel={e.edge.fuel}
-            style:left="{e.x2 - 10}px"
-            style:top="{e.y2}px"
+            style:left="{layout.direction === "tb" ? e.x2 : e.x2 - 10}px"
+            style:top="{layout.direction === "tb" ? e.y2 - 6 - (labelOffset.get(e) ?? 0) : e.y2}px"
             title="{displayName(e.edge.material)}{e.edge.fuel ? ' (fuel)' : ''}: {nodeLabel(e.edge.from)} → {nodeLabel(e.edge.to)}"
           >
             <Icon id={e.edge.material} size={14} />

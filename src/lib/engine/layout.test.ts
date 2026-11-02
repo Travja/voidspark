@@ -58,3 +58,32 @@ describe("layout", () => {
     }
   });
 });
+
+describe("top-to-bottom layout", () => {
+  it("keeps arrows pointing down and cards apart, for every item", () => {
+    for (const m of GAME.materials.keys()) {
+      const { flow } = makePlan(cfg(m));
+      const l = layoutFlow(flow.nodes, flow.edges, { ...opts, cardWidth: 160, direction: "tb" });
+      expect(l.direction).toBe("tb");
+      for (const e of l.edges) expect(e.y2, `${m}: ${e.edge.from} -> ${e.edge.to}`).toBeGreaterThan(e.y1);
+      const byRow = new Map<number, typeof l.nodes>();
+      for (const n of l.nodes) byRow.set(n.column, [...(byRow.get(n.column) ?? []), n]);
+      for (const row of byRow.values()) {
+        const xs = row.map((n) => [n.x, n.x + n.width]).sort((a, b) => a[0] - b[0]);
+        for (let i = 1; i < xs.length; i++) expect(xs[i][0], m).toBeGreaterThanOrEqual(xs[i - 1][1]);
+      }
+      for (const n of l.nodes) {
+        expect(n.x + n.width, m).toBeLessThanOrEqual(l.width + 1e-6);
+        expect(n.y + n.height, m).toBeLessThanOrEqual(l.height + 1e-6);
+      }
+      for (const t of l.nodes.filter((n) => n.node.kind === "target")) expect(t.column, m).toBe(l.columns - 1);
+    }
+  });
+
+  it("is much narrower than left-to-right for a big plan", () => {
+    const { flow } = makePlan(cfg("handy-spark-block"));
+    const lr = layoutFlow(flow.nodes, flow.edges, opts);
+    const tb = layoutFlow(flow.nodes, flow.edges, { ...opts, cardWidth: 160, direction: "tb" });
+    expect(tb.width).toBeLessThan(lr.width / 2);
+  });
+});

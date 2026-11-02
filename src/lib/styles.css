@@ -593,6 +593,10 @@ footer {
   pointer-events: auto;
 }
 
+.edge-label.tb {
+  transform: translate(-50%, -100%);
+}
+
 .edge-label.fuel {
   color: var(--fuel);
 }
@@ -817,4 +821,28 @@ footer {
   .station-chip select {
     max-width: 110px;
   }
+}
+
+/* ---------- Staffing ---------- */
+
+.staffing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.staff-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 8px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+}
+
+.staff-chip button {
+  padding: 2px 8px;
 }

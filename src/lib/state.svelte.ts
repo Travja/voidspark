@@ -68,8 +68,11 @@ export class AppState {
     });
   }
 
-  addTarget(material: string) {
-    this.cfg.targets.push({ id: newTargetId(), material, mode: "rate", value: 1 });
+  /** Adds a target; `value` is items/min for rate targets. Returns its id. */
+  addTarget(material: string, value = 1, mode: Target["mode"] = "rate") {
+    const id = newTargetId();
+    this.cfg.targets.push({ id, material, mode, value });
+    return id;
   }
 
   updateTarget(id: string, patch: Partial<Target>) {
