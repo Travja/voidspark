@@ -1,5 +1,5 @@
 {
-  "version": "wiki 2026-11-01",
+  "version": "wiki 2026-11-02",
   "source": "https://oddsparks.wiki.gg (CC BY-SA)",
   "spark": [
     {
@@ -49,6 +49,10 @@
     {
       "id": "metal-sparks",
       "name": "Metal Sparks"
+    },
+    {
+      "id": "metal-items",
+      "name": "Metal Items"
     },
     {
       "id": "refiners",
@@ -3055,42 +3059,42 @@
     {
       "id": "aether-apple",
       "name": "Aether Apple",
-      "category": "miscellaneous",
+      "category": "magic-items",
       "craftable": true,
       "defaultRecipe": "aether-tree"
     },
     {
       "id": "aether-crystal",
       "name": "Aether Crystal",
-      "category": "miscellaneous",
+      "category": "magic-items",
       "craftable": true,
       "defaultRecipe": "aether-seed-crystallization"
     },
     {
       "id": "aether-flower",
       "name": "Aether Flower",
-      "category": "miscellaneous",
+      "category": "magic-items",
       "craftable": true,
       "defaultRecipe": "aetheric-flower"
     },
     {
       "id": "aether-residue",
       "name": "Aether Residue",
-      "category": "miscellaneous",
+      "category": "magic-items",
       "craftable": false,
       "defaultRecipe": null
     },
     {
       "id": "aether-seed",
       "name": "Aether Seed",
-      "category": "miscellaneous",
+      "category": "magic-items",
       "craftable": true,
       "defaultRecipe": "extract-aether-flower"
     },
     {
       "id": "aether-segment",
       "name": "Aether Segment",
-      "category": "miscellaneous",
+      "category": "magic-items",
       "craftable": true,
       "defaultRecipe": "extract-aether-apple"
     },
@@ -3139,14 +3143,14 @@
     {
       "id": "black-paint",
       "name": "Black Paint",
-      "category": "miscellaneous",
+      "category": "mountain-items",
       "craftable": true,
       "defaultRecipe": "black-paint"
     },
     {
       "id": "blue-paint",
       "name": "Blue Paint",
-      "category": "miscellaneous",
+      "category": "mountain-items",
       "craftable": true,
       "defaultRecipe": "blue-paint"
     },
@@ -3160,7 +3164,7 @@
     {
       "id": "bumpy-geode",
       "name": "Bumpy Geode",
-      "category": "miscellaneous",
+      "category": "mountain-items",
       "craftable": true,
       "defaultRecipe": null
     },
@@ -3188,7 +3192,7 @@
     {
       "id": "cleansing-fragment",
       "name": "Cleansing Fragment",
-      "category": "miscellaneous",
+      "category": "magic-items",
       "craftable": true,
       "defaultRecipe": "corrupted-aether-purification"
     },
@@ -3202,35 +3206,35 @@
     {
       "id": "copper-cutting",
       "name": "Copper Cutting",
-      "category": "miscellaneous",
+      "category": "metal-items",
       "craftable": true,
       "defaultRecipe": "copper-bamboo"
     },
     {
       "id": "copper-ingot",
       "name": "Copper Ingot",
-      "category": "miscellaneous",
+      "category": "metal-items",
       "craftable": true,
       "defaultRecipe": "copper-ore-smelting"
     },
     {
       "id": "copper-ore",
       "name": "Copper Ore",
-      "category": "miscellaneous",
+      "category": "metal-items",
       "craftable": true,
       "defaultRecipe": "copper-ore-harvesting"
     },
     {
       "id": "copper-sap",
       "name": "Copper Sap",
-      "category": "miscellaneous",
+      "category": "metal-items",
       "craftable": true,
       "defaultRecipe": "extract-copper-cuttings"
     },
     {
       "id": "copper-seed",
       "name": "Copper Seed",
-      "category": "miscellaneous",
+      "category": "metal-items",
       "craftable": true,
       "defaultRecipe": "copper-seed-germination"
     },
@@ -3244,28 +3248,28 @@
     {
       "id": "coral-seed",
       "name": "Coral Seed",
-      "category": "miscellaneous",
+      "category": "mountain-items",
       "craftable": true,
       "defaultRecipe": "coral-seed-germination"
     },
     {
       "id": "corrupted-aether",
       "name": "Corrupted Aether",
-      "category": "miscellaneous",
+      "category": "magic-items",
       "craftable": false,
       "defaultRecipe": null
     },
     {
       "id": "corrupted-spark-token",
       "name": "Corrupted Spark Token",
-      "category": "miscellaneous",
+      "category": "magic-items",
       "craftable": false,
       "defaultRecipe": null
     },
     {
       "id": "cracked-geode",
       "name": "Cracked Geode",
-      "category": "miscellaneous",
+      "category": "mountain-items",
       "craftable": true,
       "defaultRecipe": null
     },
@@ -3279,14 +3283,14 @@
     {
       "id": "crangolin-lavascale",
       "name": "Crangolin Lavascale",
-      "category": "miscellaneous",
+      "category": "mountain-items",
       "craftable": false,
       "defaultRecipe": null
     },
     {
       "id": "crangolin-scale",
       "name": "Crangolin Scale",
-      "category": "miscellaneous",
+      "category": "mountain-items",
       "craftable": false,
       "defaultRecipe": null
     },
@@ -3307,7 +3311,7 @@
     {
       "id": "drill-bit",
       "name": "Drill Bit",
-      "category": "miscellaneous",
+      "category": "metal-items",
       "craftable": true,
       "defaultRecipe": "drill-bit"
     },
@@ -3342,7 +3346,7 @@
     {
       "id": "fireshroom-cluster",
       "name": "Fireshroom Cluster",
-      "category": "miscellaneous",
+      "category": "mountain-items",
       "craftable": true,
       "defaultRecipe": "fireshroom-colony"
     },
@@ -3384,28 +3388,28 @@
     {
       "id": "geode-cluster",
       "name": "Geode Cluster",
-      "category": "miscellaneous",
+      "category": "mountain-items",
       "craftable": true,
       "defaultRecipe": "geode-reef"
     },
     {
       "id": "glowshroom",
       "name": "Glowshroom",
-      "category": "miscellaneous",
+      "category": "mountain-items",
       "craftable": true,
       "defaultRecipe": "break-bumpy-geode"
     },
     {
       "id": "green-paint",
       "name": "Green Paint",
-      "category": "miscellaneous",
+      "category": "mountain-items",
       "craftable": true,
       "defaultRecipe": "green-paint"
     },
     {
       "id": "grey-aether",
       "name": "Grey Aether",
-      "category": "miscellaneous",
+      "category": "magic-items",
       "craftable": true,
       "defaultRecipe": null
     },
@@ -3433,14 +3437,14 @@
     {
       "id": "lava-cap",
       "name": "Lava Cap",
-      "category": "miscellaneous",
+      "category": "mountain-items",
       "craftable": true,
       "defaultRecipe": "extract-fireshroom-cluster"
     },
     {
       "id": "leaf-knot",
       "name": "Leaf Knot",
-      "category": "miscellaneous",
+      "category": "woodland-items",
       "craftable": true,
       "defaultRecipe": "leafy-growth"
     },
@@ -3461,7 +3465,7 @@
     {
       "id": "liquid-fertiliser",
       "name": "Liquid Fertiliser",
-      "category": "miscellaneous",
+      "category": "woodland-items",
       "craftable": true,
       "defaultRecipe": "liquid-fertiliser"
     },
@@ -3496,7 +3500,7 @@
     {
       "id": "orange-paint",
       "name": "Orange Paint",
-      "category": "miscellaneous",
+      "category": "mountain-items",
       "craftable": true,
       "defaultRecipe": "orange-paint"
     },
@@ -3531,7 +3535,7 @@
     {
       "id": "purple-paint",
       "name": "Purple Paint",
-      "category": "miscellaneous",
+      "category": "mountain-items",
       "craftable": true,
       "defaultRecipe": "purple-paint"
     },
@@ -3552,7 +3556,7 @@
     {
       "id": "red-paint",
       "name": "Red Paint",
-      "category": "miscellaneous",
+      "category": "woodland-items",
       "craftable": true,
       "defaultRecipe": "red-paint"
     },
@@ -3608,7 +3612,7 @@
     {
       "id": "shiny-geode",
       "name": "Shiny Geode",
-      "category": "miscellaneous",
+      "category": "mountain-items",
       "craftable": true,
       "defaultRecipe": null
     },
@@ -3629,7 +3633,7 @@
     {
       "id": "sponge",
       "name": "Sponge",
-      "category": "miscellaneous",
+      "category": "woodland-items",
       "craftable": true,
       "defaultRecipe": "sponge"
     },
@@ -3643,7 +3647,7 @@
     {
       "id": "stellar-fertiliser",
       "name": "Stellar Fertiliser",
-      "category": "miscellaneous",
+      "category": "plateau-items",
       "craftable": true,
       "defaultRecipe": "stellar-fertiliser"
     },
@@ -3657,14 +3661,14 @@
     {
       "id": "stellar-leaves",
       "name": "Stellar Leaves",
-      "category": "miscellaneous",
+      "category": "plateau-items",
       "craftable": true,
       "defaultRecipe": "stellar-cactus"
     },
     {
       "id": "stellar-seed",
       "name": "Stellar Seed",
-      "category": "miscellaneous",
+      "category": "plateau-items",
       "craftable": true,
       "defaultRecipe": "extract-stellar-ice"
     },
@@ -3678,7 +3682,7 @@
     {
       "id": "stone-block",
       "name": "Stone Block",
-      "category": "miscellaneous",
+      "category": "mountain-items",
       "craftable": true,
       "defaultRecipe": "stone-block"
     },
@@ -3720,21 +3724,21 @@
     {
       "id": "turpentine",
       "name": "Turpentine",
-      "category": "miscellaneous",
+      "category": "woodland-items",
       "craftable": true,
       "defaultRecipe": "turpentine"
     },
     {
       "id": "volcanic-soil",
       "name": "Volcanic Soil",
-      "category": "miscellaneous",
+      "category": "mountain-items",
       "craftable": true,
       "defaultRecipe": null
     },
     {
       "id": "white-paint",
       "name": "White Paint",
-      "category": "miscellaneous",
+      "category": "mountain-items",
       "craftable": true,
       "defaultRecipe": "white-paint"
     },
@@ -3762,7 +3766,7 @@
     {
       "id": "yellow-paint",
       "name": "Yellow Paint",
-      "category": "miscellaneous",
+      "category": "woodland-items",
       "craftable": true,
       "defaultRecipe": "yellow-paint"
     }
