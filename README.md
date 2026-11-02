@@ -10,8 +10,8 @@ greenhouses, the Arboretum, and the metal sparks. It started from the PirateSpar
   Crafty 1.5×, Handy 2.5×). The default crew is 2 Crafty. You can change it, and override it
   for each workstation type.
 - **Branching production tree.** Shows which machine makes each item, how many you need, and
-  what feeds what. Fuel edges are dashed. Production loops (coal fuelling coal furnaces, aether
-  shards feeding the miasma → raw aether → shard chain) appear as "loops back" leaves.
+  what feeds what. Fuel edges are dashed. An input that would loop back up its own chain is
+  marked "supply separately".
 - **Recipe choices.** Pick between recipes, or mark any material as supplied externally,
   directly in the tree.
 - **One-way production lines.** Every line flows from raw inputs toward its target and never
@@ -22,7 +22,11 @@ greenhouses, the Arboretum, and the metal sparks. It started from the PirateSpar
   recipe ("2 × Sawbench, Sawn Timber, 89% busy"). Arrows show which group feeds which, with
   the item and rate on each arrow. Raw inputs are on the left and targets on the right. Hover
   a card to trace its connections, and click it for details and its crew and recipe pickers.
-  Totals per workstation sit above the diagram.
+  Totals per workstation sit above the diagram. On phones it runs top to bottom (raw inputs at
+  the top, targets at the bottom). There's an Across/Down toggle.
+- **Staffing.** How many sparks it takes to crew every machine, by spark type, with a button to
+  add them as a target. Sparks are crafted too.
+- **Item search.** Pick targets from a searchable list grouped by region, with icons.
 - **Inputs & cost.** Raw inputs needed, and the material cost to build every machine.
 
 ## Development
@@ -93,5 +97,6 @@ BASE_PATH=/voidspark npm run build   # then publish build/ (it includes .nojekyl
   are treated as ordinary recipes and tagged "≈ growth".
 - The Ancient Printer/Generator/Greenhouse, Tailor's Tent, Aetheric Converter Feeder, and the
   shrines are left out. They are fixed ruins, cosmetic, or one-off repairs.
-- The wiki is missing region categories for most 1.0 items (they're grouped under
-  Miscellaneous) and a build cost for the Spark Workshop.
+- The wiki is missing region categories for most 1.0 items. The importer fills them in from
+  `REGION_OVERRIDES` (logged in the import report). It is also missing a build cost for the
+  Spark Workshop.

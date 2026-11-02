@@ -76,7 +76,6 @@
         <h2>Targets</h2>
         {#each app.cfg.targets as t (t.id)}
           <div class="target">
-            <Icon id={t.material} size={30} />
             <MaterialPicker value={t.material} onchange={(material) => app.updateTarget(t.id, { material })} />
             <div class="target-row">
               <input

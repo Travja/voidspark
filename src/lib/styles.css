@@ -162,7 +162,7 @@ aside {
 
 .target {
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 6px 8px;
   align-items: center;
   padding-bottom: 10px;
@@ -171,7 +171,6 @@ aside {
 }
 
 .target-row {
-  grid-column: 2;
   display: flex;
   gap: 6px;
 }
