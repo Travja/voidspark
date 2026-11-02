@@ -5,19 +5,26 @@
  *   2. Order within a column: a few barycenter sweeps to reduce crossings.
  *   3. Coordinates: columns are vertically centred; arrow ports are spread along each card edge,
  *      sorted by where the other end is, so arrows into one card don't pile up.
+ * With `direction: "tb"` the same layers become rows (raw inputs at the top, targets at the
+ * bottom, arrows pointing down), which suits narrow screens.
  */
 import type { FlowEdge, FlowNode } from "./solver";
 
 export interface LayoutOptions {
   cardWidth: number;
+  /** Gap between layers (columns, or rows when top-to-bottom); arrows run through it. */
   columnGap: number;
+  /** Gap between cards in the same layer. */
   rowGap: number;
+  /** "lr": left to right (default). "tb": top to bottom. */
+  direction?: "lr" | "tb";
   /** Card height for a node with the given number of incoming and outgoing arrows. */
   height: (node: FlowNode, inputs: number, outputs: number) => number;
 }
 
 export interface PlacedNode {
   node: FlowNode;
+  /** Layer index: the column (left to right) or the row (top to bottom). */
   column: number;
   x: number;
   y: number;
@@ -41,6 +48,7 @@ export interface Layout {
   width: number;
   height: number;
   columns: number;
+  direction: "lr" | "tb";
 }
 
 export function layoutFlow(nodes: FlowNode[], edges: FlowEdge[], opt: LayoutOptions): Layout {
@@ -115,34 +123,44 @@ export function layoutFlow(nodes: FlowNode[], edges: FlowEdge[], opt: LayoutOpti
     }
   }
 
-  // 3. Coordinates.
+  // 3. Coordinates. A layer's "length" runs across the flow (height for lr, width for tb); its
+  //    "depth" runs along the flow (card width for lr, tallest card for tb).
+  const tb = opt.direction === "tb";
   const placed = new Map<string, PlacedNode>();
-  const colHeights = columns.map((col) =>
-    col.reduce(
-      (h, id, i) =>
-        h + opt.height(byId.get(id)!, inc.get(id)!.length, out.get(id)!.length) + (i ? opt.rowGap : 0),
-      0,
-    ),
-  );
-  const height = Math.max(0, ...colHeights);
-  columns.forEach((col, c) => {
-    let y = (height - colHeights[c]) / 2;
-    for (const id of col) {
-      const h = opt.height(byId.get(id)!, inc.get(id)!.length, out.get(id)!.length);
-      placed.set(id, { node: byId.get(id)!, column: c, x: c * (opt.cardWidth + opt.columnGap), y, width: opt.cardWidth, height: h });
-      y += h + opt.rowGap;
-    }
+  const size = (id: string) => ({
+    w: opt.cardWidth,
+    h: opt.height(byId.get(id)!, inc.get(id)!.length, out.get(id)!.length),
   });
+  const across = (id: string) => (tb ? size(id).w : size(id).h);
+  const layerLength = columns.map((col) => col.reduce((n, id, i) => n + across(id) + (i ? opt.rowGap : 0), 0));
+  const layerDepth = columns.map((col) => (tb ? Math.max(0, ...col.map((id) => size(id).h)) : opt.cardWidth));
+  const crossSize = Math.max(0, ...layerLength);
+  let along = 0;
+  columns.forEach((col, c) => {
+    let pos = (crossSize - layerLength[c]) / 2;
+    for (const id of col) {
+      const { w, h } = size(id);
+      // In tb, cards in a row are top-aligned so arrows leave from a common baseline.
+      placed.set(id, { node: byId.get(id)!, column: c, x: tb ? pos : along, y: tb ? along : pos, width: w, height: h });
+      pos += across(id) + opt.rowGap;
+    }
+    along += layerDepth[c] + opt.columnGap;
+  });
+  const flowSize = Math.max(0, along - opt.columnGap);
+  const width = tb ? crossSize : flowSize;
+  const height = tb ? flowSize : crossSize;
 
-  // Ports: spread along the card edge, ordered by the other end's position.
+  // Ports: spread along the card edge facing the flow, ordered by the other end's position.
+  const centre = (n: PlacedNode) => (tb ? n.x + n.width / 2 : n.y + n.height / 2);
   const port = new Map<FlowEdge, { out: number; in: number }>();
   const spread = (list: FlowEdge[], card: PlacedNode, other: (e: FlowEdge) => PlacedNode, side: "out" | "in") => {
-    const sorted = [...list].sort((a, b) => other(a).y + other(a).height / 2 - (other(b).y + other(b).height / 2));
-    const top = card.y + Math.min(18, card.height * 0.2);
-    const span = card.height - 2 * (top - card.y);
+    const sorted = [...list].sort((a, b) => centre(other(a)) - centre(other(b)));
+    const start = tb ? card.x : card.y;
+    const length = tb ? card.width : card.height;
+    const inset = Math.min(18, length * 0.2);
     sorted.forEach((e, i) => {
       const p = port.get(e) ?? { out: 0, in: 0 };
-      p[side] = sorted.length === 1 ? card.y + card.height / 2 : top + (span * i) / (sorted.length - 1);
+      p[side] = sorted.length === 1 ? start + length / 2 : start + inset + ((length - 2 * inset) * i) / (sorted.length - 1);
       port.set(e, p);
     });
   };
@@ -157,19 +175,29 @@ export function layoutFlow(nodes: FlowNode[], edges: FlowEdge[], opt: LayoutOpti
     const b = placed.get(e.to);
     const p = port.get(e);
     if (!a || !b || !p) continue;
-    const x1 = a.x + a.width;
-    const x2 = b.x;
-    const y1 = p.out;
-    const y2 = p.in;
-    const dx = Math.max(40, (x2 - x1) / 2);
-    placedEdges.push({ edge: e, x1, y1, x2, y2, path: `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}` });
+    if (tb) {
+      const x1 = p.out;
+      const y1 = a.y + a.height;
+      const x2 = p.in;
+      const y2 = b.y;
+      const dy = Math.max(30, (y2 - y1) / 2);
+      placedEdges.push({ edge: e, x1, y1, x2, y2, path: `M ${x1} ${y1} C ${x1} ${y1 + dy}, ${x2} ${y2 - dy}, ${x2} ${y2}` });
+    } else {
+      const x1 = a.x + a.width;
+      const x2 = b.x;
+      const y1 = p.out;
+      const y2 = p.in;
+      const dx = Math.max(40, (x2 - x1) / 2);
+      placedEdges.push({ edge: e, x1, y1, x2, y2, path: `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}` });
+    }
   }
 
   return {
     nodes: [...placed.values()],
     edges: placedEdges,
-    width: columns.length * opt.cardWidth + Math.max(0, columns.length - 1) * opt.columnGap,
+    width,
     height,
     columns: columns.length,
+    direction: tb ? "tb" : "lr",
   };
 }

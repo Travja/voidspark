@@ -259,3 +259,36 @@ describe("wiki data", () => {
     for (const r of legacy.process) expect(solver.data.recipesById.has(r.id), r.id).toBe(true);
   });
 });
+
+describe("staffing", () => {
+  const staff = (p: Plan) => Object.fromEntries(p.staffing.map((s) => [s.spark.id, s.count]));
+
+  it("counts one crew per machine built", () => {
+    // 16 sawbenches + 4 loggers, one Stumpy each
+    expect(staff(makePlan(base({ targets: [target("sawn-timber", 60)] })))).toEqual({ "spark-stumpy": 20 });
+    // 2 Crafty: 60 / 11.25 -> 6 sawbenches, 120 / 90 -> 2 loggers, two sparks each
+    const p = makePlan(base({ targets: [target("sawn-timber", 60)], defaultCrew: ["spark-crafty", "spark-crafty"] }));
+    expect(staff(p)).toEqual({ "spark-crafty": 16 });
+  });
+
+  it("splits mixed crews by spark type", () => {
+    const p = makePlan(
+      base({
+        targets: [target("sawn-timber", 60)],
+        defaultCrew: ["spark-crafty", "spark-crafty"],
+        stationCrew: { logger: ["spark-stumpy", "spark-crafty"] },
+      }),
+    );
+    // 6 sawbenches x 2 Crafty, and 120 / 75 -> 2 loggers x (1 Stumpy + 1 Crafty)
+    expect(staff(p)).toEqual({ "spark-stumpy": 2, "spark-crafty": 14 });
+  });
+
+  it("needs no sparks for stations that don't use them", () => {
+    const p = makePlan(base({ targets: [target("aether-apple", 1)] }));
+    const arboretum = [...p.recipes.values()].find((r) => r.recipe.workstation === "arboretum")!;
+    expect(arboretum.crew).toEqual([]);
+    const total = p.staffing.reduce((n, s) => n + s.count, 0);
+    const expected = [...p.recipes.values()].reduce((n, r) => n + r.machinesBuilt * r.crew.length, 0);
+    expect(total).toBe(expected);
+  });
+});

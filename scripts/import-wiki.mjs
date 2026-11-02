@@ -53,6 +53,63 @@ const DEFAULT_RECIPE_OVERRIDES = {
   "aether-shard": [null, "Supplied externally by default (PirateSpark's default)"],
 };
 
+/**
+ * Region for items the wiki doesn't tag with a region category (Woodland, Mountain, Plateau, Magic,
+ * Metal). Used only when the wiki page has no region; the -items/-sparks suffix is added as usual.
+ * Chosen from the item's name, where it's found, and what it's made from.
+ */
+const REGION_OVERRIDES = {
+  // Copper production chain.
+  "Copper Ore": ["Metal", "copper chain"],
+  "Copper Ingot": ["Metal", "copper chain"],
+  "Copper Seed": ["Metal", "copper chain"],
+  "Copper Sap": ["Metal", "copper chain"],
+  "Copper Cutting": ["Metal", "copper chain"],
+  "Drill Bit": ["Metal", "made from Copper Ingots"],
+  // Frozen plateau flora.
+  "Stellar Seed": ["Plateau", "stellar flora"],
+  "Stellar Leaves": ["Plateau", "stellar flora"],
+  "Stellar Fertiliser": ["Plateau", "stellar flora"],
+  // Aether and corruption.
+  "Aether Apple": ["Magic", "aether"],
+  "Aether Crystal": ["Magic", "aether"],
+  "Aether Flower": ["Magic", "aether"],
+  "Aether Residue": ["Magic", "aether"],
+  "Aether Seed": ["Magic", "aether"],
+  "Aether Segment": ["Magic", "aether"],
+  "Grey Aether": ["Magic", "aether"],
+  "Corrupted Aether": ["Magic", "corruption"],
+  "Corrupted Spark Token": ["Magic", "corruption"],
+  "Cleansing Fragment": ["Magic", "cleanses corruption"],
+  // Volcanic mountain items.
+  "Bumpy Geode": ["Mountain", "geode"],
+  "Cracked Geode": ["Mountain", "geode"],
+  "Shiny Geode": ["Mountain", "geode"],
+  "Geode Cluster": ["Mountain", "geode"],
+  "Volcanic Soil": ["Mountain", "volcanic"],
+  "Lava Cap": ["Mountain", "volcanic mushroom"],
+  "Glowshroom": ["Mountain", "volcanic mushroom"],
+  "Fireshroom Cluster": ["Mountain", "volcanic mushroom"],
+  "Crangolin Scale": ["Mountain", "dropped by mountain Crangolins"],
+  "Crangolin Lavascale": ["Mountain", "dropped by volcanic Crangolins"],
+  "Coral Seed": ["Mountain", "grown from Coral"],
+  "Stone Block": ["Mountain", "made from Limestone and Stone Plates"],
+  // Paints follow their main input; mixed paints are made at the Stone Workshop.
+  "Black Paint": ["Mountain", "made from Pebbles"],
+  "Blue Paint": ["Mountain", "made from Quartz"],
+  "White Paint": ["Mountain", "made from Limestone"],
+  "Red Paint": ["Woodland", "made from Tree Bark"],
+  "Yellow Paint": ["Woodland", "made from Leaves"],
+  "Green Paint": ["Mountain", "mixed paint (Stone Workshop)"],
+  "Orange Paint": ["Mountain", "mixed paint (Stone Workshop)"],
+  "Purple Paint": ["Mountain", "mixed paint (Stone Workshop)"],
+  Turpentine: ["Woodland", "made from Wooden Logs"],
+  // Woodland crafts.
+  "Leaf Knot": ["Woodland", "made from Leaves"],
+  Sponge: ["Woodland", "made from Tree Bark and Fabric"],
+  "Liquid Fertiliser": ["Woodland", "fertiliser"],
+};
+
 /** Worker sparks that can crew stations, with speed in % (wiki Template:Recipe buttons). */
 const WORKER_SPARKS = [
   { name: "Stumpy Spark", speed: 100 },
@@ -391,11 +448,14 @@ async function main() {
     const isSpark = cats.includes("Spark") || / Spark$/.test(name);
     const prevId = idByName.get(name.toLowerCase());
     const id = prevId ?? (isSpark ? `${slug(name)}-block` : slug(name));
-    const region = regionOf(cats);
+    const wikiRegion = regionOf(cats);
+    const override = wikiRegion ? null : REGION_OVERRIDES[name];
+    const region = wikiRegion ?? override?.[0];
     const prev = previous.material.find((m) => m.id === id);
     const category = region ? `${slug(region)}-${isSpark ? "sparks" : "items"}` : (prev?.category ?? "miscellaneous");
     if (!page) report.missing.push(`No wiki page for item **${name}** (kept category ${category})`);
-    else if (!region) report.missing.push(`Item **${name}** has no region category on the wiki`);
+    else if (!wikiRegion) report.missing.push(`Item **${name}** has no region category on the wiki`);
+    if (override) report.decisions.push(`Region for **${name}**: ${override[0]} (${override[1]}).`);
     materials.push({ id, name, category, craftable: false, image: page ? field(page.text, "image") : null, page: page?.title });
     const burn = page ? num(field(page.text, "burnrate")) : null;
     if (burn) fuels.push({ id, name, amount: burn });

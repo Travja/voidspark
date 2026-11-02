@@ -162,7 +162,7 @@ aside {
 
 .target {
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 6px 8px;
   align-items: center;
   padding-bottom: 10px;
@@ -171,7 +171,6 @@ aside {
 }
 
 .target-row {
-  grid-column: 2;
   display: flex;
   gap: 6px;
 }
@@ -593,6 +592,10 @@ footer {
   pointer-events: auto;
 }
 
+.edge-label.tb {
+  transform: translate(-50%, -100%);
+}
+
 .edge-label.fuel {
   color: var(--fuel);
 }
@@ -817,4 +820,28 @@ footer {
   .station-chip select {
     max-width: 110px;
   }
+}
+
+/* ---------- Staffing ---------- */
+
+.staffing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.staff-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 8px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+}
+
+.staff-chip button {
+  padding: 2px 8px;
 }

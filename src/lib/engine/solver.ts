@@ -157,6 +157,11 @@ export interface Plan {
   surplus: MaterialPlan[];
   stations: StationSummary[];
   buildCost: { material: string; amount: number }[];
+  /**
+   * Sparks needed to staff every machine built (machines are rounded up, each with its full
+   * crew). Sparks are items too, so this is what to craft before the plan can run.
+   */
+  staffing: { spark: SparkType; count: number }[];
   trees: TreeNode[];
   /** Machine groups and what feeds what, for the build diagram. */
   flow: { nodes: FlowNode[]; edges: FlowEdge[] };
@@ -499,6 +504,13 @@ export class Solver {
       for (const c of this.data.workstations.get(s.workstation)?.cost ?? []) add(cost, c.id, c.amount * s.machinesBuilt);
     }
 
+    // Each built machine needs its whole crew (a recipe line's crew follows its workstation).
+    const staff = new Map<string, number>();
+    for (const rp of recipes.values()) for (const spark of rp.crew) add(staff, spark.id, rp.machinesBuilt);
+    const staffing = this.data.sparks
+      .filter((sp) => (staff.get(sp.id) ?? 0) > 0)
+      .map((spark) => ({ spark, count: staff.get(spark.id)! }));
+
     const trees = this.buildTrees(targets.map((t) => ({ material: t.material, rate: this.targetRate(t), id: t.id })));
 
     // Build diagram: one node per recipe line, raw supply, loop break and target.
@@ -528,6 +540,7 @@ export class Solver {
       surplus: order.map((m) => materials.get(m)!).filter((mp) => mp.surplus > 1e-7),
       stations,
       buildCost: [...cost].map(([material, amount]) => ({ material, amount })),
+      staffing,
       trees,
       flow: { nodes: [...flowNodes.values()], edges: flowEdges },
       warnings,
