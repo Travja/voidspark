@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { layoutFlow } from "./layout";
+import { layoutFlow, splitSources } from "./layout";
 import { makePlan, type PlanConfig } from "./solver";
 import { GAME } from "./data";
 
@@ -133,4 +133,38 @@ describe("arrows never pass behind a machine", () => {
       check(`busy ${direction}`, layoutFlow(p.flow.nodes, p.flow.edges, { ...opts, direction }));
     });
   }
+});
+
+describe("splitSources", () => {
+  it("gives each consumer of a raw input its own card, keeping totals", () => {
+    const { flow } = makePlan(cfg("crafty-spark-block"));
+    const g = splitSources(flow.nodes, flow.edges);
+    for (const n of g.nodes.filter((x) => x.kind === "raw" || x.kind === "loop")) {
+      expect(g.edges.filter((e) => e.from === n.id)).toHaveLength(1);
+    }
+    const supplied = (nodes: typeof flow.nodes) =>
+      nodes.filter((n) => n.kind === "raw").reduce((s, n) => s + n.rate, 0);
+    expect(supplied(g.nodes)).toBeCloseTo(supplied(flow.nodes));
+    expect(g.edges.reduce((s, e) => s + e.rate, 0)).toBeCloseTo(flow.edges.reduce((s, e) => s + e.rate, 0));
+  });
+
+  it("shortens the arrows from raw inputs", () => {
+    // Sum of layers crossed by arrows leaving raw inputs, before and after splitting.
+    let before = 0;
+    let after = 0;
+    for (const m of GAME.materials.keys()) {
+      const { flow } = makePlan(cfg(m));
+      const span = (nodes: typeof flow.nodes, edges: typeof flow.edges) => {
+        const l = layoutFlow(nodes, edges, { ...opts, direction: "tb" });
+        const layer = new Map(l.nodes.map((n) => [n.node.id, n.column]));
+        const raw = new Set(nodes.filter((n) => n.kind === "raw").map((n) => n.id));
+        return edges.filter((e) => raw.has(e.from)).reduce((s, e) => s + layer.get(e.to)! - layer.get(e.from)! - 1, 0);
+      };
+      before += span(flow.nodes, flow.edges);
+      const g = splitSources(flow.nodes, flow.edges);
+      after += span(g.nodes, g.edges);
+    }
+    expect(after).toBe(0);
+    expect(before).toBeGreaterThan(0);
+  });
 });

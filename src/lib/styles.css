@@ -489,11 +489,32 @@ footer {
 /* ---------- Build plan (flow diagram) ---------- */
 
 .station-strip {
+  margin-bottom: 12px;
+}
+
+.station-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
-  margin-bottom: 12px;
+  margin-top: 8px;
+}
+
+.station-strip summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.station-strip summary::-webkit-details-marker {
+  display: none;
+}
+
+.station-strip summary::before {
+  content: "▸ ";
+}
+
+.station-strip[open] summary::before {
+  content: "▾ ";
 }
 
 .station-chip {
@@ -593,7 +614,7 @@ footer {
 }
 
 .edge-label.tb {
-  transform: translate(-50%, -100%);
+  transform: translate(-50%, -50%);
 }
 
 .edge-label.fuel {
@@ -844,4 +865,18 @@ footer {
 
 .staff-chip button {
   padding: 2px 8px;
+}
+
+@media (max-width: 600px) {
+  .wide-only {
+    display: none;
+  }
+
+  .toolbar {
+    gap: 6px;
+  }
+
+  .toolbar button {
+    padding: 4px 8px;
+  }
 }

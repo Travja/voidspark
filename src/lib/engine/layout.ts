@@ -297,3 +297,31 @@ export function layoutFlow(nodes: FlowNode[], edges: FlowEdge[], opt: LayoutOpti
     direction: tb ? "tb" : "lr",
   };
 }
+
+/**
+ * Give every consumer of a raw input (or a supply-separately input) its own source card.
+ * Those aren't machines, just "bring this in here", so one shared card would only drag long
+ * arrows across the diagram. Totals are unchanged: each copy carries its edge's rate.
+ */
+export function splitSources(nodes: FlowNode[], edges: FlowEdge[]): { nodes: FlowNode[]; edges: FlowEdge[] } {
+  const outCount = new Map<string, number>();
+  for (const e of edges) outCount.set(e.from, (outCount.get(e.from) ?? 0) + 1);
+  const isSplit = (n: FlowNode) => (n.kind === "raw" || n.kind === "loop") && (outCount.get(n.id) ?? 0) > 1;
+  const split = new Set(nodes.filter(isSplit).map((n) => n.id));
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const outNodes = nodes.filter((n) => !split.has(n.id));
+  const outEdges: FlowEdge[] = [];
+  const copies = new Map<string, number>();
+  for (const e of edges) {
+    if (!split.has(e.from)) {
+      outEdges.push(e);
+      continue;
+    }
+    const i = (copies.get(e.from) ?? 0) + 1;
+    copies.set(e.from, i);
+    const id = `${e.from}#${i}`;
+    outNodes.push({ ...byId.get(e.from)!, id, rate: e.rate });
+    outEdges.push({ ...e, from: id });
+  }
+  return { nodes: outNodes, edges: outEdges };
+}

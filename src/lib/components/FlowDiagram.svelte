@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { layoutFlow } from "../engine/layout";
+  import { layoutFlow, splitSources, type Segment } from "../engine/layout";
   import type { FlowEdge, FlowNode, Plan, Solver } from "../engine/solver";
   import { fmt, fmtLoad, fmtRate } from "../format";
   import type { AppState } from "../state.svelte";
@@ -10,6 +10,12 @@
   import Staffing from "./Staffing.svelte";
 
   let { plan, solver, app }: { plan: Plan; solver: Solver; app: AppState } = $props();
+
+  // Workstation totals: open on wide screens, a one-line summary on phones.
+  let stationsOpen = $state(typeof matchMedia === "undefined" || matchMedia("(min-width: 701px)").matches);
+
+  // Raw inputs get one card per consumer, placed right next to it (they aren't machines).
+  const graph = $derived(splitSources(plan.flow.nodes, plan.flow.edges));
 
   /** "auto": top-to-bottom on narrow screens (phones), left-to-right otherwise. */
   let direction = $state<"auto" | "lr" | "tb">("auto");
@@ -28,7 +34,7 @@
         : Math.max(54, 22 * outs + 12);
 
   const layout = $derived(
-    layoutFlow(plan.flow.nodes, plan.flow.edges, {
+    layoutFlow(graph.nodes, graph.edges, {
       direction: dir,
       cardWidth: dir === "tb" ? 168 : 210,
       columnGap: dir === "tb" ? 72 : 130,
@@ -37,21 +43,66 @@
     }),
   );
 
-  /** Top-to-bottom: labels above each card's top edge, staggered when they would collide. */
-  const labelOffset = $derived.by(() => {
-    const offsets = new Map<(typeof layout.edges)[number], number>();
-    if (layout.direction !== "tb") return offsets;
-    const byTarget = new Map<string, (typeof layout.edges)[number][]>();
-    for (const e of layout.edges) byTarget.set(e.edge.to, [...(byTarget.get(e.edge.to) ?? []), e]);
-    for (const list of byTarget.values()) {
-      list.sort((a, b) => a.x2 - b.x2);
-      const tight = list.length > 1 && (list[list.length - 1].x2 - list[0].x2) / (list.length - 1) < 70;
-      list.forEach((e, i) => offsets.set(e, tight && i % 2 ? 20 : 0));
+  /**
+   * Top-to-bottom: each label rides on its own arrow, in the middle of the gap before the card it
+   * feeds. Labels in the same gap that would overlap move up or down a tier, sliding along their
+   * arrow so they stay on it.
+   */
+  const labelPos = $derived.by(() => {
+    const result = new Map<(typeof layout.edges)[number], { x: number; y: number }>();
+    if (layout.direction !== "tb") return result;
+    const at = (seg: Segment, t: number) => {
+      const u = 1 - t;
+      const k = [u * u * u, 3 * u * u * t, 3 * u * t * t, t * t * t];
+      return {
+        x: k[0] * seg.p0.x + k[1] * seg.c1.x + k[2] * seg.c2.x + k[3] * seg.p3.x,
+        y: k[0] * seg.p0.y + k[1] * seg.c1.y + k[2] * seg.c2.y + k[3] * seg.p3.y,
+      };
+    };
+    /** Point on a downward segment at height y (y is monotonic along it). */
+    const atY = (seg: Segment, y: number) => {
+      let lo = 0;
+      let hi = 1;
+      for (let i = 0; i < 24; i++) {
+        const mid = (lo + hi) / 2;
+        if (at(seg, mid).y < y) lo = mid;
+        else hi = mid;
+      }
+      return at(seg, (lo + hi) / 2);
+    };
+    const width = (e: (typeof layout.edges)[number]) => 34 + 6.6 * fmtRate(e.edge.rate, app.cfg.unit).length;
+    const gaps = new Map<number, (typeof layout.edges)[number][]>();
+    for (const e of layout.edges) {
+      const key = Math.round(e.segments.at(-1)!.p0.y);
+      gaps.set(key, [...(gaps.get(key) ?? []), e]);
     }
-    return offsets;
+    const TIERS = [0, -20, 20];
+    for (const list of gaps.values()) {
+      const items = list
+        .map((e) => ({ e, seg: e.segments.at(-1)!, w: width(e) }))
+        .map((it) => ({ ...it, mid: at(it.seg, 0.5) }))
+        .sort((a, b) => a.mid.x - b.mid.x);
+      const taken: { left: number; right: number; tier: number }[] = [];
+      for (const it of items) {
+        let best = { tier: 0, overlap: Infinity, point: it.mid };
+        for (const [tier, dy] of TIERS.entries()) {
+          const point = dy ? atY(it.seg, it.mid.y + dy) : it.mid;
+          const left = point.x - it.w / 2 - 4;
+          const right = point.x + it.w / 2 + 4;
+          const overlap = taken
+            .filter((t) => t.tier === tier)
+            .reduce((n, t) => n + Math.max(0, Math.min(right, t.right) - Math.max(left, t.left)), 0);
+          if (overlap < best.overlap) best = { tier, overlap, point };
+          if (!overlap) break;
+        }
+        taken.push({ left: best.point.x - it.w / 2 - 4, right: best.point.x + it.w / 2 + 4, tier: best.tier });
+        result.set(it.e, best.point);
+      }
+    }
+    return result;
   });
   const unit = $derived(app.cfg.unit);
-  const maxRate = $derived(Math.max(1e-9, ...plan.flow.edges.map((e) => e.rate)));
+  const maxRate = $derived(Math.max(1e-9, ...graph.edges.map((e) => e.rate)));
   const total = $derived(plan.stations.reduce((n, s) => n + s.machinesBuilt, 0));
 
   let hovered = $state<string | null>(null);
@@ -109,7 +160,7 @@
   const neighbours = $derived.by(() => {
     if (!focus) return null;
     const set = new Set([focus]);
-    for (const e of plan.flow.edges) {
+    for (const e of graph.edges) {
       if (e.from === focus) set.add(e.to);
       if (e.to === focus) set.add(e.from);
     }
@@ -117,8 +168,8 @@
   });
   const linked = (e: FlowEdge) => !focus || e.from === focus || e.to === focus;
 
-  const strokeWidth = (rate: number) => 1.5 + 4 * Math.sqrt(rate / maxRate);
-  const nodeById = $derived(new Map(plan.flow.nodes.map((n) => [n.id, n])));
+  const strokeWidth = (rate: number) => 1.5 + 3 * Math.sqrt(rate / maxRate);
+  const nodeById = $derived(new Map(graph.nodes.map((n) => [n.id, n])));
   const selectedNode = $derived(selected ? nodeById.get(selected) : undefined);
 
   function nodeLabel(id: string) {
@@ -134,25 +185,29 @@
     if (!n.line) return [];
     return n.line.outputs
       .map((o) => {
-        const used = plan.flow.edges.filter((e) => e.from === n.id && e.material === o.material).reduce((s, e) => s + e.rate, 0);
+        const used = graph.edges.filter((e) => e.from === n.id && e.material === o.material).reduce((s, e) => s + e.rate, 0);
         return { material: o.material, rate: o.rate - used };
       })
       .filter((o) => o.rate > 1e-7);
   }
 </script>
 
-{#if plan.flow.nodes.length}
+{#if graph.nodes.length}
   <Staffing {plan} {app} />
-  <div class="station-strip">
-    <span class="muted small">{total} machines:</span>
-    {#each plan.stations as s (s.workstation)}
-      <span class="station-chip">
-        <Icon id={s.workstation} size={22} />
-        <strong>{s.machinesBuilt} × {displayName(s.workstation)}</strong>
-        <CrewPicker workstation={s.workstation} {app} />
-      </span>
-    {/each}
-  </div>
+  <details class="station-strip" bind:open={stationsOpen}>
+    <summary class="muted small">
+      {total} machines · {plan.stations.length} workstation types{stationsOpen ? ":" : ""}
+    </summary>
+    <div class="station-chips">
+      {#each plan.stations as s (s.workstation)}
+        <span class="station-chip">
+          <Icon id={s.workstation} size={22} />
+          <strong>{s.machinesBuilt} × {displayName(s.workstation)}</strong>
+          <CrewPicker workstation={s.workstation} {app} />
+        </span>
+      {/each}
+    </div>
+  </details>
 
   <div class="toolbar">
     <span class="muted small">
@@ -162,11 +217,11 @@
     </span>
     <span class="spacer"></span>
     <span class="muted small">Layout</span>
-    <button class:active={dir === "lr"} title="Left to right" onclick={() => (direction = "lr")}>↔ Across</button>
-    <button class:active={dir === "tb"} title="Top to bottom" onclick={() => (direction = "tb")}>↕ Down</button>
+    <button class:active={dir === "lr"} title="Left to right" aria-label="Lay out left to right" onclick={() => (direction = "lr")}>↔<span class="wide-only"> Across</span></button>
+    <button class:active={dir === "tb"} title="Top to bottom" aria-label="Lay out top to bottom" onclick={() => (direction = "tb")}>↕<span class="wide-only"> Down</span></button>
     <span class="muted small">Zoom</span>
     <button class:active={scale === fitScale && zoom !== 0.75 && zoom !== 1} onclick={() => (zoom = "fit")}>Overview</button>
-    <button class:active={zoom === 0.75} onclick={() => (zoom = 0.75)}>75%</button>
+    <button class="wide-only" class:active={zoom === 0.75} onclick={() => (zoom = 0.75)}>75%</button>
     <button class:active={scale === 1 && zoom !== "fit"} onclick={() => (zoom = 1)}>100%</button>
   </div>
 
@@ -186,7 +241,17 @@
       <div class="flow-canvas" style:width="{layout.width}px" style:height="{layout.height}px" style:transform="scale({scale})">
         <svg class="flow-edges" width={layout.width} height={layout.height} aria-hidden="true">
           <defs>
-            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <!-- Fixed-size arrowheads: userSpaceOnUse stops them growing with the line width. -->
+            <marker
+              id="arrow"
+              viewBox="0 0 10 10"
+              refX="9"
+              refY="5"
+              markerUnits="userSpaceOnUse"
+              markerWidth="10"
+              markerHeight="10"
+              orient="auto-start-reverse"
+            >
               <path d="M 0 0 L 10 5 L 0 10 z" class="arrowhead" />
             </marker>
           </defs>
@@ -209,8 +274,8 @@
             class:tb={layout.direction === "tb"}
             class:dim={!linked(e.edge)}
             class:fuel={e.edge.fuel}
-            style:left="{layout.direction === "tb" ? e.x2 : e.x2 - 10}px"
-            style:top="{layout.direction === "tb" ? e.y2 - 6 - (labelOffset.get(e) ?? 0) : e.y2}px"
+            style:left="{labelPos.get(e)?.x ?? e.x2 - 10}px"
+            style:top="{labelPos.get(e)?.y ?? e.y2}px"
             title="{displayName(e.edge.material)}{e.edge.fuel ? ' (fuel)' : ''}: {nodeLabel(e.edge.from)} → {nodeLabel(e.edge.to)}"
           >
             <Icon id={e.edge.material} size={14} />
@@ -281,8 +346,8 @@
 
   {#if selectedNode}
     {@const n = selectedNode}
-    {@const fedBy = plan.flow.edges.filter((e) => e.to === n.id)}
-    {@const feeds = plan.flow.edges.filter((e) => e.from === n.id)}
+    {@const fedBy = graph.edges.filter((e) => e.to === n.id)}
+    {@const feeds = graph.edges.filter((e) => e.from === n.id)}
     <section class="card flow-details" bind:this={details}>
       <header class="card-row">
         <Icon id={n.line ? n.line.recipe.workstation : n.material} size={32} />
