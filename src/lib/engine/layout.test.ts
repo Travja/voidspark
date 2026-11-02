@@ -87,3 +87,50 @@ describe("top-to-bottom layout", () => {
     expect(tb.width).toBeLessThan(lr.width / 2);
   });
 });
+
+describe("arrows never pass behind a machine", () => {
+  const bez = (s: import("./layout").Segment, t: number) => {
+    const u = 1 - t;
+    const k = [u * u * u, 3 * u * u * t, 3 * u * t * t, t * t * t];
+    return {
+      x: k[0] * s.p0.x + k[1] * s.c1.x + k[2] * s.c2.x + k[3] * s.p3.x,
+      y: k[0] * s.p0.y + k[1] * s.c1.y + k[2] * s.c2.y + k[3] * s.p3.y,
+    };
+  };
+  const check = (label: string, l: ReturnType<typeof layoutFlow>) => {
+    for (const e of l.edges) {
+      for (const card of l.nodes) {
+        if (card.node.id === e.edge.from || card.node.id === e.edge.to) continue;
+        for (const s of e.segments) {
+          for (let i = 0; i <= 24; i++) {
+            const q = bez(s, i / 24);
+            const inside = q.x > card.x + 0.5 && q.x < card.x + card.width - 0.5 && q.y > card.y + 0.5 && q.y < card.y + card.height - 0.5;
+            expect(inside, `${label}: ${e.edge.from} -> ${e.edge.to} crosses ${card.node.id}`).toBe(false);
+          }
+        }
+      }
+    }
+  };
+
+  for (const direction of ["lr", "tb"] as const) {
+    it(`for every item (${direction})`, () => {
+      for (const m of GAME.materials.keys()) {
+        const { flow } = makePlan(cfg(m));
+        check(`${m} ${direction}`, layoutFlow(flow.nodes, flow.edges, { ...opts, direction }));
+      }
+    });
+
+    it(`for a busy multi-target plan (${direction})`, () => {
+      const p = makePlan({
+        ...cfg("handy-spark-block"),
+        targets: ["handy-spark-block", "crashy-spark-block", "ladder", "small-vial", "drilly-spark-block"].map((material, i) => ({
+          id: `t${i}`,
+          material,
+          mode: "rate" as const,
+          value: 1,
+        })),
+      });
+      check(`busy ${direction}`, layoutFlow(p.flow.nodes, p.flow.edges, { ...opts, direction }));
+    });
+  }
+});
