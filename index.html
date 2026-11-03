@@ -4,26 +4,34 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" href="./favicon.png" />
-    <title>VoidSpark · Oddsparks Calculator</title>
-    <link href="./_app/immutable/entry/start.a0gP3qdi.js" rel="modulepreload">
-		<link href="./_app/immutable/chunks/qTJJuPCp.js" rel="modulepreload">
-		<link href="./_app/immutable/chunks/BYI-rMq3.js" rel="modulepreload">
-		<link href="./_app/immutable/chunks/Bh1xzfmn.js" rel="modulepreload">
-		<link href="./_app/immutable/entry/app.D25wvfd5.js" rel="modulepreload">
-		<link href="./_app/immutable/chunks/DBnD8-7F.js" rel="modulepreload">
-		<link href="./_app/immutable/chunks/CIs5rDa-.js" rel="modulepreload">
-		<link href="./_app/immutable/chunks/BayF0YlJ.js" rel="modulepreload">
-		<link href="./_app/immutable/chunks/BdUGH-oq.js" rel="modulepreload">
-		<link href="./_app/immutable/nodes/0.CJ2vmdkV.js" rel="modulepreload">
-		<link href="./_app/immutable/nodes/2.0X3fAVFw.js" rel="modulepreload">
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <meta name="theme-color" content="#f4f2ee" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#15131a" media="(prefers-color-scheme: dark)" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="VoidSpark" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <title>VoidSpark · Oddsparks Planner</title>
+    <link href="./_app/immutable/entry/start.CT83iFYT.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/L84N2YnH.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/CVJveFVC.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/bqagk1tw.js" rel="modulepreload">
+		<link href="./_app/immutable/entry/app.RQcuNndr.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/DXDD42zP.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/DpAoVdqy.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/CEkWX27Q.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/DEsW0t8T.js" rel="modulepreload">
+		<link href="./_app/immutable/nodes/0.Dvwu_2wA.js" rel="modulepreload">
+		<link href="./_app/immutable/nodes/2.zolrNFmm.js" rel="modulepreload">
 		
-		<link href="./_app/immutable/assets/2.CP26ccMP.css" rel="stylesheet">
+		<link href="./_app/immutable/assets/2.CqQV6TFU.css" rel="stylesheet">
   </head>
   <body data-sveltekit-preload-data="hover">
     <div style="display: contents">
 			<script>
 				{
-					__sveltekit_1q5wj2u = {
+					__sveltekit_uco04a = {
 						base: new URL(".", location).pathname.slice(0, -1),
 						assets: "/voidspark"
 					};
@@ -31,11 +39,23 @@
 					const element = document.currentScript.parentElement;
 
 					Promise.all([
-						import("./_app/immutable/entry/start.a0gP3qdi.js"),
-						import("./_app/immutable/entry/app.D25wvfd5.js")
+						import("./_app/immutable/entry/start.CT83iFYT.js"),
+						import("./_app/immutable/entry/app.RQcuNndr.js")
 					]).then(([kit, app]) => {
 						kit.start(app, element);
 					});
+
+					if ('serviceWorker' in navigator) {
+						const script_url = './service-worker.js';
+						const policy = globalThis?.window?.trustedTypes?.createPolicy(
+							'sveltekit-trusted-url',
+							{ createScriptURL(url) { return url; } }
+						);
+						const sanitised = policy?.createScriptURL(script_url) ?? script_url;
+						addEventListener('load', function () {
+							navigator.serviceWorker.register(sanitised);
+						});
+					}
 				}
 			</script>
 		</div>
