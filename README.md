@@ -28,6 +28,13 @@ greenhouses, the Arboretum, and the metal sparks. It started from the PirateSpar
   add them as a target. Sparks are crafted too.
 - **Item search.** Pick targets from a searchable list grouped by region, with icons.
 - **Inputs & cost.** Raw inputs needed, and the material cost to build every machine.
+- **Saved plans and share links.** Keep several named plans and switch between them. **Share**
+  sends a link that opens the plan for whoever follows it. The plan is encoded in the URL
+  fragment and validated on the way in.
+- **Build checklist.** Tick machine groups in the Build plan as you build them, with partial
+  counts, progress, and per-plan saving.
+- **Installable and offline.** Add it to your home screen. A service worker
+  (`src/service-worker.ts`) caches the app so it opens without a connection.
 
 ## Development
 
@@ -81,7 +88,8 @@ BASE_PATH=/voidspark npm run build   # then publish build/ (it includes .nojekyl
 | Path | What |
 | --- | --- |
 | `src/routes/+page.svelte` | The app page: targets, settings, tabs |
-| `src/lib/state.svelte.ts` | Reactive app state (`$state`), persisted to localStorage |
+| `src/lib/state.svelte.ts` | Reactive app state (`$state`): saved plans, checklist, share-link encoding; persisted to localStorage |
+| `src/service-worker.ts`, `static/manifest.webmanifest` | Offline caching and install metadata |
 | `src/lib/engine/data.ts` | Typed access to game data, plus facts the JSON lacks (spark-powered stations) |
 | `src/lib/engine/solver.ts` | Rates, machine counts, loops, trees, station and cost summaries. Framework-free |
 | `src/lib/components/` | Tree, machines, inputs views, and recipe/spark/material pickers |

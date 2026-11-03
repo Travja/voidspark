@@ -29,6 +29,32 @@
     if (name) notify(`Opened shared plan “${name}”`);
   }
   openShared();
+
+  // Install as an app. Android/Chrome offers a prompt we can trigger; iOS needs Share → Add to
+  // Home Screen. Nothing is shown once it's running installed.
+  type InstallPrompt = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
+  let installPrompt = $state<InstallPrompt | null>(null);
+  const installed =
+    matchMedia("(display-mode: standalone)").matches || (navigator as { standalone?: boolean }).standalone === true;
+  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  $effect(() => {
+    const capture = (e: Event) => {
+      e.preventDefault();
+      installPrompt = e as InstallPrompt;
+    };
+    const done = () => (installPrompt = null);
+    addEventListener("beforeinstallprompt", capture);
+    addEventListener("appinstalled", done);
+    return () => {
+      removeEventListener("beforeinstallprompt", capture);
+      removeEventListener("appinstalled", done);
+    };
+  });
+  async function install() {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    installPrompt = null;
+  }
   $effect(() => {
     addEventListener("hashchange", openShared);
     return () => removeEventListener("hashchange", openShared);
@@ -183,6 +209,11 @@
     </main>
   </div>
   <footer class="muted small">
+    {#if !installed && installPrompt}
+      <p><button onclick={install}>Install app</button> Works offline once installed.</p>
+    {:else if !installed && isIOS}
+      <p>Install: tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>. It works offline.</p>
+    {/if}
     Recipes, items and icons from the <a href="https://oddsparks.wiki.gg">Oddsparks Wiki</a> (CC BY-SA). Built on the
     recovered <a href="https://github.com/Travja/voidspark/tree/master/legacy/piratespark">PirateSpark</a> calculator.
   </footer>
