@@ -880,3 +880,102 @@ footer {
     padding: 4px 8px;
   }
 }
+
+/* ---------- Toast ---------- */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 50;
+  max-width: calc(100vw - 32px);
+  padding: 10px 16px;
+  background: var(--text);
+  color: var(--bg);
+  border-radius: 999px;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.2);
+  font-size: 14px;
+}
+
+/* ---------- Build checklist ---------- */
+
+.build-check {
+  position: absolute;
+  transform: translateX(-100%);
+  z-index: 2;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 5px;
+  border: 2px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--muted);
+}
+
+.build-check.done {
+  border-color: var(--raw);
+  background: var(--raw);
+  color: var(--surface);
+}
+
+.build-check.partial {
+  border-color: var(--raw);
+  color: var(--raw);
+}
+
+.build-check.dim {
+  opacity: 0.18;
+}
+
+/* Keep the workstation name clear of the check box. */
+.flow-card.kind-recipe .card-row:first-child {
+  padding-right: 24px;
+}
+
+.flow-card.built {
+  border-color: var(--raw);
+  background: var(--raw-soft);
+}
+
+.build-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-bottom: 10px;
+}
+
+.build-progress.complete strong {
+  color: var(--raw);
+}
+
+.progress-bar {
+  flex: 1;
+  min-width: 80px;
+  max-width: 240px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.progress-bar span {
+  display: block;
+  height: 100%;
+  background: var(--raw);
+}
+
+.built-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.built-stepper button {
+  min-width: 32px;
+}
