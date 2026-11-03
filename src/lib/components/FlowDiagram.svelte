@@ -1,6 +1,6 @@
 <script lang="ts">
   import { layoutFlow, splitSources, type Segment } from "../engine/layout";
-  import type { FlowEdge, FlowNode, Plan, Solver } from "../engine/solver";
+  import type { FlowEdge, FlowNode, Plan, RecipePlan, Solver } from "../engine/solver";
   import { fmt, fmtLoad, fmtRate } from "../format";
   import type { AppState } from "../state.svelte";
   import CrewPicker from "./CrewPicker.svelte";
@@ -144,7 +144,7 @@
   let drag = $state<{ x: number; y: number; left: number; top: number } | null>(null);
   function startPan(e: PointerEvent) {
     // Mouse only: on touch screens the browser's own scrolling already pans the diagram.
-    if (e.pointerType !== "mouse" || !viewport || (e.target as HTMLElement).closest(".flow-card, .edge-label") || e.button !== 0) return;
+    if (e.pointerType !== "mouse" || !viewport || (e.target as HTMLElement).closest(".flow-card, .edge-label, .build-check") || e.button !== 0) return;
     drag = { x: e.clientX, y: e.clientY, left: viewport.scrollLeft, top: viewport.scrollTop };
     viewport.setPointerCapture(e.pointerId);
   }
@@ -180,6 +180,32 @@
     return `${displayName(n.material)} (${n.kind === "loop" ? "supply separately" : "raw input"})`;
   }
 
+  // --- build checklist ---
+  function toggleBuilt(line: RecipePlan) {
+    const done = app.builtCount(line.recipe.id) >= line.machinesBuilt;
+    app.setBuilt(line.recipe.id, done ? 0 : line.machinesBuilt);
+  }
+
+  const progress = $derived.by(() => {
+    let groups = 0;
+    let builtGroups = 0;
+    let machines = 0;
+    let builtMachines = 0;
+    for (const line of plan.recipes.values()) {
+      if (line.machinesBuilt <= 0) continue;
+      const done = Math.min(app.builtCount(line.recipe.id), line.machinesBuilt);
+      groups++;
+      machines += line.machinesBuilt;
+      builtMachines += done;
+      if (done >= line.machinesBuilt) builtGroups++;
+    }
+    return { groups, builtGroups, machines, builtMachines };
+  });
+
+  function resetBuilt() {
+    if (confirm("Clear all build checkmarks for this plan?")) app.resetBuilt();
+  }
+
   /** Outputs of a recipe line that nothing consumes. */
   function surplusOf(n: FlowNode) {
     if (!n.line) return [];
@@ -208,6 +234,21 @@
       {/each}
     </div>
   </details>
+
+  <div class="build-progress small" class:complete={progress.machines > 0 && progress.builtMachines >= progress.machines}>
+    {#if progress.builtMachines > 0}
+      <span>
+        <strong>Built {progress.builtGroups}/{progress.groups}</strong> groups · {progress.builtMachines}/{progress.machines}
+        machines
+      </span>
+      <span class="progress-bar" aria-hidden="true">
+        <span style:width="{(100 * progress.builtMachines) / Math.max(1, progress.machines)}%"></span>
+      </span>
+      <button class="small" onclick={resetBuilt}>Reset</button>
+    {:else}
+      <span class="muted">Tick each machine group's ✓ box as you build it.</span>
+    {/if}
+  </div>
 
   <div class="toolbar">
     <span class="muted small">
@@ -287,6 +328,7 @@
           {@const n = p.node}
           <button
             class="flow-card kind-{n.kind}"
+            class:built={n.line && app.builtCount(n.line.recipe.id) >= n.line.machinesBuilt}
             class:dim={neighbours && !neighbours.has(n.id)}
             class:selected={selected === n.id}
             style:left="{p.x}px"
@@ -339,6 +381,25 @@
               </span>
             {/if}
           </button>
+          {#if n.line}
+            {@const done = Math.min(app.builtCount(n.line.recipe.id), n.line.machinesBuilt)}
+            {@const all = n.line.machinesBuilt}
+            <!-- Beside the card, not inside it: a button can't contain another button. -->
+            <button
+              class="build-check"
+              class:done={done >= all}
+              class:partial={done > 0 && done < all}
+              class:dim={neighbours && !neighbours.has(n.id)}
+              style:left="{p.x + p.width - 6}px"
+              style:top="{p.y + 6}px"
+              aria-pressed={done >= all}
+              aria-label="{done >= all ? 'Built' : 'Mark as built'}: {all} × {displayName(n.line.recipe.workstation)} ({displayName(n.material)})"
+              title={done >= all ? "Built. Tap to untick" : done ? `${done} of ${all} built. Tap to tick all` : "Tap when built"}
+              onclick={() => toggleBuilt(n.line!)}
+            >
+              {done >= all ? "✓" : done > 0 ? `${done}/${all}` : ""}
+            </button>
+          {/if}
         {/each}
       </div>
     </div>
@@ -364,6 +425,22 @@
         <div class="detail-controls">
           <label class="small">Sparks <CrewPicker workstation={n.line.recipe.workstation} {app} /></label>
           <label class="small">Recipe <RecipePicker material={n.material} {solver} {app} /></label>
+          <span class="built-stepper small">
+            Built
+            <button
+              class="icon-btn"
+              aria-label="One fewer built"
+              disabled={app.builtCount(n.line.recipe.id) <= 0}
+              onclick={() => app.setBuilt(n.line!.recipe.id, Math.min(app.builtCount(n.line!.recipe.id), n.line!.machinesBuilt) - 1)}
+            >−</button>
+            <strong>{Math.min(app.builtCount(n.line.recipe.id), n.line.machinesBuilt)} / {n.line.machinesBuilt}</strong>
+            <button
+              class="icon-btn"
+              aria-label="One more built"
+              disabled={app.builtCount(n.line.recipe.id) >= n.line.machinesBuilt}
+              onclick={() => app.setBuilt(n.line!.recipe.id, app.builtCount(n.line!.recipe.id) + 1)}
+            >+</button>
+          </span>
         </div>
       {:else if n.kind !== "target"}
         <div class="detail-controls">

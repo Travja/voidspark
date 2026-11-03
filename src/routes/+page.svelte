@@ -6,12 +6,59 @@
   import InputsView from "$lib/components/InputsView.svelte";
   import FlowDiagram from "$lib/components/FlowDiagram.svelte";
   import MaterialPicker from "$lib/components/MaterialPicker.svelte";
+  import PlanBar from "$lib/components/PlanBar.svelte";
   import TreeView from "$lib/components/TreeView.svelte";
   import { GAME } from "$lib/engine/data";
   import { Solver, type Plan, type Target } from "$lib/engine/solver";
   import { AppState, UNIT_FACTOR, type View } from "$lib/state.svelte";
 
   const app = new AppState();
+
+  // Short confirmation messages ("Link copied", "Opened shared plan ...").
+  let toast = $state<string | null>(null);
+  let toastTimer: ReturnType<typeof setTimeout> | undefined;
+  function notify(message: string) {
+    toast = message;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => (toast = null), 3000);
+  }
+
+  // Opened from a share link (on load, or pasted into an open tab)?
+  function openShared() {
+    const name = app.openSharedPlan();
+    if (name) notify(`Opened shared plan “${name}”`);
+  }
+  openShared();
+
+  // Install as an app. Android/Chrome offers a prompt we can trigger; iOS needs Share → Add to
+  // Home Screen. Nothing is shown once it's running installed.
+  type InstallPrompt = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
+  let installPrompt = $state<InstallPrompt | null>(null);
+  const installed =
+    matchMedia("(display-mode: standalone)").matches || (navigator as { standalone?: boolean }).standalone === true;
+  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  $effect(() => {
+    const capture = (e: Event) => {
+      e.preventDefault();
+      installPrompt = e as InstallPrompt;
+    };
+    const done = () => (installPrompt = null);
+    addEventListener("beforeinstallprompt", capture);
+    addEventListener("appinstalled", done);
+    return () => {
+      removeEventListener("beforeinstallprompt", capture);
+      removeEventListener("appinstalled", done);
+    };
+  });
+  async function install() {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    installPrompt = null;
+  }
+  $effect(() => {
+    addEventListener("hashchange", openShared);
+    return () => removeEventListener("hashchange", openShared);
+  });
 
   // Snapshot reads every field, so any config change rebuilds the solver and its caches.
   const solver = $derived(new Solver($state.snapshot(app.cfg)));
@@ -73,6 +120,7 @@
   <div class="layout">
     <aside>
       <section class="card">
+        <PlanBar {app} {notify} />
         <h2>Targets</h2>
         {#each app.cfg.targets as t (t.id)}
           <div class="target">
@@ -161,7 +209,16 @@
     </main>
   </div>
   <footer class="muted small">
+    {#if !installed && installPrompt}
+      <p><button onclick={install}>Install app</button> Works offline once installed.</p>
+    {:else if !installed && isIOS}
+      <p>Install: tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>. It works offline.</p>
+    {/if}
     Recipes, items and icons from the <a href="https://oddsparks.wiki.gg">Oddsparks Wiki</a> (CC BY-SA). Built on the
     recovered <a href="https://github.com/Travja/voidspark/tree/master/legacy/piratespark">PirateSpark</a> calculator.
   </footer>
 </div>
+
+{#if toast}
+  <div class="toast" role="status" aria-live="polite">{toast}</div>
+{/if}
