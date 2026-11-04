@@ -5,6 +5,7 @@
   import Icon from "./Icon.svelte";
   import { displayName } from "./icons";
   import RecipePicker from "./RecipePicker.svelte";
+  import Sites from "./Sites.svelte";
   import Staffing from "./Staffing.svelte";
 
   let { plan, solver, app }: { plan: Plan; solver: Solver; app: AppState } = $props();
@@ -12,6 +13,7 @@
 </script>
 
 <Staffing {plan} {app} />
+<Sites {plan} {app} />
 
 <div class="two-col">
   <section class="card">

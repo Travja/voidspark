@@ -42,6 +42,18 @@ const NOT_SPARK_POWERED = {
   Arboretum: "Wiki: 'The Arboretum does not need Sparks to operate' (sparks work its Feeders)",
 };
 
+/**
+ * Resources produced in place by a world site rather than crafted or carried in. The building on
+ * that site uses them directly, so plans count sites instead of listing them as raw inputs.
+ */
+const SITE_RESOURCES = {
+  Miasma: {
+    site: "Noxious Coral",
+    perMinute: 15,
+    why: "Wiki (Miasma, Miasma Collector): a Noxious Coral generates 1 miasma every 4 s (15/min), held by the collector built on it",
+  },
+};
+
 /** Supply caps in crafts/min. */
 const CRAFT_CAP = {
   "Miasma Collector": [7.5, "Miasma arrives at 15/min and a craft uses 2 (wiki: capped to 8 s)"],
@@ -417,11 +429,19 @@ async function main() {
   const itemNames = new Set(resolved.flatMap((r) => [...r.ingredients, ...r.products].map((x) => x.name)));
   const wsPages = await fetchPages(workstationNames);
   const costs = new Map();
+  const sites = new Map();
+  /** "Must be built on top of a [[Giant Tree]]" -> "Giant Tree". */
+  const siteOf = (text) => {
+    const m = /must be built on (?:top of )?(?:an? )?(.+?)(?:\.|$| in the )/i.exec(cleanName(text ?? ""));
+    return m ? m[1].trim() : null;
+  };
   for (const ws of workstationNames) {
     const page = wsPages.get(ws);
     const cost = [];
     if (page) {
       const call = [...templateCalls(page.text, "building")][0];
+      const site = siteOf(call ? templateParams(call)["build rules"] : null) ?? siteOf(field(page.text, "caption"));
+      if (site) sites.set(ws, site);
       if (call) {
         const p = templateParams(call);
         for (const ord of ["first", "second", "third", "fourth"]) {
@@ -456,7 +476,19 @@ async function main() {
     if (!page) report.missing.push(`No wiki page for item **${name}** (kept category ${category})`);
     else if (!wikiRegion) report.missing.push(`Item **${name}** has no region category on the wiki`);
     if (override) report.decisions.push(`Region for **${name}**: ${override[0]} (${override[1]}).`);
-    materials.push({ id, name, category, craftable: false, image: page ? field(page.text, "image") : null, page: page?.title });
+    const siteResource = SITE_RESOURCES[name];
+    if (siteResource) {
+      report.decisions.push(`**${name}** comes from **${siteResource.site}** sites at ${siteResource.perMinute}/min each: ${siteResource.why}.`);
+    }
+    materials.push({
+      id,
+      name,
+      category,
+      craftable: false,
+      ...(siteResource ? { siteResource: { site: siteResource.site, perMinute: siteResource.perMinute } } : {}),
+      image: page ? field(page.text, "image") : null,
+      page: page?.title,
+    });
     const burn = page ? num(field(page.text, "burnrate")) : null;
     if (burn) fuels.push({ id, name, amount: burn });
     idByName.set(name.toLowerCase(), id);
@@ -473,9 +505,11 @@ async function main() {
       name: ws,
       cost: costs.get(ws).map((c) => ({ id: idByName.get(c.name.toLowerCase()), amount: c.amount })),
       sparkPowered: !NOT_SPARK_POWERED[ws],
+      ...(sites.has(ws) ? { site: sites.get(ws) } : {}),
       image: page ? field(page.text, "image") : null,
       page: page?.title,
     };
+    if (sites.has(ws)) report.decisions.push(`**${ws}** must be built on a **${sites.get(ws)}** (one site per machine).`);
     if (NOT_SPARK_POWERED[ws]) report.decisions.push(`**${ws}** is not spark-powered: ${NOT_SPARK_POWERED[ws]}.`);
     if (CRAFT_CAP[ws]) {
       out.craftCap = CRAFT_CAP[ws][0];

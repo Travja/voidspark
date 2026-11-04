@@ -27,6 +27,11 @@ greenhouses, the Arboretum, and the metal sparks. It started from the PirateSpar
 - **Staffing.** How many sparks it takes to crew every machine, by spark type, with a button to
   add them as a target. Sparks are crafted too.
 - **Item search.** Pick targets from a searchable list grouped by region, with icons.
+- **Sites to claim.** Buildings that must sit on a world site (Logger on a Giant Tree, Drill on a
+  Giant Rock, Miasma Collector on a Noxious Coral, Ore Miner on a Giant Ore Deposit, Spark
+  Workbench and Workstation on an Ancient Base and Support, Arboretum on an Aetheric Fissure,
+  Spark Workshop on an Ancient Foundation) need one site per machine. Miasma is made by the
+  coral itself (15/min each, per the wiki), so it is counted as coral, not as a raw input.
 - **Inputs & cost.** Raw inputs needed, and the material cost to build every machine.
 - **Saved plans and share links.** Keep several named plans and switch between them. **Share**
   sends a link that opens the plan for whoever follows it. The plan is encoded in the URL

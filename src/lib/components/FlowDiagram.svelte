@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { GAME } from "../engine/data";
   import { layoutFlow, splitSources, type Segment } from "../engine/layout";
   import type { FlowEdge, FlowNode, Plan, RecipePlan, Solver } from "../engine/solver";
   import { fmt, fmtLoad, fmtRate } from "../format";
@@ -7,6 +8,7 @@
   import Icon from "./Icon.svelte";
   import { displayName } from "./icons";
   import RecipePicker from "./RecipePicker.svelte";
+  import Sites from "./Sites.svelte";
   import Staffing from "./Staffing.svelte";
 
   let { plan, solver, app }: { plan: Plan; solver: Solver; app: AppState } = $props();
@@ -220,6 +222,7 @@
 
 {#if graph.nodes.length}
   <Staffing {plan} {app} />
+  <Sites {plan} {app} />
   <details class="station-strip" bind:open={stationsOpen}>
     <summary class="muted small">
       {total} machines · {plan.stations.length} workstation types{stationsOpen ? ":" : ""}
@@ -374,6 +377,10 @@
               <span class="card-row small">
                 {#if n.kind === "loop"}
                   <span class="tag loop" title="Already made later in this chain; bring it in separately">↻ supply separately</span>
+                {:else if GAME.materials.get(n.material)?.siteResource}
+                  <span class="tag site" title="Produced in place by the site this machine is built on">
+                    from {GAME.materials.get(n.material)!.siteResource!.site}
+                  </span>
                 {:else}
                   <span class="tag raw">raw input</span>
                 {/if}
@@ -417,6 +424,12 @@
         <button class="icon-btn" aria-label="Close details" onclick={() => (selected = null)}>✕</button>
       </header>
       {#if n.line}
+        {#if GAME.workstations.get(n.line.recipe.workstation)?.site}
+          <p class="small">
+            Built on: <strong>{n.line.machinesBuilt} × {GAME.workstations.get(n.line.recipe.workstation)!.site}</strong>
+            <span class="muted">(one per machine)</span>
+          </p>
+        {/if}
         <p class="small muted">
           {n.line.recipe.name} · {fmt(n.line.machines, 3)} machines exactly ({fmtLoad(n.line.machines)} busy) ·
           {fmt(n.line.crafts, 3)} crafts/min

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { GAME } from "../engine/data";
   import type { Solver, TreeNode } from "../engine/solver";
   import { fmt, fmtLoad, fmtRate } from "../format";
   import type { AppState } from "../state.svelte";
@@ -43,7 +44,12 @@
         <strong>{displayName(node.material)}</strong>
         <span class="rate" title="{+node.rate.toPrecision(4)}/min">{fmtRate(node.rate, unit)}</span>
         {#if node.fuel}<span class="tag fuel" title="Burnt as fuel">🔥 fuel</span>{/if}
-        {#if node.kind === "raw"}<span class="tag raw">raw input</span>{/if}
+        {#if node.kind === "raw" && GAME.materials.get(node.material)?.siteResource}
+          <span class="tag site" title="Produced in place by the site its machine is built on">
+            from {GAME.materials.get(node.material)!.siteResource!.site}
+            ({fmtRate(GAME.materials.get(node.material)!.siteResource!.perMinute, unit)} each)
+          </span>
+        {:else if node.kind === "raw"}<span class="tag raw">raw input</span>{/if}
         {#if node.kind === "loop"}
           <span
             class="tag loop"
