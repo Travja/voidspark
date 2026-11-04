@@ -292,3 +292,35 @@ describe("staffing", () => {
     expect(total).toBe(expected);
   });
 });
+
+describe("sites", () => {
+  const sites = (p: Plan) => Object.fromEntries(p.sites.map((s) => [s.site, s.count]));
+
+  it("counts one Noxious Coral per Miasma Collector, and miasma is not a raw input", () => {
+    // 10 miasma vials/min, 2 Crafty: collector capped at 7.5 crafts/min (coral makes 15 miasma/min,
+    // 2 per craft) -> 15 vials/min each -> 1 collector, 1 coral.
+    const p = makePlan(base({ targets: [target("miasma-vial", 10)], defaultCrew: ["spark-crafty", "spark-crafty"] }));
+    expect(sites(p)["Noxious Coral"]).toBe(1);
+    expect(p.rawInputs.map((r) => r.material)).not.toContain("miasma");
+    const coral = p.sites.find((s) => s.site === "Noxious Coral")!;
+    expect(coral.resources[0]).toMatchObject({ material: "miasma", perSite: 15 });
+    expect(coral.resources[0].used).toBeCloseTo(10);
+  });
+
+  it("scales coral with demand: 40 vials/min needs 3 collectors on 3 corals", () => {
+    const p = makePlan(base({ targets: [target("miasma-vial", 40)], defaultCrew: ["spark-crafty", "spark-crafty"] }));
+    expect(sites(p)["Noxious Coral"]).toBe(3);
+    expect(line(p, "miasma-vial").machinesBuilt).toBe(3);
+  });
+
+  it("counts sites for every site-bound building", () => {
+    // 60 timber/min with 1 Stumpy: 4 loggers, each on a Giant Tree.
+    const p = makePlan(base({ targets: [target("sawn-timber", 60)] }));
+    expect(sites(p)).toEqual({ "Giant Tree": 4 });
+    const handy = makePlan(base({ targets: [target("handy-spark-block", 1)], defaultCrew: ["spark-crafty", "spark-crafty"] }));
+    const s = sites(handy);
+    expect(s["Ancient Base"]).toBe(handy.stations.find((x) => x.workstation === "spark-workbench")!.machinesBuilt);
+    expect(s["Giant Ore Deposit"]).toBe(1);
+    expect(s["Noxious Coral"]).toBe(1);
+  });
+});

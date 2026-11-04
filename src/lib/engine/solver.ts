@@ -162,10 +162,23 @@ export interface Plan {
    * crew). Sparks are items too, so this is what to craft before the plan can run.
    */
   staffing: { spark: SparkType; count: number }[];
+  /** World sites to claim: one per site-bound machine (Logger on a Giant Tree, ...). */
+  sites: SiteNeed[];
   trees: TreeNode[];
   /** Machine groups and what feeds what, for the build diagram. */
   flow: { nodes: FlowNode[]; edges: FlowEdge[] };
   warnings: string[];
+}
+
+export interface SiteNeed {
+  /** e.g. "Noxious Coral" */
+  site: string;
+  /** Sites to claim. */
+  count: number;
+  /** Machines built on these sites, by workstation. */
+  workstations: { workstation: string; machines: number }[];
+  /** Resources the sites produce in place, with how much the plan uses. */
+  resources: { material: string; used: number; perSite: number }[];
 }
 
 /** What delivering one unit/min of a material costs, all the way down its chain. */
@@ -536,15 +549,48 @@ export class Solver {
       materials,
       recipes,
       order,
-      rawInputs: order.map((m) => materials.get(m)!).filter((mp) => mp.supplied > 1e-7),
+      // Site resources (miasma) come from the sites themselves, not from outside.
+      rawInputs: order
+        .map((m) => materials.get(m)!)
+        .filter((mp) => mp.supplied > 1e-7 && !this.data.materials.get(mp.material)?.siteResource),
       surplus: order.map((m) => materials.get(m)!).filter((mp) => mp.surplus > 1e-7),
       stations,
       buildCost: [...cost].map(([material, amount]) => ({ material, amount })),
       staffing,
+      sites: this.sitesFor(stations, materials),
       trees,
       flow: { nodes: [...flowNodes.values()], edges: flowEdges },
       warnings,
     };
+  }
+
+  /**
+   * Sites to claim. Each site-bound machine takes one site. A site resource also needs enough
+   * sites to cover its use (each Noxious Coral makes 15 miasma/min); in practice that is the same
+   * number, since the collector built on a coral is what uses its miasma.
+   */
+  private sitesFor(stations: StationSummary[], materials: Map<string, MaterialPlan>): SiteNeed[] {
+    const bySite = new Map<string, SiteNeed>();
+    const need = (site: string) => {
+      let s = bySite.get(site);
+      if (!s) bySite.set(site, (s = { site, count: 0, workstations: [], resources: [] }));
+      return s;
+    };
+    for (const st of stations) {
+      const site = this.data.workstations.get(st.workstation)?.site;
+      if (!site || st.machinesBuilt <= 0) continue;
+      const s = need(site);
+      s.count += st.machinesBuilt;
+      s.workstations.push({ workstation: st.workstation, machines: st.machinesBuilt });
+    }
+    for (const mp of materials.values()) {
+      const res = this.data.materials.get(mp.material)?.siteResource;
+      if (!res || mp.supplied <= 1e-7) continue;
+      const s = need(res.site);
+      s.resources.push({ material: mp.material, used: mp.supplied, perSite: res.perMinute });
+      s.count = Math.max(s.count, Math.ceil(mp.supplied / res.perMinute - EPS));
+    }
+    return [...bySite.values()].sort((a, b) => b.count - a.count || a.site.localeCompare(b.site));
   }
 
   name(material: string): string {

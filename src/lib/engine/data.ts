@@ -34,6 +34,11 @@ export interface Material {
   craftable: boolean;
   /** Recipe used unless the player picks another. null: supplied externally by default. */
   defaultRecipe?: string | null;
+  /**
+   * Produced in place by a world site (Miasma by Noxious Coral) and used by the building on it,
+   * rather than crafted or carried in.
+   */
+  siteResource?: { site: string; perMinute: number };
 }
 
 export interface Workstation {
@@ -47,6 +52,8 @@ export interface Workstation {
   sparkSlots: number;
   /** Hard limit on crafts per minute regardless of crew, e.g. a supply-limited collector. */
   craftCap?: number;
+  /** World site each machine must be built on (e.g. "Giant Tree"), one site per machine. */
+  site?: string;
 }
 
 export interface SparkType {
@@ -113,6 +120,7 @@ interface RawData {
     sparkPowered?: boolean;
     sparkSlots?: number;
     craftCap?: number;
+    site?: string;
   }[];
   process: Recipe[];
   material: Material[];

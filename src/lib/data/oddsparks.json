@@ -1,5 +1,5 @@
 {
-  "version": "wiki 2026-11-02",
+  "version": "wiki 2026-11-04",
   "source": "https://oddsparks.wiki.gg (CC BY-SA)",
   "spark": [
     {
@@ -142,7 +142,8 @@
           "amount": 1
         }
       ],
-      "sparkPowered": false
+      "sparkPowered": false,
+      "site": "Aetheric Fissure"
     },
     {
       "category": "refiners",
@@ -174,7 +175,8 @@
           "amount": 1
         }
       ],
-      "sparkPowered": true
+      "sparkPowered": true,
+      "site": "Giant Rock"
     },
     {
       "category": "refiners",
@@ -250,7 +252,8 @@
           "amount": 1
         }
       ],
-      "sparkPowered": true
+      "sparkPowered": true,
+      "site": "Giant Tree"
     },
     {
       "category": "assemblers",
@@ -287,6 +290,7 @@
         }
       ],
       "sparkPowered": true,
+      "site": "Noxious Coral",
       "craftCap": 7.5
     },
     {
@@ -307,7 +311,8 @@
           "amount": 3
         }
       ],
-      "sparkPowered": true
+      "sparkPowered": true,
+      "site": "Giant Ore Deposit"
     },
     {
       "category": "refiners",
@@ -351,14 +356,16 @@
           "amount": 5
         }
       ],
-      "sparkPowered": true
+      "sparkPowered": true,
+      "site": "Ancient Base"
     },
     {
       "category": "assemblers",
       "id": "spark-workshop",
       "name": "Spark Workshop",
       "cost": [],
-      "sparkPowered": true
+      "sparkPowered": true,
+      "site": "Ancient Foundation or Ancient Foundations Replica"
     },
     {
       "category": "assemblers",
@@ -374,7 +381,8 @@
           "amount": 5
         }
       ],
-      "sparkPowered": true
+      "sparkPowered": true,
+      "site": "Ancient Support"
     },
     {
       "category": "assemblers",
@@ -3488,6 +3496,10 @@
       "name": "Miasma",
       "category": "magic-items",
       "craftable": false,
+      "siteResource": {
+        "site": "Noxious Coral",
+        "perMinute": 15
+      },
       "defaultRecipe": null
     },
     {

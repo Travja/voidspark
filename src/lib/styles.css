@@ -979,3 +979,29 @@ footer {
 .built-stepper button {
   min-width: 32px;
 }
+
+/* ---------- Sites ---------- */
+
+.sites {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.site-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  background: var(--surface);
+  border: 1px dashed var(--raw);
+  border-radius: 8px;
+}
+
+.tag.site {
+  color: var(--raw);
+  background: var(--raw-soft);
+  border: 1px dashed var(--raw);
+}
