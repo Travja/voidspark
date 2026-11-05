@@ -1,4 +1,5 @@
 import { GAME } from "./engine/data";
+import { fromBase64Url, toBase64Url } from "./base64url";
 import { EXTERNAL, type PlanConfig, type Target } from "./engine/solver";
 
 export type RateUnit = "sec" | "min" | "hr";
@@ -122,17 +123,6 @@ interface SharePayload {
   /** fuel: [material, perMinute] */
   f?: [string, number];
 }
-
-const toBase64Url = (text: string) => {
-  const bytes = new TextEncoder().encode(text);
-  let bin = "";
-  for (const b of bytes) bin += String.fromCharCode(b);
-  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-};
-const fromBase64Url = (data: string) => {
-  const bin = atob(data.replace(/-/g, "+").replace(/_/g, "/"));
-  return new TextDecoder().decode(Uint8Array.from(bin, (ch) => ch.charCodeAt(0)));
-};
 
 export function encodePlan(name: string, cfg: PlanConfig): string {
   const payload: SharePayload = {
