@@ -1,6 +1,6 @@
 // Grid wiring, as in the game: logic travels along wire tiles laid on the grid. A tile is a plain
-// wire, a ribbon (four signals, bits 0–3) or a bridge (a crossing: left–right and up–down stay
-// separate).
+// wire or a ribbon (four signals, bits 0–3). Wires cross with a Wire Bridge, a three-tile building
+// (end, gap, end) whose ends are joined, hopping over whatever runs through the gap.
 //
 // Each tile records which neighbours it joins (the directions it was drawn in). Two tiles connect
 // when both point at each other, so wires can run side by side without merging, as they do in the
@@ -30,9 +30,9 @@ export const parseKey = (k: string): [number, number] => {
 
 /** Tile values are the kind and its join mask, e.g. "w5" (wire joining right and left). */
 export const kindOf = (v: string | undefined) => v?.[0] as CellKind | undefined;
-export const maskOf = (v: string | undefined) => (!v ? 0 : v[0] === "b" ? 15 : +v.slice(1) || 0);
-export const tile = (kind: CellKind, mask: number) => (kind === "b" ? "b" : `${kind}${mask & 15}`);
-export const VALID_TILE = /^(?:[wr](?:[0-9]|1[0-5])|b)$/;
+export const maskOf = (v: string | undefined) => (!v ? 0 : +v.slice(1) || 0);
+export const tile = (kind: CellKind, mask: number) => `${kind}${mask & 15}`;
+export const VALID_TILE = /^[wr](?:[0-9]|1[0-5])$/;
 
 export function dirBetween(a: [number, number], b: [number, number]): number {
   return DIRS.findIndex((d) => d.x === b[0] - a[0] && d.y === b[1] - a[1]);
@@ -71,14 +71,14 @@ export interface PortAttachment {
 
 export interface GridNets {
   count: number;
-  /** Networks a tile carries: wire [n], ribbon [b0, b1, b2, b3], bridge [left–right, up–down]. */
+  /** Networks a tile carries: wire [n], ribbon [b0, b1, b2, b3]. */
   cellNets: Map<string, number[]>;
   /** "part.port" -> networks. */
   portNets: Map<string, number[]>;
   ports: PortAttachment[];
 }
 
-const node = (k: string, kind: CellKind, axis: number, bit: number) => (kind === "w" ? `w${k}` : kind === "r" ? `r${k}#${bit}` : `b${k}${axis ? "v" : "h"}`);
+const node = (k: string, kind: CellKind, bit: number) => (kind === "w" ? `w${k}` : `r${k}#${bit}`);
 
 /** Works out the logic networks formed by the tiles and the ports plugged into them. */
 export function buildNets(circuit: Pick<Circuit, "parts" | "cells">): GridNets {
@@ -106,20 +106,16 @@ export function buildNets(circuit: Pick<Circuit, "parts" | "cells">): GridNets {
   const cells = circuit.cells;
   for (const [k, v] of Object.entries(cells)) {
     const kind = kindOf(v)!;
-    if (kind === "w") add(node(k, "w", 0, 0));
-    else if (kind === "r") for (let b = 0; b < 4; b++) add(node(k, "r", 0, b));
-    else {
-      add(node(k, "b", 0, 0));
-      add(node(k, "b", 1, 0));
-    }
+    if (kind === "w") add(node(k, "w", 0));
+    else for (let b = 0; b < 4; b++) add(node(k, "r", b));
     const [x, y] = parseKey(k);
     // Right (d 0) and down (d 1); the other two are handled from the neighbour's side.
     for (const d of [0, 1]) {
       const nk = cellKey(x + DIRS[d].x, y + DIRS[d].y);
       if (!joined(cells, k, nk, d)) continue;
       const nkind = kindOf(cells[nk])!;
-      if (kind === "r" && nkind === "r") for (let b = 0; b < 4; b++) union(node(k, "r", d, b), node(nk, "r", d, b));
-      else union(node(k, kind, d, 0), node(nk, nkind, d, 0));
+      if (kind === "r" && nkind === "r") for (let b = 0; b < 4; b++) union(node(k, "r", b), node(nk, "r", b));
+      else union(node(k, kind, 0), node(nk, nkind, 0));
     }
   }
 
@@ -133,12 +129,19 @@ export function buildNets(circuit: Pick<Circuit, "parts" | "cells">): GridNets {
       const k = cellKey(c.x, c.y);
       const kind = kindOf(cells[k]);
       if (!kind) continue;
-      const axis = c.n.x !== 0 ? 0 : 1;
       let nodes: (string | null)[];
-      if (port.bus === "all") nodes = kind === "r" ? [0, 1, 2, 3].map((b) => node(k, "r", 0, b)) : [node(k, kind, axis, 0), null, null, null];
-      else if (port.bus === "bit" && kind === "r") nodes = [node(k, "r", 0, Number(part.cfg.bit) || 0)];
-      else nodes = [node(k, kind, axis, 0)];
+      if (port.bus === "all") nodes = kind === "r" ? [0, 1, 2, 3].map((b) => node(k, "r", b)) : [node(k, kind, 0), null, null, null];
+      else if (port.bus === "bit" && kind === "r") nodes = [node(k, "r", Number(part.cfg.bit) || 0)];
+      else nodes = [node(k, kind, 0)];
       portNodes.push({ part: part.id, port: port.id, dir: port.dir, nodes, cell: k });
+    }
+  }
+  // Buildings whose ports are wired straight through (a Wire Bridge's two ends are one wire).
+  for (const part of circuit.parts) {
+    for (const [pa, pb] of PARTS.get(part.type)?.joins ?? []) {
+      const na = portNodes.find((p) => p.part === part.id && p.port === pa)?.nodes[0];
+      const nb = portNodes.find((p) => p.part === part.id && p.port === pb)?.nodes[0];
+      if (na && nb) union(na, nb);
     }
   }
 
@@ -157,11 +160,7 @@ export function buildNets(circuit: Pick<Circuit, "parts" | "cells">): GridNets {
     const kind = kindOf(v);
     cellNets.set(
       k,
-      kind === "w"
-        ? [netOf(node(k, "w", 0, 0))]
-        : kind === "r"
-          ? [0, 1, 2, 3].map((b) => netOf(node(k, "r", 0, b)))
-          : [netOf(node(k, "b", 0, 0)), netOf(node(k, "b", 1, 0))],
+      kind === "w" ? [netOf(node(k, "w", 0))] : [0, 1, 2, 3].map((b) => netOf(node(k, "r", b))),
     );
   }
   const portNets = new Map<string, number[]>();
@@ -185,7 +184,7 @@ export function link(cells: Record<string, string>, a: string, b: string) {
     [b, opp(d)],
   ] as const) {
     const v = cells[k];
-    if (kindOf(v) !== "b") cells[k] = tile(kindOf(v)!, maskOf(v) | (1 << dd));
+    cells[k] = tile(kindOf(v)!, maskOf(v) | (1 << dd));
   }
 }
 
@@ -199,7 +198,7 @@ export function paint(cells: Record<string, string>, kind: CellKind, path: [numb
     const k = cellKey(x, y);
     const v = cells[k];
     if (!v) cells[k] = tile(kind, 0);
-    else if (kind !== "b" && kindOf(v) !== kind && kindOf(v) !== "b") cells[k] = tile(kind, maskOf(v));
+    else if (kindOf(v) !== kind) cells[k] = tile(kind, maskOf(v));
     if (prev && prev !== k) link(cells, prev, k);
     prev = k;
   }
@@ -213,34 +212,17 @@ export function erase(cells: Record<string, string>, k: string) {
   DIRS.forEach((dv, d) => {
     const nk = cellKey(x + dv.x, y + dv.y);
     const v = cells[nk];
-    if (v && kindOf(v) !== "b") cells[nk] = tile(kindOf(v)!, maskOf(v) & ~(1 << opp(d)));
+    if (v) cells[nk] = tile(kindOf(v)!, maskOf(v) & ~(1 << opp(d)));
   });
 }
 
-/** Makes a wire tile a bridge (and back again). */
-export function toggleBridge(cells: Record<string, string>, k: string) {
-  const v = cells[k];
-  if (!v) cells[k] = "b";
-  else if (kindOf(v) === "b") {
-    // Back to a wire joined to whichever neighbours point at it.
-    const [x, y] = parseKey(k);
-    let mask = 0;
-    DIRS.forEach((dv, d) => {
-      const n = cells[cellKey(x + dv.x, y + dv.y)];
-      if (n && maskOf(n) & (1 << opp(d))) mask |= 1 << d;
-    });
-    cells[k] = tile("w", mask);
-  } else cells[k] = "b";
-}
-
-/** Every tile joined to tile k (not crossing bridges): one drawn wire or ribbon. */
+/** Every tile joined to tile k: one drawn wire or ribbon (beyond a bridge is a separate run). */
 export function connectedTiles(cells: Record<string, string>, k: string): string[] {
   if (!cells[k]) return [];
   const seen = new Set([k]);
   const todo = [k];
   while (todo.length) {
     const c = todo.pop()!;
-    if (kindOf(cells[c]) === "b" && c !== k) continue;
     const [x, y] = parseKey(c);
     DIRS.forEach((dv, d) => {
       const n = cellKey(x + dv.x, y + dv.y);
@@ -250,7 +232,7 @@ export function connectedTiles(cells: Record<string, string>, k: string): string
       }
     });
   }
-  return [...seen].filter((c) => c === k || kindOf(cells[c]) !== "b");
+  return [...seen];
 }
 
 // --- routing -------------------------------------------------------------------------------------
@@ -258,8 +240,11 @@ export function connectedTiles(cells: Record<string, string>, k: string): string
 export interface Route {
   /** Tiles along the wire, start to end (existing ones included where it joins them). */
   path: string[];
-  /** Existing wire tiles to turn into bridges where the new wire crosses them. */
-  bridges: string[];
+  /**
+   * Wire Bridges to build where the new wire hops another: top-left cell and rotation (0 runs
+   * left–right, 1 up–down). The path skips from the cell before the bridge to the cell after it.
+   */
+  bridges: { x: number; y: number; rot: 0 | 1 }[];
 }
 
 const findPort = (c: Pick<Circuit, "parts">, r: PortRef) => {
@@ -304,11 +289,13 @@ export function routeWire(circuit: Pick<Circuit, "parts" | "cells">, a: PortRef,
   blocked.delete(T);
   if (cells[S] && !inNets(S, aNets)) return null;
 
-  const isGoal = (k: string) => k === T || (!!cells[k] && kindOf(cells[k]) !== "b" && inNets(k, bNets));
-  /** A straight plain-wire tile running across direction d, that a bridge can hop. */
+  const isGoal = (k: string) => k === T || (!!cells[k] && inNets(k, bNets));
+  /** A bridge's end tile: nothing there yet, no part on it, inside the search area. */
+  const clear = (x: number, y: number) => !cells[cellKey(x, y)] && !blocked.has(cellKey(x, y)) && x >= x0 && x <= x1 && y >= y0 && y <= y1;
+  /** A straight plain-wire tile running across direction d, that a bridge's gap can sit over. */
   const crossable = (k: string, d: number) => {
     const v = cells[k];
-    if (kindOf(v) !== "w" || inNets(k, aNets) || inNets(k, bNets)) return false;
+    if (kindOf(v) !== "w" || blocked.has(k) || inNets(k, aNets) || inNets(k, bNets)) return false;
     const across = (1 << ((d + 1) % 4)) | (1 << ((d + 3) % 4));
     return maskOf(v) === across;
   };
@@ -336,7 +323,8 @@ export function routeWire(circuit: Pick<Circuit, "parts" | "cells">, a: PortRef,
     return !cells[k] || isGoal(k);
   };
 
-  type St = { k: string; x: number; y: number; d: number; cost: number; prev: St | null; bridge?: string };
+  type Bridge = Route["bridges"][number];
+  type St = { k: string; x: number; y: number; d: number; cost: number; prev: St | null; bridge?: Bridge };
   const d0 = DIRS.findIndex((v) => v.x === sc.n.x && v.y === sc.n.y);
   const open: St[] = [{ k: S, x: sc.x, y: sc.y, d: d0, cost: 0, prev: null }];
   const best = new Map<string, number>([[`${S}|${d0}`, 0]]);
@@ -364,28 +352,31 @@ export function routeWire(circuit: Pick<Circuit, "parts" | "cells">, a: PortRef,
     for (let d = 0; d < 4; d++) {
       if (cur.prev && d === opp(cur.d)) continue;
       if (!cur.prev && cur.k !== S && cells[cellKey(cur.x + DIRS[d].x, cur.y + DIRS[d].y)]) continue;
-      let nx = cur.x + DIRS[d].x;
-      let ny = cur.y + DIRS[d].y;
-      let bridge: string | undefined;
-      let extra = 0;
-      const nk = cellKey(nx, ny);
-      if (cells[nk] && !isGoal(nk) && !blocked.has(nk) && crossable(nk, d)) {
-        bridge = nk;
-        nx += DIRS[d].x;
-        ny += DIRS[d].y;
-        extra = 2;
+      const dx = DIRS[d].x;
+      const dy = DIRS[d].y;
+      const moves: { nx: number; ny: number; extra: number; bridge?: Bridge }[] = [{ nx: cur.x + dx, ny: cur.y + dy, extra: 0 }];
+      // Hop a wire with a Wire Bridge: end tile, gap over the wire, end tile, then carry on.
+      if (clear(cur.x + dx, cur.y + dy) && crossable(cellKey(cur.x + 2 * dx, cur.y + 2 * dy), d) && clear(cur.x + 3 * dx, cur.y + 3 * dy)) {
+        const bridge: Bridge = {
+          x: Math.min(cur.x + dx, cur.x + 3 * dx),
+          y: Math.min(cur.y + dy, cur.y + 3 * dy),
+          rot: d % 2 === 0 ? 0 : 1,
+        };
+        moves.push({ nx: cur.x + 4 * dx, ny: cur.y + 4 * dy, extra: 3, bridge });
       }
-      if (!free(nx, ny)) continue;
-      const k = cellKey(nx, ny);
-      const cost = cur.cost + 1 + extra + (cur.d >= 0 && d !== cur.d ? 0.4 : 0);
-      if ((best.get(`${k}|${d}`) ?? Infinity) <= cost) continue;
-      best.set(`${k}|${d}`, cost);
-      open.push({ k, x: nx, y: ny, d, cost, prev: cur, bridge });
+      for (const m of moves) {
+        if (!free(m.nx, m.ny)) continue;
+        const k = cellKey(m.nx, m.ny);
+        const cost = cur.cost + 1 + m.extra + (cur.d >= 0 && d !== cur.d ? 0.4 : 0);
+        if ((best.get(`${k}|${d}`) ?? Infinity) <= cost) continue;
+        best.set(`${k}|${d}`, cost);
+        open.push({ k, x: m.nx, y: m.ny, d, cost, prev: cur, bridge: m.bridge });
+      }
     }
   }
   if (!found) return null;
   const path: string[] = [];
-  const bridges: string[] = [];
+  const bridges: Bridge[] = [];
   for (let s: St | null = found; s; s = s.prev) {
     path.push(s.k);
     if (s.bridge) bridges.push(s.bridge);
@@ -393,24 +384,13 @@ export function routeWire(circuit: Pick<Circuit, "parts" | "cells">, a: PortRef,
   return { path: path.reverse(), bridges };
 }
 
-/** Lays a route's tiles. */
+/** Lays a route's tiles. Its bridges are parts, which the caller builds. */
 export function applyRoute(cells: Record<string, string>, r: Route) {
-  for (const k of r.bridges) cells[k] = "b";
   let prev: string | null = null;
   for (const k of r.path) {
     if (!cells[k]) cells[k] = tile("w", 0);
-    if (prev) {
-      const pd = dirBetween(parseKey(prev), parseKey(k));
-      if (pd >= 0) link(cells, prev, k);
-      // Hopped a bridge: join both sides to it.
-      else {
-        const [px, py] = parseKey(prev);
-        const [kx, ky] = parseKey(k);
-        const mid = cellKey((px + kx) / 2, (py + ky) / 2);
-        link(cells, prev, mid);
-        link(cells, mid, k);
-      }
-    }
+    // Neighbours join; the two sides of a bridge don't (its ports plug into them instead).
+    if (prev && dirBetween(parseKey(prev), parseKey(k)) >= 0) link(cells, prev, k);
     prev = k;
   }
 }

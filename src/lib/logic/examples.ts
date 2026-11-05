@@ -58,7 +58,7 @@ function distribution(): Circuit {
     { item: "limestone", name: "Limestone", recipe: "quartz", station: "Furnace" },
   ];
   b.add("label", 0, -3, { text: "HUB: the train unloads here" });
-  b.add("label", 19, -3, { text: "WORKSHOPS (far away)" });
+  b.add("label", 16, -3, { text: "WORKSHOPS (far away)" });
   const train = b.add("source", 0, 4, { items: ["wooden-log", "stone", "limestone", "pebble"], rate: 2, stack: 1 });
   const unload = b.add("lever", 0, 1, { on: true });
   b.add("label", -1, 0, { text: "Train unloading" });
@@ -93,16 +93,17 @@ function distribution(): Circuit {
     b.wire(dest, "out", machine, "in");
 
     // Refill band: Set when ≤ 25 %, Reset when ≥ 90 %. The latch holds the request in between.
-    const low = b.add("capacity-sensor", 22, y + 1, { mode: "percent", cmp: "le", value: 25 }, 3);
-    const high = b.add("capacity-sensor", 23, y + 1, { mode: "percent", cmp: "ge", value: 90 }, 3);
+    // Sensors face down (eyes on the storage), outputs up into the latch's inputs.
+    const low = b.add("capacity-sensor", 16, y + 1, { mode: "percent", cmp: "le", value: 25 }, 3);
+    const high = b.add("capacity-sensor", 17, y + 1, { mode: "percent", cmp: "ge", value: 90 }, 3);
     b.wire(low, "eye", dest, "sense");
     b.wire(high, "eye", dest, "sense");
     const latch = b.add("sr-latch", 19, y - 1);
+    const tx = b.add("wireless-sender", 22, y - 1, { channel: line.item });
+    b.wire(latch, "q", tx, "in");
     b.wire(low, "out", latch, "s");
     b.wire(high, "out", latch, "r");
-    const tx = b.add("wireless-sender", 24, y - 1, { channel: line.item });
-    b.wire(latch, "q", tx, "in");
-    b.add("label", 25, y - 1, { text: `requests ${line.name.toLowerCase()}` });
+    b.add("label", 23, y - 1, { text: `requests ${line.name.toLowerCase()}` });
   });
   // Anything that matched no filter.
   const overflow = b.add("storage", 6, 3 * 8 + 3, { label: "Overflow", capacity: 200, rate: 0 });
@@ -127,9 +128,9 @@ function latchDemo(): Circuit {
   b.add("label", 0, 12, { text: "It flickers until the first tap: a latch from gates powers up undecided." });
   const or1 = b.add("or", 3, 6);
   const or2 = b.add("or", 3, 9);
-  const not1 = b.add("not", 6, 6);
-  const not2 = b.add("not", 6, 9);
-  const lamp = b.add("pixel", 9, 6);
+  const not1 = b.add("not", 7, 6);
+  const not2 = b.add("not", 7, 9);
+  const lamp = b.add("pixel", 12, 6);
   b.wire(set, "out", or1, "a");
   b.wire(reset, "out", or2, "b");
   b.wire(or1, "out", not1, "in").wire(or2, "out", not2, "in");
@@ -142,21 +143,21 @@ function timerDemo(): Circuit {
   const b = new CircuitBuilder("Timer pulses");
   const t = b.add("timer", 0, 2, { on: 0.5, off: 1.5 });
   b.add("label", 0, 0, { text: "Timer: 0.5 s on, 1.5 s off" });
-  const direct = b.add("pixel", 6, 0);
+  const direct = b.add("pixel", 7, 0);
   const buf = b.add("buffer", 3, 2, { hold: 1 });
-  const bufLamp = b.add("pixel", 6, 2);
+  const bufLamp = b.add("pixel", 7, 2);
   const filt = b.add("filter", 3, 4, { time: 1 });
-  const filtLamp = b.add("pixel", 6, 4);
+  const filtLamp = b.add("pixel", 7, 4);
   const count = b.add("counter-gate", 3, 6, { count: 3 });
-  const countLamp = b.add("pixel", 6, 6);
+  const countLamp = b.add("pixel", 7, 6);
   b.wire(t, "out", direct, "in");
   b.wire(t, "out", buf, "in").wire(buf, "out", bufLamp, "in");
   b.wire(t, "out", filt, "in").wire(filt, "out", filtLamp, "in");
   b.wire(t, "out", count, "in").wire(count, "out", countLamp, "in");
-  b.add("label", 7, 0, { text: "Raw pulse" });
-  b.add("label", 7, 2, { text: "Buffer: held 1 s longer" });
-  b.add("label", 7, 4, { text: "Filter 1 s: never (pulses too short)" });
-  b.add("label", 7, 6, { text: "Counter: on after 3 pulses" });
+  b.add("label", 8, 0, { text: "Raw pulse" });
+  b.add("label", 8, 2, { text: "Buffer: held 1 s longer" });
+  b.add("label", 8, 4, { text: "Filter 1 s: never (pulses too short)" });
+  b.add("label", 8, 6, { text: "Counter: on after 3 pulses" });
   return b.c;
 }
 

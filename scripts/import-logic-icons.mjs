@@ -31,6 +31,7 @@ const FILES = {
   "wireless-receiver": "Wireless signal receiver.png",
   pixel: "Pixel display.png",
   pixel4: "Four pixel display.png",
+  "wire-bridge": "Wire bridge.png",
   "ribbon-writer": "Ribbon writer.png",
   "ribbon-reader": "Ribbon reader.png",
   "item-filter": "Item filter.png",

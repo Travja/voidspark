@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { connectLogic } from "./circuit";
+import { bridgeCrossing, connectLogic } from "./circuit";
 import { CircuitBuilder } from "./examples";
-import { buildNets, cellKey, cellLine, erase, kindOf, paint, portCell, routeWire, toggleBridge } from "./grid";
+import { buildNets, cellKey, cellLine, erase, paint, portCell, routeWire } from "./grid";
 import { PARTS } from "./parts";
 import { Sim } from "./sim";
 import type { Circuit } from "./types";
@@ -50,7 +50,7 @@ describe("wire tiles", () => {
     expect(settle(b.c).state(p).on).toBe(false);
   });
 
-  it("a bridge lets two wires cross without connecting", () => {
+  it("a three-tile Wire Bridge lets two wires cross without connecting", () => {
     const b = new CircuitBuilder("t");
     b.add("lever", 0, 2, { on: true }); // horizontal, on
     const pH = b.add("pixel", 6, 2);
@@ -61,8 +61,12 @@ describe("wire tiles", () => {
     // A plain crossing joins them…
     let sim = settle(b.c);
     expect(sim.state(pV).on).toBe(true);
-    // …a bridge keeps them apart.
-    toggleBridge(b.c.cells, cellKey(3, 2));
+    // …lifting one onto a bridge (end, gap, end) keeps them apart.
+    expect(bridgeCrossing(b.c, cellKey(3, 2))).toBeNull();
+    const bridge = b.c.parts.find((p) => p.type === "wire-bridge")!;
+    expect([bridge.x, bridge.y, bridge.rot]).toEqual([2, 2, 0]);
+    expect(b.c.cells[cellKey(2, 2)]).toBeUndefined();
+    expect(b.c.cells[cellKey(4, 2)]).toBeUndefined();
     sim = settle(b.c);
     expect(sim.state(pH).on).toBe(true);
     expect(sim.state(pV).on).toBe(false);
@@ -74,9 +78,10 @@ describe("wire tiles", () => {
       const n = b.add("not", 5, 5, {}, rot);
       const part = b.c.parts.find((p) => p.id === n)!;
       const out = portCell(part, PARTS.get("not")!.ports.find((p) => p.id === "out")!);
+      // The NOT Gate is two tiles long (input tile, output tile), as on the wiki.
       const expected = [
-        [6, 5],
-        [5, 6],
+        [7, 5],
+        [5, 7],
         [4, 5],
         [5, 4],
       ][rot];
@@ -149,7 +154,11 @@ describe("routing", () => {
     // Block the ends so the only way is across.
     for (let y = -12; y <= 16; y++) if (y < -6 || y > 10) b.add("label", 4, y, { text: "" });
     expect(connectLogic(b.c, { part: l, port: "out" }, { part: p, port: "in" })).toBeNull();
-    expect(Object.values(b.c.cells).filter((v) => kindOf(v) === "b").length).toBe(1);
+    const bridges = b.c.parts.filter((p) => p.type === "wire-bridge");
+    expect(bridges.length).toBe(1);
+    // Three tiles across the wall, with the wall's tile in the gap.
+    expect(bridges[0].x).toBe(4);
+    expect(bridges[0].rot).toBe(0);
     const sim = settle(b.c);
     expect(sim.state(p).on).toBe(true);
     expect(sim.state(bottom).on).toBe(false);

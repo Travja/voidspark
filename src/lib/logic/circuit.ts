@@ -3,7 +3,7 @@
 import { base64UrlToBytes, bytesToBase64Url } from "../base64url";
 import { GAME } from "../engine/data";
 import { footprint } from "./geometry";
-import { applyRoute, buildNets, cellKey, routeWire, VALID_TILE } from "./grid";
+import { applyRoute, buildNets, cellKey, erase, kindOf, maskOf, parseKey, partCells, routeWire, tile, VALID_TILE, type Route } from "./grid";
 import { PARTS } from "./parts";
 import { findPort } from "./sim";
 import type { Circuit, Config, FieldDef, Part, PortRef, Rot, Wire } from "./types";
@@ -151,8 +151,44 @@ export function connectLogic(c: Pick<Circuit, "parts" | "cells">, a: PortRef, b:
   const route = routeWire(c, a, b);
   if (!route) return "No room to run a wire there. Move the parts apart, or draw it with the Wire tool.";
   if (!route.path.length && !route.bridges.length) return "Already connected.";
-  applyRoute(c.cells, route);
+  layRoute(c, route);
   return null;
+}
+
+/** Lays a route's tiles and builds its Wire Bridges. */
+export function layRoute(c: Pick<Circuit, "parts" | "cells">, route: Route) {
+  applyRoute(c.cells, route);
+  for (const b of route.bridges) c.parts.push(makePart("wire-bridge", b.x, b.y, b.rot));
+}
+
+/**
+ * Turns a junction where two wires meet into a crossing: one of the wires is lifted onto a Wire
+ * Bridge (its tiles either side of the junction become the bridge's ends). Returns an error
+ * message, or null when done.
+ */
+export function bridgeCrossing(c: Pick<Circuit, "parts" | "cells">, key: string): string | null {
+  const [x, y] = parseKey(key);
+  if (kindOf(c.cells[key]) !== "w") return "Pick a wire tile where two wires meet.";
+  const taken = new Set(c.parts.flatMap((p) => partCells(p)));
+  // Try lifting the left–right wire, then the up–down one.
+  for (const [dx, dy, straight, rot] of [
+    [1, 0, 0b0101, 0],
+    [0, 1, 0b1010, 1],
+  ] as const) {
+    const near = [cellKey(x - dx, y - dy), cellKey(x + dx, y + dy)];
+    const far = [cellKey(x - 2 * dx, y - 2 * dy), cellKey(x + 2 * dx, y + 2 * dy)];
+    const ok =
+      (maskOf(c.cells[key]) & straight) === straight &&
+      near.every((k) => kindOf(c.cells[k]) === "w" && maskOf(c.cells[k]) === straight && !taken.has(k)) &&
+      far.every((k) => !!c.cells[k]);
+    if (!ok) continue;
+    for (const k of near) erase(c.cells, k);
+    // The other wire keeps running through the bridge's gap.
+    c.cells[key] = tile("w", maskOf(c.cells[key]) & ~straight);
+    c.parts.push(makePart("wire-bridge", x - dx, y - dy, rot as Rot));
+    return null;
+  }
+  return "A bridge needs a straight wire through this tile with a straight tile either side (and another beyond each).";
 }
 
 export function wireKind(c: Circuit, w: Wire) {
@@ -225,7 +261,7 @@ export function validateCircuit(raw: unknown): Circuit | null {
   }
   for (const [a, b] of legacy.slice(0, 500)) {
     const route = routeWire(c, a, b, buildNets(c));
-    if (route) applyRoute(c.cells, route);
+    if (route) layRoute(c, route);
   }
   return c;
 }

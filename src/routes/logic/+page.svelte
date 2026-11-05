@@ -90,7 +90,6 @@
     { id: "select", label: "Select", icon: "✋", key: "v", tip: "Select, move, wire port-to-port, pan" },
     { id: "wire", label: "Wire", icon: "╱", key: "w", tip: "Draw wire tiles: drag across the grid" },
     { id: "ribbon", label: "Ribbon", icon: "☰", key: "g", tip: "Draw ribbon tiles (4 bits)" },
-    { id: "bridge", label: "Bridge", icon: "⌒", key: "b", tip: "Tap a tile to make a crossing" },
     { id: "erase", label: "Erase", icon: "⌫", key: "x", tip: "Drag over tiles to remove them" },
   ];
   let paletteOpen = $state(false);
@@ -343,8 +342,6 @@
             Tap the grid to place <strong>{placing.replace(/-/g, " ")}</strong>
           {:else if wiringFrom}
             Tap another port: a wire is laid on the grid
-          {:else if tool === "bridge"}
-            Tap a wire tile to make it a crossing
           {:else if tool === "erase"}
             Drag over tiles to erase · two fingers pan
           {:else}
@@ -421,7 +418,7 @@
       <li><strong>Add:</strong> pick a part, then tap the grid.</li>
       <li>
         <strong>Wire:</strong> logic runs on buried wire tiles, as in the game. Tap a logic port, then another, and a wire is laid on the grid for you
-        (crossing other wires with a bridge if it must). Or draw tiles yourself with the Wire tool. Tiles only join where drawn, so wires can run side
+        (building a three-tile Wire Bridge to hop another wire if it must). Or draw tiles yourself with the Wire tool, and place a Wire Bridge from the palette (Wiring) to cross wires by hand. Tiles only join where drawn, so wires can run side
         by side.
       </li>
       <li>
@@ -431,7 +428,7 @@
       <li><strong>Paths:</strong> square ports carry items; tap an exit then an entrance. Diamonds link a Capacity Sensor to a storage.</li>
       <li><strong>Move:</strong> drag a part. <strong>Pan:</strong> drag the grid. <strong>Zoom:</strong> wheel or pinch.</li>
       <li><strong>Run:</strong> ▶ plays; tap levers, buttons and blockers to toggle them. Select a part to see its inputs, outputs and why it's on or off.</li>
-      <li>Keys: V select, W wire, G ribbon, B bridge, X erase, R rotate, Delete remove, Ctrl+Z / Ctrl+Y undo/redo, Space play/pause, Esc cancel.</li>
+      <li>Keys: V select, W wire, G ribbon, X erase, R rotate, Delete remove, Ctrl+Z / Ctrl+Y undo/redo, Space play/pause, Esc cancel.</li>
     </ul>
     <label>
       Spark walking speed <span class="muted">(tiles/s)</span>

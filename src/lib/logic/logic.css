@@ -537,8 +537,7 @@ svg.canvas.placing {
   stroke-linecap: round;
 }
 
-.tile.wire-t.on .seg,
-.tile.bridge-t .seg.on {
+.tile.wire-t.on .seg {
   stroke: var(--signal);
 }
 
@@ -582,6 +581,14 @@ svg.canvas.placing {
 .sig-on {
   color: var(--signal);
   font-weight: 700;
+}
+
+.part .arch {
+  stroke: var(--wire-off);
+}
+
+.part.active .arch {
+  stroke: var(--signal);
 }
 
 /* ---------- Tool strip ---------- */

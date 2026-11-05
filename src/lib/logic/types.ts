@@ -143,7 +143,7 @@ export interface PartStatus {
   warn?: boolean;
 }
 
-export type Category = "Inputs" | "Gates" | "Memory" | "Wireless & display" | "Paths" | "Storage & machines" | "Notes";
+export type Category = "Inputs" | "Gates" | "Memory" | "Wiring" | "Wireless & display" | "Paths" | "Storage & machines" | "Notes";
 
 export interface PartType<C extends Config = Config, S = any> {
   id: string;
@@ -157,6 +157,8 @@ export interface PartType<C extends Config = Config, S = any> {
   w: number;
   h: number;
   ports: PortDef[];
+  /** Pairs of logic ports wired straight through the building (a Wire Bridge's two ends). */
+  joins?: [string, string][];
   fields: FieldDef[];
   defaults(): C;
   init(cfg: C): S;

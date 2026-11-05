@@ -71,7 +71,11 @@ sandbox makes it a setting.
 ## Gates
 
 The wiki gives each gate's footprint, with inputs on one side and the output opposite. The
-sandbox keeps those port counts.
+sandbox keeps those footprints, so parts take the same number of tiles as in the game:
+- 2 tiles: NOT, Buffer and Filter Gate (input tile, output tile), Ribbon Writer and Reader.
+- 3 tiles in a row: Counter Gate (output, middle, input) and Wire Bridge (end, gap, end).
+- 2×2: AND, OR, XOR, Set-Reset Latch and Data Flip-Flop.
+- 1 tile: Lever, Signal Timer, sensors, Wireless Sender and Receiver, and both displays.
 
 | Gate | Wiki | Inputs → outputs | Settings |
 | --- | --- | --- | --- |
@@ -117,11 +121,14 @@ sandbox keeps those port counts.
     *Assumption:* the wiki doesn't say exactly how a wire attaches to a building's port tile.
   - Everything joined forms one network. The network is on if **any** output plugged into it is
     on. *Assumption:* outputs wired together combine as an OR.
-  - A **bridge** is a single crossing tile: left–right and up–down stay separate. *Simplification:*
-    in the game the bridge spans three tiles.
+  - A **Wire Bridge** is a building three tiles long, as on the wiki: an end tile, a gap and an
+    end tile. Its two ends are one wire: each end's port plugs into the wire tile beyond it. A
+    different wire can run through the gap tile underneath without touching it. You can place one
+    from the palette (Wiring). Or tap a tile where two wires meet and choose **Split with a
+    bridge**: the left–right wire is lifted onto a bridge, so the two wires just cross.
   - You can draw tiles with the Wire tool. You can also tap one port and then another, and the
-    sandbox lays the wire for you. It takes a short route around parts and other ports, and
-    bridges any wire it has to cross.
+    sandbox lays the wire for you. It takes a short route around parts and other ports. Where it
+    has to cross a wire, it builds a Wire Bridge with the other wire in the gap.
 
 ### Wireless Signal Sender / Receiver
 - **Wiki:** the channel is an **item** placed in the building's one filter slot. "Requires an
@@ -144,7 +151,7 @@ sandbox keeps those port counts.
   - **Ribbon Reader:** a ribbon in on its chosen bit (1–3), a wire out.
   - **Four Pixel Display:** one input that shows all four bits of the ribbon it plugs into. On a
     plain wire, only the first lamp (bit 0) can light.
-  - *Simplification:* the writer and reader take one tile instead of two.
+  - The writer and reader are two tiles long (input tile, output tile), as on the wiki.
 
 ## Outputs
 
@@ -257,7 +264,8 @@ part's item input. Items move along it as tokens at a set walking speed (default
 11. Items walk at 2 tiles/s by default, and a path holds about 2 items per tile.
 12. Machines run while their enable input is on, or always if unwired. Recipe time is at 1× crew
     speed.
-13. Wire Bridge, Ribbon Writer and Ribbon Reader each take one tile (the game's are longer).
+13. A Wire Bridge's ends plug into the tiles beyond them, and its gap can hold exactly one other
+    wire.
 14. Not modelled: Motion Sensor, Spark Filter, One Way, Crossing, Signpost, Cannon, Train Stop.
     Item paths are still drawn as links between ports, not as path tiles.
 

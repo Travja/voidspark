@@ -81,7 +81,13 @@
     <text class="label-text" x="0.1" y={size.h / 2} dominant-baseline="central">{cfg.text}</text>
   {:else}
     <g transform={turn}>
-      {#if gate}
+      {#if part.type === "wire-bridge"}
+        <!-- End tile, gap, end tile: whatever runs through the middle tile stays visible. -->
+        <rect class="body" x=".1" y=".18" width=".8" height=".64" rx=".14" stroke-width={S} />
+        <rect class="body" x="2.1" y=".18" width=".8" height=".64" rx=".14" stroke-width={S} />
+        <path class="hit" d="M.5 .5C.9 -.35 2.1 -.35 2.5 .5" stroke-width=".3" stroke="transparent" fill="none" />
+        <path class="sym open arch" stroke-width={S * 1.6} d="M.6 .4C1 -.25 2 -.25 2.4 .4" />
+      {:else if gate}
         <rect class="hit" x="0" y="0" width={type.w} height={type.h} rx="0.2" />
         {#if part.type === "and"}
           <path class="sym" stroke-width={S} d="M0 .5H.4M0 1.5H.4M1.75 1H2M.4 .3H1A.7 .7 0 0 1 1 1.7H.4Z" />
@@ -94,13 +100,14 @@
           />
           {#if dx}<path class="sym open" stroke-width={S} d="M.18 .3Q.68 1 .18 1.7" />{/if}
         {:else}
-          <path class="sym" stroke-width={S} d="M0 .5H.2M.2 .2L.74 .5L.2 .8Z{part.type === 'not' ? '' : 'M.74 .5H1'}" />
+          <!-- Two tiles long, as in the game: input on the left tile, output on the right. -->
+          <path class="sym" stroke-width={S} d="M0 .5H.5M.5 .14L1.42 .5L.5 .86Z{part.type === 'not' ? '' : 'M1.42 .5H2'}" />
           {#if part.type === "not"}
-            <circle class="sym" stroke-width={S} cx=".82" cy=".5" r=".08" /><path class="sym" stroke-width={S} d="M.9 .5H1" />
+            <circle class="sym" stroke-width={S} cx="1.53" cy=".5" r=".1" /><path class="sym" stroke-width={S} d="M1.63 .5H2" />
           {:else if part.type === "filter"}
-            <path class="sym open" stroke-width={S * 0.8} d="M.28 .62H.38V.4H.5" />
+            <path class="sym open" stroke-width={S * 0.8} d="M.64 .62H.78V.38H.96" />
           {:else}
-            <path class="sym open" stroke-width={S * 0.8} d="M.28 .4H.4V.62H.5" />
+            <path class="sym open" stroke-width={S * 0.8} d="M.64 .38H.82V.62H.96" />
           {/if}
         {/if}
       {:else}
@@ -121,7 +128,7 @@
           r=".15"
         />
       {/each}
-    {:else if !gate}
+    {:else if !gate && part.type !== "wire-bridge"}
       {@const img = centerIcon ?? recipeIcon ?? wikiIcon(part.type)}
       {@const s = Math.min(size.w, size.h) * (part.type === "storage" || part.type === "machine" ? 0.62 : caption ? 0.56 : 0.72)}
       {#if img}

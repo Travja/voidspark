@@ -5,7 +5,7 @@
   import { iconUrl } from "$lib/components/icons";
   import { connectLogic, freeSpot, makePart, newId, overlaps, partSize, planWire } from "../circuit";
   import { bezierPoint, wireCurve, type Point } from "../geometry";
-  import { cellKey, cellLine, DIRS, erase, kindOf, maskOf, paint, parseKey, portCell, toggleBridge } from "../grid";
+  import { cellKey, cellLine, DIRS, erase, kindOf, maskOf, paint, parseKey, portCell } from "../grid";
   import { PARTS } from "../parts";
   import { placedPort, type Sim } from "../sim";
   import type { LogicStore } from "../store.svelte";
@@ -239,7 +239,7 @@
       const cell: [number, number] = [Math.floor(w.x), Math.floor(w.y)];
       store.checkpoint();
       press = { kind: "paint", last: cell, sx: p.x, sy: p.y };
-      if (tool !== "bridge") brush([cell]);
+      brush([cell]);
       return;
     }
     const t = targetOf(e.target);
@@ -273,7 +273,6 @@
     if (!press || press.kind === "pinch") return;
     const far = Math.hypot(p.x - press.sx, p.y - press.sy) > SLOP;
     if (press.kind === "paint") {
-      if (tool === "bridge") return;
       const w = toWorld(p.x, p.y);
       const cell: [number, number] = [Math.floor(w.x), Math.floor(w.y)];
       if (cell[0] === press.last[0] && cell[1] === press.last[1]) return;
@@ -322,10 +321,6 @@
     const tapped = Math.hypot(p.x - pr.sx, p.y - pr.sy) <= SLOP;
 
     if (pr.kind === "paint") {
-      if (tool === "bridge" && tapped) {
-        const k = cellKey(pr.last[0], pr.last[1]);
-        toggleBridge(circuit.cells, k);
-      }
       store.touched();
       return;
     }
@@ -433,7 +428,11 @@
         if (err === "Already connected.") wiringFrom = null;
         return;
       }
-      store.edit((c) => (c.cells = draft.cells));
+      // Takes the new tiles, plus any Wire Bridges the route needed.
+      store.edit((c) => {
+        c.cells = draft.cells;
+        c.parts = draft.parts;
+      });
       wiringFrom = null;
       return;
     }
@@ -492,12 +491,8 @@
       <!-- Logic tiles (buried: drawn under parts) -->
       {#each tiles as t (t.k)}
         {@const on = live.cellOn.get(t.k) ?? []}
-        <g data-cell={t.k} class="tile {t.kind === 'w' ? 'wire-t' : t.kind === 'r' ? 'ribbon-t' : 'bridge-t'}" class:on={on[0]} class:selected={selectedId === t.k}>
+        <g data-cell={t.k} class="tile {t.kind === 'w' ? 'wire-t' : 'ribbon-t'}" class:on={on[0]} class:selected={selectedId === t.k}>
           <rect class="tile-hit" x={t.x} y={t.y} width="1" height="1" />
-          {#if t.kind === "b"}
-            <path class="seg" class:on={on[0]} d="M{t.x} {t.y + 0.5}h1" />
-            <path class="seg" class:on={on[1]} d="M{t.x + 0.5} {t.y}v.18A.32 .32 0 0 1 {t.x + 0.5} {t.y + 0.82}V{t.y + 1}" />
-          {:else}
             <path class="seg" d={t.d} />
             {#if t.lone || t.kind === "r"}<rect class="node" x={t.x + 0.32} y={t.y + 0.32} width=".36" height=".36" rx=".08" />{/if}
             {#if t.kind === "r"}
@@ -505,7 +500,6 @@
                 <circle class="bit" class:on={on[bit]} cx={t.x + 0.41 + (bit % 2) * 0.18} cy={t.y + 0.41 + Math.floor(bit / 2) * 0.18} r=".065" />
               {/each}
             {/if}
-          {/if}
         </g>
       {/each}
 

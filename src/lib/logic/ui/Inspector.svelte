@@ -2,12 +2,12 @@
   // Properties of the selected part or wire: what it's doing right now and why (live inputs and
   // outputs), and its settings.
   import { GAME } from "$lib/engine/data";
-  import { sanitizeConfig } from "../circuit";
-  import { connectedTiles, erase, kindOf, toggleBridge } from "../grid";
+  import { bridgeCrossing, sanitizeConfig } from "../circuit";
+  import { connectedTiles, erase, kindOf } from "../grid";
   import { itemName, PARTS, STORAGE_PRESETS } from "../parts";
   import type { Sim } from "../sim";
   import type { LogicStore } from "../store.svelte";
-  import type { FieldDef, Part } from "../types";
+  import type { Circuit, FieldDef, Part } from "../types";
   import ItemSelect from "./ItemSelect.svelte";
 
   let {
@@ -95,7 +95,7 @@
     if (!cellKey) return null;
     const kind = kindOf(store.circuit.cells[cellKey])!;
     const nets = sim.grid.cellNets.get(cellKey) ?? [];
-    const names = kind === "r" ? ["Bit 0", "Bit 1", "Bit 2", "Bit 3"] : kind === "b" ? ["Left–right", "Up–down"] : ["Signal"];
+    const names = kind === "r" ? ["Bit 0", "Bit 1", "Bit 2", "Bit 3"] : ["Signal"];
     const partName = (id: string) => {
       const p = store.circuit.parts.find((x) => x.id === id);
       return p ? ((p.cfg.label as string) || PARTS.get(p.type)!.name) : id;
@@ -111,6 +111,12 @@
         }),
       })),
     };
+  });
+
+  let bridgeError = $state<string | null>(null);
+  $effect(() => {
+    void cellKey;
+    bridgeError = null;
   });
 
   const KIND = { logic: "signal", item: "path", observe: "sensor link" };
@@ -274,14 +280,12 @@
   {:else if cellKey && cellInfo}
     <header class="insp-head">
       <div>
-        <h2>{cellInfo.kind === "w" ? "Logic Wire" : cellInfo.kind === "r" ? "Logic Ribbon" : "Wire Bridge"}</h2>
+        <h2>{cellInfo.kind === "w" ? "Logic Wire" : "Logic Ribbon"}</h2>
         <div class="muted small">
           {cellInfo.kind === "w"
             ? "A buried wire tile. It joins the tiles it was drawn to."
-            : cellInfo.kind === "r"
-              ? "Carries four signals (bits 0–3). A plain wire joining it uses bit 0; Ribbon Writers and Readers use bits 1–3."
-              : "Two wires cross here without connecting."}
-          <a href="https://oddsparks.wiki.gg/wiki/{cellInfo.kind === 'w' ? 'Logic_Wire' : cellInfo.kind === 'r' ? 'Logic_Ribbon' : 'Wire_Bridge'}" target="_blank" rel="noopener">Wiki</a>
+            : "Carries four signals (bits 0–3). A plain wire joining it uses bit 0; Ribbon Writers and Readers use bits 1–3."}
+          <a href="https://oddsparks.wiki.gg/wiki/{cellInfo.kind === 'w' ? 'Logic_Wire' : 'Logic_Ribbon'}" target="_blank" rel="noopener">Wiki</a>
         </div>
       </div>
       <button class="icon-btn close" aria-label="Close" onclick={onclose}>✕</button>
@@ -309,7 +313,20 @@
       {/if}
     </section>
     <div class="insp-actions">
-      <button onclick={() => store.edit((c) => toggleBridge(c.cells, cellKey))}>{cellInfo.kind === "b" ? "Make plain wire" : "Make bridge"}</button>
+      {#if cellInfo.kind === "w"}
+        <button
+          title="Lift one of the wires meeting here onto a three-tile Wire Bridge, so they cross without connecting"
+          onclick={() => {
+            const draft = $state.snapshot(store.circuit) as Circuit;
+            bridgeError = bridgeCrossing(draft, cellKey);
+            if (!bridgeError)
+              store.edit((c) => {
+                c.cells = draft.cells;
+                c.parts = draft.parts;
+              });
+          }}>⌒ Split with a bridge</button
+        >
+      {/if}
       <button class="danger" onclick={() => store.edit((c) => erase(c.cells, cellKey))}>🗑 Tile</button>
       <button
         class="danger"
@@ -319,6 +336,7 @@
           })}>🗑 Whole wire</button
       >
     </div>
+    {#if bridgeError}<p class="muted small">{bridgeError}</p>{/if}
   {:else if wire && wireInfo}
     <header class="insp-head">
       <div>
