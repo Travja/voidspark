@@ -419,6 +419,90 @@ svg.canvas.placing {
   fill: var(--raw);
 }
 
+/* ---------- Canvas: part glyphs ---------- */
+
+.part .g {
+  fill: none;
+  stroke: var(--text);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.part .g-fill {
+  fill: var(--text);
+}
+
+.part .g.g-on {
+  stroke: var(--signal);
+}
+
+.part .g-fill.g-on-fill {
+  fill: var(--signal);
+}
+
+.part .g.lane {
+  stroke: var(--muted);
+  stroke-linecap: butt;
+}
+
+.part .g.lane.picked {
+  stroke: var(--text);
+}
+
+.part .g.lane.g-on {
+  stroke: var(--signal);
+}
+
+.part .g-band {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 0.03;
+}
+
+.part .barrier {
+  fill: var(--surface-2);
+}
+
+.part .barrier.shut {
+  stroke: var(--danger);
+  fill: color-mix(in srgb, var(--danger) 18%, transparent);
+}
+
+.part .spin {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: gear-spin 2s linear infinite;
+}
+
+@keyframes gear-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .part .spin {
+    animation: none;
+  }
+}
+
+.part .icon-bg {
+  fill: var(--surface);
+  stroke: var(--line);
+  stroke-width: 0.03;
+}
+
+.part .port-letter {
+  font-size: 0.26px;
+  font-weight: 700;
+  fill: var(--muted);
+  pointer-events: none;
+}
+
+.part.active .port-letter {
+  fill: var(--signal);
+}
+
 /* ---------- Canvas: wires, ports, items ---------- */
 
 .wire-hit {

@@ -201,7 +201,9 @@ function gate2(id: string, name: string, blurb: string, fn: (a: boolean, b: bool
     wiki: name,
     w: 2,
     h: 2,
-    ports: [logicIn("a", "l", 0.25, "A"), logicIn("b", "l", 0.75, "B"), logicOut("out", "r", 0.5)],
+    // Wiki footprint: two input tiles side by side and the output on the tile in line with one
+    // of them, not between the two.
+    ports: [logicIn("a", "l", 0.25, "A"), logicIn("b", "l", 0.75, "B"), logicOut("out", "r", 0.75)],
     fields: [],
     defaults: () => ({}),
     init: () => ({ on: false }),

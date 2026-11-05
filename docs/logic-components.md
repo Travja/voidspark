@@ -273,5 +273,16 @@ part's item input. Items move along it as tokens at a set walking speed (default
 
 The palette uses the wiki's building renders (`src/lib/assets/logic/`, fetched by
 `scripts/import-logic-icons.mjs`). The renders are isometric, so they can't show rotation or port
-positions. On the grid, each part is drawn as a flat SVG stand-in: standard gate symbols for
-gates, and simple glyphs for everything else.
+positions, and they turn into small blobs on two- and three-tile parts. On the grid, each part is
+drawn as a flat SVG symbol (`src/lib/logic/ui/Glyph.svelte`) that turns with the part and spans
+its whole footprint:
+- **Gates:** standard symbols. The AND, OR and XOR output leaves from the lower-right tile, in line
+  with input B, matching the wiki's 2×2 footprint (two input tiles, output on one corner tile).
+- **Latch and flip-flop:** S/R/Q and D/clock/Q letters at the ports.
+- **Ribbon parts:** the Writer and Reader show a wire, an arrow and the ribbon, with their bit
+  highlighted.
+- **Other parts:** the Counter Gate shows tally marks, filters a funnel, the Wait Gate an
+  hourglass, the timer a clock, the Capacity Sensor an eye, the Blocker a barrier, the Spark Gate
+  a gate arm, storage a crate, and machines a gear.
+- **Items:** a filter's item, a wireless channel or a machine's product is shown as a small game
+  icon in a corner.
