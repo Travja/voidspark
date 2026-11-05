@@ -11,6 +11,7 @@
   import { GAME } from "$lib/engine/data";
   import { Solver, type Plan, type Target } from "$lib/engine/solver";
   import { AppState, UNIT_FACTOR, type View } from "$lib/state.svelte";
+  import { resolve } from "$app/paths";
 
   const app = new AppState();
 
@@ -115,6 +116,10 @@
       <h1>VoidSpark</h1>
       <div class="muted small">Oddsparks production planner · data from the Oddsparks Wiki ({GAME.version.replace("wiki ", "")})</div>
     </div>
+    <nav class="site-nav" aria-label="Sections">
+      <a href={resolve("/")} aria-current="page">Planner</a>
+      <a href={resolve("/logic")}>Logic sandbox</a>
+    </nav>
   </header>
 
   <div class="layout">

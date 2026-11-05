@@ -38,6 +38,24 @@ greenhouses, the Arboretum, and the metal sparks. It started from the PirateSpar
   fragment and validated on the way in.
 - **Build checklist.** Tick machine groups in the Build plan as you build them, with partial
   counts, progress, and per-plan saving.
+- **Logic sandbox** (`/logic`, the **Logic** tab in the header). Draw and run the game's logic
+  and automation: levers, timers, capacity and pressure sensors; NOT/AND/OR/XOR, Buffer, Filter
+  and Counter gates; Set-Reset Latch and Data Flip-Flop; wireless senders and receivers (the
+  channel is an item, as in the game); pixel displays; path add-ons (Item and Amount Filters,
+  Blocker, Spark Gate, Splitter, Wait Gate, Counter); storage, an extractor and generic machines
+  that can run any game recipe. Logic runs on **wire tiles on the grid**, as in the game. Tiles join
+  only where drawn, so wires can run side by side. Three-tile **Wire Bridges** carry a wire over
+  another, and **ribbons** carry four signals (bits 0–3) on one tile, used with Ribbon Writers and
+  Readers and the Four Pixel Display. Parts take the same number of tiles as their wiki footprints.
+  Draw tiles with the Wire, Ribbon and Erase tools. Or tap one port and then another, and a
+  wire is routed on the grid for you. Items walk along paths as tokens, so you can watch sorting,
+  queues and refills. Pan, zoom and pinch; tap a palette entry, then tap the grid to place it. Play, pause, step and change speed, and tap levers and buttons
+  while it runs. Selecting a part shows its live inputs and outputs and why it's on or off. Undo
+  and redo, several named circuits, and share links (`#circuit=…`, compressed and validated) are
+  all there. It ships with examples: a **distribution center** (filters sort a train's cargo into
+  per-item storage, and each workshop's low/high sensors and latch request a refill over wireless),
+  an SR latch, timer pulses, a ribbon bus and a filter split. What each part does, what the wiki confirms and
+  what is assumed are in [docs/logic-components.md](docs/logic-components.md).
 - **Installable and offline.** Add it to your home screen. A service worker
   (`src/service-worker.ts`) caches the app so it opens without a connection.
 
@@ -46,10 +64,11 @@ greenhouses, the Arboretum, and the metal sparks. It started from the PirateSpar
 ```bash
 npm install
 npm run dev        # local dev server
-npm test           # solver tests (vitest)
+npm test           # solver and logic engine tests (vitest)
 npm run check      # svelte-check type checking
 npm run build      # static site into build/
 npm run import:wiki  # refresh src/lib/data/oddsparks.json and icons from the wiki
+node scripts/import-logic-icons.mjs  # refresh the logic sandbox palette icons
 ```
 
 The importer writes [docs/wiki-import-report.md](docs/wiki-import-report.md), listing every
@@ -92,7 +111,16 @@ BASE_PATH=/voidspark npm run build   # then publish build/ (it includes .nojekyl
 
 | Path | What |
 | --- | --- |
-| `src/routes/+page.svelte` | The app page: targets, settings, tabs |
+| `src/routes/+page.svelte` | The planner page: targets, settings, tabs |
+| `src/routes/logic/+page.svelte` | The logic sandbox page: circuits menu, simulation controls, layout |
+| `src/lib/logic/parts.ts` | Logic part registry: ports, settings, and per-tick behaviour of every part. Framework-free |
+| `src/lib/logic/sim.ts` | Deterministic tick simulator: logic networks, wireless channels, items on paths. Framework-free |
+| `src/lib/logic/grid.ts` | Wire and ribbon tiles: networks, painting and erasing, and the port-to-port router (which places Wire Bridges). Framework-free |
+| `src/lib/logic/circuit.ts`, `geometry.ts`, `types.ts` | Circuit model, validation, wiring rules, share-link encoding, port geometry |
+| `src/lib/logic/examples.ts` | Example circuits (distribution center, latch, timer, ribbon bus, filter split) |
+| `src/lib/logic/store.svelte.ts` | Sandbox editor state: saved circuits (localStorage `voidspark:logic:v1`), undo/redo, share links |
+| `src/lib/logic/ui/` | Canvas (pan/zoom/pinch, wiring), part rendering, palette, inspector |
+| `src/lib/assets/logic/` | Wiki building renders used in the sandbox palette (`scripts/import-logic-icons.mjs`) |
 | `src/lib/state.svelte.ts` | Reactive app state (`$state`): saved plans, checklist, share-link encoding; persisted to localStorage |
 | `src/service-worker.ts`, `static/manifest.webmanifest` | Offline caching and install metadata |
 | `src/lib/engine/data.ts` | Typed access to game data, plus facts the JSON lacks (spark-powered stations) |
@@ -102,6 +130,21 @@ BASE_PATH=/voidspark npm run build   # then publish build/ (it includes .nojekyl
 | `scripts/import-wiki.mjs` | The wiki importer, including its overrides (excluded buildings, caps, defaults) |
 | `src/lib/assets/img/` | Icons: PirateSpark's originals plus new ones from the wiki |
 | `legacy/piratespark/` | Recovered original calculator source, for reference |
+
+## How the logic sandbox works
+
+`src/lib/logic/sim.ts` runs fixed 0.05 s ticks. Each tick, every part reads its inputs as they
+were at the end of the previous tick and writes its outputs for the next. So each gate adds one
+tick of delay, and feedback loops (latches made from gates, a NOT gate wired to itself) settle or
+oscillate instead of recursing. Logic networks come from the wire tiles (`src/lib/logic/grid.ts`).
+Each tile records which neighbours it joins. A ribbon tile carries four networks. A Wire Bridge
+joins the tiles beyond its two ends into one network, and hops whatever runs through its gap. A network is on when any output plugged into it is on. Wireless channels work the same way across the whole map. Items are tokens that
+walk along a path at the spark walking speed, keeping a gap between them. When a token reaches the
+end of a path, the part there decides whether to take it: storage takes it if there's room, a filter
+takes it if its exit path has room, a blocker refuses it. Otherwise the token waits, and the queue
+backs up. The game's timings aren't documented, so the 0.05 s gate delay, walking speed, stack size
+and the other gaps are listed as assumptions in
+[docs/logic-components.md](docs/logic-components.md).
 
 ## Known gaps
 
