@@ -44,7 +44,11 @@ greenhouses, the Arboretum, and the metal sparks. It started from the PirateSpar
   channel is an item, as in the game); pixel displays; path add-ons (Item and Amount Filters,
   Blocker, Spark Gate, Splitter, Wait Gate, Counter); storage, an extractor and generic machines
   that can run any game recipe (a machine's output slot holds one stack, using wiki stack sizes,
-  and it stops when the slot is full). Logic runs on **wire tiles on the grid**, as in the game. Tiles join
+  and it stops when the slot is full). The **Compressor** takes any item and sends it to the
+  Recycler, so overflow never backs a line up. Filters send matching items on down the line
+  when their pass exit is backed up. A **Grid** toggle draws tile lines (heavier every 5 tiles),
+  and a **Logic** overlay fades buildings and paths so wires show through, like the game's logic
+  view. Logic runs on **wire tiles on the grid**, as in the game. Tiles join
   only where drawn, so wires can run side by side. Three-tile **Wire Bridges** carry a wire over
   another, and **ribbons** carry four signals (bits 0–3) on one tile, used with Ribbon Writers and
   Readers and the Four Pixel Display. Parts take the same number of tiles as their wiki footprints.

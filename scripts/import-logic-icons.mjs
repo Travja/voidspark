@@ -42,6 +42,7 @@ const FILES = {
   "wait-gate": "Wait gate.png",
   counter: "Counter.png",
   storage: "Crate.png",
+  compressor: "Compressor.png",
 };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

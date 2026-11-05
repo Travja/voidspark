@@ -21,6 +21,8 @@
     placing = $bindable(),
     wiringFrom = $bindable(),
     tool = $bindable("select"),
+    showGrid = false,
+    logicView = false,
     notify,
   }: {
     store: LogicStore;
@@ -30,6 +32,10 @@
     placing: string | null;
     wiringFrom: PortRef | null;
     tool?: Tool;
+    /** Draw tile boundaries (every tile, and heavier every 5). */
+    showGrid?: boolean;
+    /** Logic overlay: buildings and paths fade, wire tiles are drawn on top. */
+    logicView?: boolean;
     notify: (msg: string) => void;
   } = $props();
 
@@ -459,6 +465,8 @@
   const PORT_R = 0.13;
   const tokenIcon = (item: string) => iconUrl(item);
   const selectedId = $derived(store.selection?.id);
+  /** The logic overlay is on when asked for, and while drawing wire or ribbon tiles. */
+  const overlay = $derived(logicView || tool === "wire" || tool === "ribbon");
 </script>
 
 <div class="canvas-wrap" bind:clientWidth={width} bind:clientHeight={height}>
@@ -468,6 +476,7 @@
     class:placing={!!placing}
     class:wiring={!!wiringFrom}
     class:painting={tool !== "select"}
+    class:logic-view={overlay}
     {width}
     {height}
     role="application"
@@ -483,25 +492,20 @@
   >
     <defs>
       <pattern id="grid" width={zoom} height={zoom} patternUnits="userSpaceOnUse" x={tx} y={ty}>
-        <circle cx="0.5" cy="0.5" r={zoom > 20 ? 1.1 : 0.7} class="grid-dot" />
+        {#if showGrid}
+          <path d="M{zoom} 0V{zoom}H0" class="grid-line" />
+        {:else}
+          <circle cx="0.5" cy="0.5" r={zoom > 20 ? 1.1 : 0.7} class="grid-dot" />
+        {/if}
+      </pattern>
+      <pattern id="grid5" width={zoom * 5} height={zoom * 5} patternUnits="userSpaceOnUse" x={tx} y={ty}>
+        <path d="M{zoom * 5} 0V{zoom * 5}H0" class="grid-line major" />
       </pattern>
     </defs>
     <rect class="grid-bg" x="0" y="0" {width} {height} fill="url(#grid)" />
+    {#if showGrid}<rect class="grid-bg" x="0" y="0" {width} {height} fill="url(#grid5)" />{/if}
     <g transform="translate({tx} {ty}) scale({zoom})">
-      <!-- Logic tiles (buried: drawn under parts) -->
-      {#each tiles as t (t.k)}
-        {@const on = live.cellOn.get(t.k) ?? []}
-        <g data-cell={t.k} class="tile {t.kind === 'w' ? 'wire-t' : 'ribbon-t'}" class:on={on[0]} class:selected={selectedId === t.k}>
-          <rect class="tile-hit" x={t.x} y={t.y} width="1" height="1" />
-            <path class="seg" d={t.d} />
-            {#if t.lone || t.kind === "r"}<rect class="node" x={t.x + 0.32} y={t.y + 0.32} width=".36" height=".36" rx=".08" />{/if}
-            {#if t.kind === "r"}
-              {#each [0, 1, 2, 3] as bit (bit)}
-                <circle class="bit" class:on={on[bit]} cx={t.x + 0.41 + (bit % 2) * 0.18} cy={t.y + 0.41 + Math.floor(bit / 2) * 0.18} r=".065" />
-              {/each}
-            {/if}
-        </g>
-      {/each}
+      {#if !overlay}{@render tileLayer()}{/if}
 
       <!-- Paths and sensor links -->
       {#each circuit.wires as w (w.id)}
@@ -521,6 +525,9 @@
           <PartView {part} status={live.status.get(part.id) ?? {}} selected={selectedId === part.id} />
         </g>
       {/each}
+
+      <!-- In the logic overlay, wire tiles show through buildings, as in the game's logic view. -->
+      {#if overlay}{@render tileLayer()}{/if}
 
       <!-- Items on paths -->
       {#each live.tokens as t (t.id)}
@@ -568,3 +575,20 @@
     </g>
   </svg>
 </div>
+
+{#snippet tileLayer()}
+  <!-- Logic tiles: buried, so normally drawn under parts. -->
+      {#each tiles as t (t.k)}
+        {@const on = live.cellOn.get(t.k) ?? []}
+        <g data-cell={t.k} class="tile {t.kind === 'w' ? 'wire-t' : 'ribbon-t'}" class:on={on[0]} class:selected={selectedId === t.k}>
+          <rect class="tile-hit" x={t.x} y={t.y} width="1" height="1" />
+            <path class="seg" d={t.d} />
+            {#if t.lone || t.kind === "r"}<rect class="node" x={t.x + 0.32} y={t.y + 0.32} width=".36" height=".36" rx=".08" />{/if}
+            {#if t.kind === "r"}
+              {#each [0, 1, 2, 3] as bit (bit)}
+                <circle class="bit" class:on={on[bit]} cx={t.x + 0.41 + (bit % 2) * 0.18} cy={t.y + 0.41 + Math.floor(bit / 2) * 0.18} r=".065" />
+              {/each}
+            {/if}
+        </g>
+      {/each}
+{/snippet}

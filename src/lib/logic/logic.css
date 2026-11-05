@@ -235,6 +235,38 @@ svg.canvas.placing {
   fill: var(--grid-dot);
 }
 
+.grid-line {
+  fill: none;
+  stroke: var(--grid-dot);
+  stroke-width: 1;
+}
+
+.grid-line.major {
+  stroke: var(--line);
+  stroke-width: 1.4;
+}
+
+/* Logic overlay: buildings and paths fade back; wire tiles (drawn on top) and logic ports stay. */
+.logic-view .part,
+.logic-view .wire.item,
+.logic-view .wire.observe,
+.logic-view .token,
+.logic-view .port.item,
+.logic-view .port.observe {
+  opacity: 0.28;
+}
+
+.logic-view .tile .seg {
+  stroke-width: 0.18;
+}
+
+.tools hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 2px 4px;
+  width: auto;
+}
+
 .hint {
   position: absolute;
   top: 10px;

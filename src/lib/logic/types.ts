@@ -121,6 +121,11 @@ export interface StepCtx<C = Config, S = Record<string, unknown>> {
   emit(port: string, token: Token): boolean;
   /** Whether the path leaving an item output could take a token now. */
   hasRoom(port: string): boolean;
+  /**
+   * Whether the path leaving an item output is backed up: the item at its far end can't be
+   * delivered and the queue reaches back to the start. (A momentary gap between items isn't.)
+   */
+  backedUp(port: string): boolean;
   /** The storage an observe port is linked to. */
   observe(port: string): StorageView | null;
   /** Wireless channel value as of the previous tick. */

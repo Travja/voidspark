@@ -157,7 +157,7 @@
         <text class="caption" class:long={caption.length > 5 && Math.min(size.w, size.h) < 2} x={size.w / 2} y={size.h - 0.13} text-anchor="middle">{caption}</text>
       {/if}
     {/if}
-    {#if status.fill !== undefined && (part.type === "storage" || part.type === "machine")}
+    {#if status.fill !== undefined && (part.type === "storage" || part.type === "machine" || part.type === "compressor")}
       <rect class="fill-bg" x=".2" y={size.h - 0.3} width={size.w - 0.4} height=".14" rx=".05" />
       <rect class="fill" x=".2" y={size.h - 0.3} width={Math.max(0, Math.min(1, status.fill)) * (size.w - 0.4)} height=".14" rx=".05" />
     {/if}

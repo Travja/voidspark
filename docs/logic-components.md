@@ -184,6 +184,10 @@ part's item input. Items move along it as tokens at a set walking speed (default
 - **Item Filter:** an *in*, a *pass* exit and a *reject* exit ("keep walking"). Tokens that match
   go to *pass*, and the others go to *reject*. If *reject* isn't connected, they wait. Settings:
   item, reverse. Wired and unpowered, everything goes to *pass*.
+- **Overflow (both filters):** when a matching token's *pass* exit is backed up (the queue on
+  it reaches back to the filter and the front item can't be delivered), the token takes the
+  *reject* exit and carries on down the line instead of blocking it. *Assumption:* the wiki only
+  says non-matching sparks "continue walking". A setting turns this off.
 - **Amount Filter:** the same, comparing the token's stack size against the amount.
 - **Blocker:** wired, it blocks while the signal is on. Unwired, a manual *closed* setting decides,
   and you can tap it.
@@ -237,6 +241,18 @@ part's item input. Items move along it as tokens at a set walking speed (default
   the inspector empties it, as a player would. With a path, sparks carry products away one at a
   time. Each machine can override the slot size ("Output slot holds").
 
+## Compressor
+
+- **Wiki:** "A building that compresses items and sends them to the Recycler in the Village
+  Monument." 20 storage slots. Footprint 2 × 3, with two input tiles along one short side.
+  Unlocked by the Divine Researcher's *Aetheric Dispatch* quest (tier 2). The Recycler turns
+  points into Aether Residue.
+- **Sandbox:** a 3 × 2 part with two path inputs on the left. It accepts any item, so it's the
+  place to send overflow and finished products that would otherwise back a line up.
+  *Assumption:* the wiki gives no rate, so by default it sends items as fast as they arrive. Set
+  "Sends per second" to model a slower one: it then holds up to 20 stacks and backs up when
+  full. Recycler points aren't modelled; it counts items sent.
+
 ## Sandbox-only helpers
 
 - **Source:** items arriving (a train being unloaded, a harvester and so on). It cycles through a
@@ -272,7 +288,10 @@ part's item input. Items move along it as tokens at a set walking speed (default
     speed. A machine's output slot holds one stack (the wiki's stack size; 20 when unknown).
 13. A Wire Bridge's ends plug into the tiles beyond them, and its gap can hold exactly one other
     wire.
-14. Not modelled: Motion Sensor, Spark Filter, One Way, Crossing, Signpost, Cannon, Train Stop.
+14. Item Filter and Amount Filter send matching items on down the line when their pass exit is
+    backed up (configurable). The Compressor sends items as fast as they arrive unless a rate is
+    set.
+15. Not modelled: Motion Sensor, Spark Filter, One Way, Crossing, Signpost, Cannon, Train Stop.
     Item paths are still drawn as links between ports, not as path tiles.
 
 ## Icons

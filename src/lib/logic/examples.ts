@@ -91,9 +91,9 @@ function distribution(): Circuit {
     b.wire(ex, "out", dest, "in");
     const machine = b.add("machine", 26, y + 3, { label: line.station, recipe: line.recipe, speed: 3 });
     b.wire(dest, "out", machine, "in");
-    // Products go to a crate; with nowhere to go, the machine would stop once its output slot
-    // held a full stack.
-    const product = b.add("storage", 30, y + 3, { label: `${line.station} output`, capacity: 400, rate: 0 });
+    // Products go to a Compressor (stand-in for wherever they're used next). With nowhere to
+    // go, the machine would stop once its output slot held a full stack.
+    const product = b.add("compressor", 30, y + 3);
     b.wire(machine, "out", product, "in");
 
     // Refill band: Set when ≤ 25 %, Reset when ≥ 90 %. The latch holds the request in between.
@@ -109,9 +109,11 @@ function distribution(): Circuit {
     b.wire(high, "out", latch, "r");
     b.add("label", 23, y - 1, { text: `requests ${line.name.toLowerCase()}` });
   });
-  // Anything that matched no filter.
-  const overflow = b.add("storage", 6, 3 * 8 + 3, { label: "Overflow", capacity: 200, rate: 0 });
+  // Anything that matched no filter, or whose hub storage was full, goes to the Recycler, so the
+  // train never backs up.
+  const overflow = b.add("compressor", 6, 3 * 8 + 3);
   b.wire(feed.part, feed.port, overflow, "in");
+  b.add("label", 10, 3 * 8 + 4, { text: "Overflow → Compressor" });
   return b.c;
 }
 
