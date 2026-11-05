@@ -118,6 +118,7 @@ button:hover:not(:disabled) {
 .top {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 16px;
 }
@@ -1004,4 +1005,29 @@ footer {
   color: var(--raw);
   background: var(--raw-soft);
   border: 1px dashed var(--raw);
+}
+
+/* ---------- Section nav (planner / logic sandbox) ---------- */
+
+.site-nav {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+  background: var(--surface-2);
+  border-radius: 8px;
+  padding: 2px;
+}
+
+.site-nav a {
+  padding: 4px 10px;
+  border-radius: 6px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.site-nav a[aria-current="page"] {
+  background: var(--accent);
+  color: #fff;
 }

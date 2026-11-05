@@ -41,8 +41,8 @@ function distribution(): Circuit {
     { item: "stone", name: "Stone", recipe: "stone-plate", station: "Stonecutter" },
     { item: "limestone", name: "Limestone", recipe: "quartz", station: "Furnace" },
   ];
-  b.add("label", 0, -3, { text: "HUB: train unloads here" });
-  b.add("label", 21, -3, { text: "WORKSHOPS (far away)" });
+  b.add("label", 0, -3, { text: "HUB: the train unloads here" });
+  b.add("label", 19, -3, { text: "WORKSHOPS (far away)" });
   const train = b.add("source", 0, 4, { items: ["wooden-log", "stone", "limestone", "pebble"], rate: 2, stack: 1 });
   const unload = b.add("lever", 0, 1, { on: true });
   b.add("label", -1, 0, { text: "Train unloading" });
@@ -58,7 +58,7 @@ function distribution(): Circuit {
     // Hub storage for this item, with a "running out" lamp so you know to call the train.
     const hub = b.add("storage", 6, y + 3, { label: `Hub ${line.name}`, capacity: 200, stock: [[line.item, 60]], rate: 2 });
     b.wire(filter, "pass", hub, "in");
-    const hubLow = b.add("capacity-sensor", 6, y + 1, { mode: "percent", cmp: "le", value: 10 }, 1);
+    const hubLow = b.add("capacity-sensor", 6, y + 1, { mode: "percent", cmp: "le", value: 10 }, 3);
     b.wire(hubLow, "eye", hub, "sense");
     const lamp = b.add("pixel", 8, y + 1);
     b.wire(hubLow, "out", lamp, "in");
@@ -77,16 +77,16 @@ function distribution(): Circuit {
     b.wire(dest, "out", machine, "in");
 
     // Refill band: Set when ≤ 25 %, Reset when ≥ 90 %. The latch holds the request in between.
-    const low = b.add("capacity-sensor", 18, y + 1, { mode: "percent", cmp: "le", value: 25 }, 0);
-    const high = b.add("capacity-sensor", 18, y + 3, { mode: "percent", cmp: "ge", value: 90 }, 0);
+    const low = b.add("capacity-sensor", 22, y + 1, { mode: "percent", cmp: "le", value: 25 }, 3);
+    const high = b.add("capacity-sensor", 23, y + 1, { mode: "percent", cmp: "ge", value: 90 }, 3);
     b.wire(low, "eye", dest, "sense");
     b.wire(high, "eye", dest, "sense");
-    const latch = b.add("sr-latch", 20, y + 0);
+    const latch = b.add("sr-latch", 19, y - 1);
     b.wire(low, "out", latch, "s");
     b.wire(high, "out", latch, "r");
-    const tx = b.add("wireless-sender", 23, y + 0, { channel: line.item });
+    const tx = b.add("wireless-sender", 24, y - 1, { channel: line.item });
     b.wire(latch, "q", tx, "in");
-    b.add("label", 24, y + 0, { text: `requests ${line.name.toLowerCase()}` });
+    b.add("label", 25, y - 1, { text: `requests ${line.name.toLowerCase()}` });
   });
   // Anything that matched no filter.
   const overflow = b.add("storage", 6, 3 * 8 + 3, { label: "Overflow", capacity: 200, rate: 0 });
