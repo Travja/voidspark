@@ -634,7 +634,13 @@ describe("circuits and share links", () => {
     expect(c.parts[1].rot).toBe(0);
     expect(c.parts[2].cfg).toEqual({ channel: "" });
     // Wires refer to parts by their index in the link; ones touching dropped parts or ports go.
-    expect(c.wires.map((w) => `${w.from.port}>${w.to.port}`)).toEqual(["out>in", "out>in"]);
+    // Old point-to-point logic wires are laid onto the grid as tiles.
+    expect(c.wires).toEqual([]);
+    expect(Object.keys(c.cells).length).toBeGreaterThan(0);
+    const sim = new Sim(c);
+    sim.run(0.5);
+    expect(sim.portWired(c.parts[0].id, "out")).toBe(true);
+    expect(sim.portWired(c.parts[2].id, "in")).toBe(true);
     expect(c.wires.every((w) => c.parts.some((p) => p.id === w.from.part) && c.parts.some((p) => p.id === w.to.part))).toBe(true);
   });
 

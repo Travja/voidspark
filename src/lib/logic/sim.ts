@@ -6,8 +6,10 @@
 //      tick of delay and feedback loops can't recurse.
 //   2. Items move along paths. A token that reaches the end of a path is offered to the part at
 //      the other end, and waits there until that part takes it.
-//   3. Outputs are combined into networks (any output on → network on) and channels.
+//   3. Outputs are combined into networks (any output on → network on) and channels. Networks
+//      are the groups of touching wire tiles (see grid.ts); a ribbon tile carries four.
 import { curveLength, portPosition, wireCurve, type Point } from "./geometry";
+import { buildNets, type GridNets } from "./grid";
 import { PARTS, TICK } from "./parts";
 import type { Circuit, Part, PartStatus, PartType, PortDef, StepCtx, StorageView, Token } from "./types";
 
@@ -75,8 +77,10 @@ export class Sim {
   time = 0;
   walkSpeed: number;
 
-  /** port key ("part.port") -> logic network index */
-  private netOf = new Map<string, number>();
+  /** Logic networks formed by the wire tiles. */
+  readonly grid: GridNets;
+  /** port key ("part.port") -> logic network indexes (one per ribbon bit for bus ports) */
+  private netOf = new Map<string, number[]>();
   /** Per network: the output ports driving it, as [part index, port id]. */
   private drivers: [number, string][][] = [];
   private netValue: Uint8Array = new Uint8Array(0);
@@ -110,17 +114,6 @@ export class Sim {
       this.parts.push(rp);
     });
 
-    // Logic networks: union-find over logic wires.
-    const parent = new Map<string, string>();
-    const find = (k: string): string => {
-      let r = k;
-      while (parent.get(r) !== r) r = parent.get(r)!;
-      parent.set(k, r);
-      return r;
-    };
-    const add = (k: string) => {
-      if (!parent.has(k)) parent.set(k, k);
-    };
     for (const w of circuit.wires) {
       const a = this.byId.get(w.from.part);
       const b = this.byId.get(w.to.part);
@@ -130,11 +123,7 @@ export class Sim {
       if (!pa || !pb || pa.kind !== pb.kind) continue;
       const ka = `${w.from.part}.${w.from.port}`;
       const kb = `${w.to.part}.${w.to.port}`;
-      if (pa.kind === "logic") {
-        add(ka);
-        add(kb);
-        parent.set(find(ka), find(kb));
-      } else if (pa.kind === "item") {
+      if (pa.kind === "item") {
         if (pa.dir !== "out" || pb.dir !== "in" || this.pathOut.has(ka)) continue;
         const ca = placedPort(this.parts[a].part, pa.id);
         const cb = placedPort(this.parts[b].part, pb.id);
@@ -158,19 +147,14 @@ export class Sim {
         this.observed.set(ka, b);
       }
     }
-    const roots = new Map<string, number>();
-    for (const k of parent.keys()) {
-      const r = find(k);
-      if (!roots.has(r)) {
-        roots.set(r, this.drivers.length);
-        this.drivers.push([]);
-      }
-      const net = roots.get(r)!;
-      this.netOf.set(k, net);
-      const dot = k.lastIndexOf(".");
-      const pi = this.byId.get(k.slice(0, dot))!;
-      const port = k.slice(dot + 1);
-      if (findPort(this.parts[pi].part.type, port)?.dir === "out") this.drivers[net].push([pi, port]);
+    this.grid = buildNets(circuit);
+    this.drivers = Array.from({ length: this.grid.count }, () => []);
+    for (const att of this.grid.ports) {
+      this.netOf.set(`${att.part}.${att.port}`, att.nets);
+      if (att.dir !== "out") continue;
+      const pi = this.byId.get(att.part);
+      if (pi === undefined) continue;
+      for (const n of att.nets) if (n >= 0) this.drivers[n].push([pi, att.port]);
     }
     this.netValue = new Uint8Array(this.drivers.length);
     for (const link of this.paths) for (const t of link.tokens) this.tokenId = Math.max(this.tokenId, t.token.id + 1);
@@ -198,8 +182,12 @@ export class Sim {
         return sim.tick;
       },
       in: (port) => {
-        const n = sim.netOf.get(`${id}.${port}`);
-        return n !== undefined && sim.netValue[n] === 1;
+        const n = sim.netOf.get(`${id}.${port}`)?.[0];
+        return n !== undefined && n >= 0 && sim.netValue[n] === 1;
+      },
+      bits: (port) => {
+        const nets = sim.netOf.get(`${id}.${port}`) ?? [];
+        return [0, 1, 2, 3].map((b) => (nets[b] ?? -1) >= 0 && sim.netValue[nets[b]] === 1);
       },
       wired: (port) => sim.netOf.has(`${id}.${port}`) || sim.itemLinked.has(`${id}.${port}`) || sim.observed.has(`${id}.${port}`),
       set: (port, on) => void (rp.next[port] = on),
@@ -298,15 +286,33 @@ export class Sim {
   port(partId: string, port: string): boolean {
     const rp = this.rp(partId);
     if (!rp) return false;
-    const n = this.netOf.get(`${partId}.${port}`);
-    if (n !== undefined) return this.netValue[n] === 1;
+    const nets = this.netOf.get(`${partId}.${port}`);
+    if (nets?.length) return nets.some((n) => n >= 0 && this.netValue[n] === 1);
     return !!rp.outs[port];
   }
 
-  /** Whether a logic wire between two ports is carrying a signal. */
-  wireOn(partId: string, port: string): boolean {
-    const n = this.netOf.get(`${partId}.${port}`);
-    return n !== undefined && this.netValue[n] === 1;
+  /** Whether a logic port touches a wire tile. */
+  portWired(partId: string, port: string): boolean {
+    return this.netOf.has(`${partId}.${port}`);
+  }
+
+  netOn(n: number): boolean {
+    return n >= 0 && this.netValue[n] === 1;
+  }
+
+  /** Signal on each network a tile carries (one, four for a ribbon, two for a bridge). */
+  cellOn(key: string): boolean[] {
+    return (this.grid.cellNets.get(key) ?? []).map((n) => this.netValue[n] === 1);
+  }
+
+  /** The ports on a network: who drives it and who listens. */
+  netPorts(n: number): { part: string; port: string; dir: "in" | "out"; bit: number }[] {
+    const out: { part: string; port: string; dir: "in" | "out"; bit: number }[] = [];
+    for (const a of this.grid.ports) {
+      const bit = a.nets.indexOf(n);
+      if (bit >= 0) out.push({ part: a.part, port: a.port, dir: a.dir, bit });
+    }
+    return out;
   }
 
   state<S = any>(partId: string): S | undefined {

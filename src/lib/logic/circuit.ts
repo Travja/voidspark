@@ -3,16 +3,17 @@
 import { base64UrlToBytes, bytesToBase64Url } from "../base64url";
 import { GAME } from "../engine/data";
 import { footprint } from "./geometry";
+import { applyRoute, buildNets, cellKey, routeWire, VALID_TILE } from "./grid";
 import { PARTS } from "./parts";
 import { findPort } from "./sim";
 import type { Circuit, Config, FieldDef, Part, PortRef, Rot, Wire } from "./types";
 
-export const LIMITS = { parts: 2000, wires: 4000, coord: 5000 };
+export const LIMITS = { parts: 2000, wires: 4000, cells: 40000, coord: 5000 };
 
 let seq = 1;
 export const newId = (prefix: string) => `${prefix}${Date.now().toString(36)}${(seq++).toString(36)}`;
 
-export const emptyCircuit = (name = "New circuit"): Circuit => ({ name, parts: [], wires: [], settings: { walkSpeed: 2 } });
+export const emptyCircuit = (name = "New circuit"): Circuit => ({ name, parts: [], wires: [], cells: {}, settings: { walkSpeed: 2 } });
 
 const isItem = (v: unknown): v is string => typeof v === "string" && GAME.materials.has(v);
 
@@ -101,7 +102,7 @@ export function freeSpot(c: Circuit, type: string, x: number, y: number, rot: Ro
 
 // --- connections -------------------------------------------------------------------------------
 
-const portOf = (c: Circuit, r: PortRef) => {
+const portOf = (c: Pick<Circuit, "parts">, r: PortRef) => {
   const part = c.parts.find((p) => p.id === r.part);
   return part ? findPort(part.type, r.port) : undefined;
 };
@@ -119,16 +120,15 @@ export function planWire(c: Circuit, a: PortRef, b: PortRef): { wire: Omit<Wire,
     const name = { logic: "a logic port", item: "a path port", observe: "a sensor/storage link" };
     return { error: `Can't connect ${name[pa.kind]} to ${name[pb.kind]}.` };
   }
+  if (pa.kind === "logic") return { error: "Logic runs on wire tiles: use connectLogic." };
   let from = a;
   let to = b;
-  if (pa.kind !== "logic") {
-    if (pa.dir === pb.dir) {
-      return { error: pa.kind === "item" ? "Paths run from an exit (out) to an entrance (in)." : "Link a Capacity Sensor's eye to a storage." };
-    }
-    if (pa.dir === "in") [from, to] = [b, a];
-    const taken = c.wires.find((w) => w.from.part === from.part && w.from.port === from.port);
-    if (taken) return { error: pa.kind === "item" ? "That exit already has a path. Use a Splitter to branch." : "That sensor already watches a storage." };
+  if (pa.dir === pb.dir) {
+    return { error: pa.kind === "item" ? "Paths run from an exit (out) to an entrance (in)." : "Link a Capacity Sensor's eye to a storage." };
   }
+  if (pa.dir === "in") [from, to] = [b, a];
+  const taken = c.wires.find((w) => w.from.part === from.part && w.from.port === from.port);
+  if (taken) return { error: pa.kind === "item" ? "That exit already has a path. Use a Splitter to branch." : "That sensor already watches a storage." };
   const dup = c.wires.some(
     (w) =>
       (w.from.part === from.part && w.from.port === from.port && w.to.part === to.part && w.to.port === to.port) ||
@@ -136,6 +136,23 @@ export function planWire(c: Circuit, a: PortRef, b: PortRef): { wire: Omit<Wire,
   );
   if (dup) return { error: "Already connected." };
   return { wire: { from: { ...from }, to: { ...to } } };
+}
+
+/**
+ * Connects two logic ports by laying wire tiles on the grid (with bridges where it must cross
+ * another wire). Returns an error message, or null when connected.
+ */
+export function connectLogic(c: Pick<Circuit, "parts" | "cells">, a: PortRef, b: PortRef): string | null {
+  const pa = portOf(c, a);
+  const pb = portOf(c, b);
+  if (!pa || !pb) return "Port not found.";
+  if (pa.kind !== "logic" || pb.kind !== "logic") return "Only logic ports connect with wire tiles.";
+  if (a.part === b.part && a.port === b.port) return "That's the same port.";
+  const route = routeWire(c, a, b);
+  if (!route) return "No room to run a wire there. Move the parts apart, or draw it with the Wire tool.";
+  if (!route.path.length && !route.bridges.length) return "Already connected.";
+  applyRoute(c.cells, route);
+  return null;
 }
 
 export function wireKind(c: Circuit, w: Wire) {
@@ -168,8 +185,20 @@ export function validateCircuit(raw: unknown): Circuit | null {
     name: typeof r.name === "string" && r.name.trim() ? r.name.trim().slice(0, 60) : "Circuit",
     parts,
     wires: [],
+    cells: {},
     settings: { walkSpeed: 2 },
   };
+  if (r.cells && typeof r.cells === "object" && !Array.isArray(r.cells)) {
+    let n = 0;
+    for (const [k, v] of Object.entries(r.cells as Record<string, unknown>)) {
+      const m = /^(-?\d+),(-?\d+)$/.exec(k);
+      if (!m || typeof v !== "string" || !VALID_TILE.test(v) || !int(+m[1]) || !int(+m[2])) continue;
+      if (++n > LIMITS.cells) break;
+      c.cells[cellKey(+m[1], +m[2])] = v;
+    }
+  }
+  /** Logic wires from before tiles existed: laid onto the grid below. */
+  const legacy: [PortRef, PortRef][] = [];
   const s = r.settings as Record<string, unknown> | undefined;
   if (s && typeof s.walkSpeed === "number" && Number.isFinite(s.walkSpeed)) c.settings.walkSpeed = Math.min(10, Math.max(0.2, s.walkSpeed));
   const wireIds = new Set<string>();
@@ -183,12 +212,20 @@ export function validateCircuit(raw: unknown): Circuit | null {
     const from = ref(q.from);
     const to = ref(q.to);
     if (!from || !to) continue;
+    if (portOf(c, from)?.kind === "logic" && portOf(c, to)?.kind === "logic") {
+      legacy.push([from, to]);
+      continue;
+    }
     const plan = planWire(c, from, to);
     if ("error" in plan) continue;
     let id = typeof q.id === "string" && /^[\w-]{1,40}$/.test(q.id) ? q.id : newId("w");
     if (wireIds.has(id)) id = newId("w");
     wireIds.add(id);
     c.wires.push({ id, ...plan.wire });
+  }
+  for (const [a, b] of legacy.slice(0, 500)) {
+    const route = routeWire(c, a, b, buildNets(c));
+    if (route) applyRoute(c.cells, route);
   }
   return c;
 }
@@ -205,6 +242,8 @@ interface SharePayload {
   p: [string, number, number, number, Config?][];
   /** [from part index, from port, to part index, to port] */
   w: [number, string, number, string][];
+  /** Logic tiles: [x, y, kind] */
+  c?: [number, number, string][];
 }
 
 async function pipe(bytes: Uint8Array, stream: CompressionStream | DecompressionStream): Promise<Uint8Array> {
@@ -223,6 +262,10 @@ export function toPayload(c: Circuit): SharePayload {
       return d ? [p.type, p.x, p.y, p.rot, d] : [p.type, p.x, p.y, p.rot];
     }),
     w: c.wires.map((w) => [index.get(w.from.part)!, w.from.port, index.get(w.to.part)!, w.to.port]),
+    c: Object.entries(c.cells).map(([k, v]) => {
+      const [x, y] = k.split(",").map(Number);
+      return [x, y, v];
+    }),
   };
 }
 
@@ -235,7 +278,9 @@ export function fromPayload(raw: unknown): Circuit | null {
   const wires = p.w.slice(0, LIMITS.wires).map((e, i) =>
     Array.isArray(e) ? { id: `w${i}`, from: { part: `s${e[0]}`, port: e[1] }, to: { part: `s${e[2]}`, port: e[3] } } : null,
   );
-  const c = validateCircuit({ name: p.n, parts, wires, settings: { walkSpeed: p.s ?? 2 } });
+  const cells: Record<string, unknown> = {};
+  if (Array.isArray(p.c)) for (const e of p.c.slice(0, LIMITS.cells)) if (Array.isArray(e)) cells[`${e[0]},${e[1]}`] = e[2];
+  const c = validateCircuit({ name: p.n, parts, wires, cells, settings: { walkSpeed: p.s ?? 2 } });
   if (!c) return null;
   // Fresh ids so a shared circuit never collides with a saved one.
   const ren = new Map(c.parts.map((x) => [x.id, newId("c")]));

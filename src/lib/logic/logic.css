@@ -520,6 +520,112 @@ svg.canvas.placing {
   stroke-width: 0.04;
 }
 
+/* ---------- Logic tiles ---------- */
+
+.tile-hit {
+  fill: transparent;
+}
+
+.painting .tile-hit {
+  pointer-events: none;
+}
+
+.tile .seg {
+  fill: none;
+  stroke: var(--wire-off);
+  stroke-width: 0.14;
+  stroke-linecap: round;
+}
+
+.tile.wire-t.on .seg,
+.tile.bridge-t .seg.on {
+  stroke: var(--signal);
+}
+
+.tile.ribbon-t .seg {
+  stroke-width: 0.42;
+  stroke-linecap: butt;
+  stroke: color-mix(in srgb, var(--wire-off) 70%, var(--surface));
+}
+
+.tile .node {
+  fill: var(--wire-off);
+}
+
+.tile.wire-t.on .node {
+  fill: var(--signal);
+}
+
+.tile.ribbon-t .node {
+  fill: var(--surface-2);
+  stroke: var(--wire-off);
+  stroke-width: 0.03;
+}
+
+.tile .bit {
+  fill: var(--surface);
+  stroke: var(--wire-off);
+  stroke-width: 0.025;
+}
+
+.tile .bit.on {
+  fill: var(--signal);
+  stroke: var(--signal);
+}
+
+.tile.selected .tile-hit {
+  fill: color-mix(in srgb, var(--accent) 22%, transparent);
+  stroke: var(--accent);
+  stroke-width: 0.05;
+}
+
+.sig-on {
+  color: var(--signal);
+  font-weight: 700;
+}
+
+/* ---------- Tool strip ---------- */
+
+.tools {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 9;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.12);
+}
+
+.tools button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  min-width: 48px;
+  min-height: 44px;
+  padding: 3px 4px;
+  border-color: transparent;
+  font-size: 10.5px;
+  line-height: 1.1;
+}
+
+.tools button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.tool-icon {
+  font-size: 17px;
+  line-height: 1.2;
+}
+
 /* ---------- Palette ---------- */
 
 .palette h3 {

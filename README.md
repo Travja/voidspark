@@ -43,14 +43,17 @@ greenhouses, the Arboretum, and the metal sparks. It started from the PirateSpar
   and Counter gates; Set-Reset Latch and Data Flip-Flop; wireless senders and receivers (the
   channel is an item, as in the game); pixel displays; path add-ons (Item and Amount Filters,
   Blocker, Spark Gate, Splitter, Wait Gate, Counter); storage, an extractor and generic machines
-  that can run any game recipe. Items walk along paths as tokens, so you can watch sorting, queues
-  and refills. Pan, zoom and pinch; tap a palette entry, then tap the grid to place it; tap a port,
-  then another port to wire them. Play, pause, step and change speed, and tap levers and buttons
+  that can run any game recipe. Logic runs on **wire tiles on the grid**, as in the game. Tiles join
+  only where drawn, so wires can run side by side. Bridges cross wires, and **ribbons** carry four
+  signals (bits 0–3) on one tile, used with Ribbon Writers and Readers and the Four Pixel Display.
+  Draw tiles with the Wire, Ribbon, Bridge and Erase tools. Or tap one port and then another, and a
+  wire is routed on the grid for you. Items walk along paths as tokens, so you can watch sorting,
+  queues and refills. Pan, zoom and pinch; tap a palette entry, then tap the grid to place it. Play, pause, step and change speed, and tap levers and buttons
   while it runs. Selecting a part shows its live inputs and outputs and why it's on or off. Undo
   and redo, several named circuits, and share links (`#circuit=…`, compressed and validated) are
   all there. It ships with examples: a **distribution center** (filters sort a train's cargo into
   per-item storage, and each workshop's low/high sensors and latch request a refill over wireless),
-  an SR latch, timer pulses and a filter split. What each part does, what the wiki confirms and
+  an SR latch, timer pulses, a ribbon bus and a filter split. What each part does, what the wiki confirms and
   what is assumed are in [docs/logic-components.md](docs/logic-components.md).
 - **Installable and offline.** Add it to your home screen. A service worker
   (`src/service-worker.ts`) caches the app so it opens without a connection.
@@ -111,8 +114,9 @@ BASE_PATH=/voidspark npm run build   # then publish build/ (it includes .nojekyl
 | `src/routes/logic/+page.svelte` | The logic sandbox page: circuits menu, simulation controls, layout |
 | `src/lib/logic/parts.ts` | Logic part registry: ports, settings, and per-tick behaviour of every part. Framework-free |
 | `src/lib/logic/sim.ts` | Deterministic tick simulator: logic networks, wireless channels, items on paths. Framework-free |
+| `src/lib/logic/grid.ts` | Wire, ribbon and bridge tiles: networks, painting and erasing, and the port-to-port router. Framework-free |
 | `src/lib/logic/circuit.ts`, `geometry.ts`, `types.ts` | Circuit model, validation, wiring rules, share-link encoding, port geometry |
-| `src/lib/logic/examples.ts` | Example circuits (distribution center, latch, timer, filter split) |
+| `src/lib/logic/examples.ts` | Example circuits (distribution center, latch, timer, ribbon bus, filter split) |
 | `src/lib/logic/store.svelte.ts` | Sandbox editor state: saved circuits (localStorage `voidspark:logic:v1`), undo/redo, share links |
 | `src/lib/logic/ui/` | Canvas (pan/zoom/pinch, wiring), part rendering, palette, inspector |
 | `src/lib/assets/logic/` | Wiki building renders used in the sandbox palette (`scripts/import-logic-icons.mjs`) |
@@ -131,8 +135,9 @@ BASE_PATH=/voidspark npm run build   # then publish build/ (it includes .nojekyl
 `src/lib/logic/sim.ts` runs fixed 0.05 s ticks. Each tick, every part reads its inputs as they
 were at the end of the previous tick and writes its outputs for the next. So each gate adds one
 tick of delay, and feedback loops (latches made from gates, a NOT gate wired to itself) settle or
-oscillate instead of recursing. Everything joined by wires is one network, which is on when any
-output on it is on. Wireless channels work the same way across the whole map. Items are tokens that
+oscillate instead of recursing. Logic networks come from the wire tiles (`src/lib/logic/grid.ts`).
+Each tile records which neighbours it joins. A ribbon tile carries four networks, and a bridge
+carries two that cross. A network is on when any output plugged into it is on. Wireless channels work the same way across the whole map. Items are tokens that
 walk along a path at the spark walking speed, keeping a gap between them. When a token reaches the
 end of a path, the part there decides whether to take it: storage takes it if there's room, a filter
 takes it if its exit path has room, a blocker refuses it. Otherwise the token waits, and the queue

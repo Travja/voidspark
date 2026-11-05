@@ -1,5 +1,7 @@
 // Example circuits that ship with the sandbox. Built in code so they always match the registry.
-import { emptyCircuit, makePart, planWire, newId } from "./circuit";
+import { connectLogic, emptyCircuit, makePart, planWire, newId } from "./circuit";
+import { cellLine, paint } from "./grid";
+import { PARTS } from "./parts";
 import type { Circuit, Config, Rot } from "./types";
 
 /** Small helper for building circuits in code (examples and tests). */
@@ -13,12 +15,26 @@ export class CircuitBuilder {
     this.c.parts.push(p);
     return p.id;
   }
+  /** Connects two ports: logic by laying wire tiles on the grid, items and sensors by a link. */
   wire(a: string, ap: string, b: string, bp: string): this {
+    const kind = (id: string, port: string) => PARTS.get(this.c.parts.find((p) => p.id === id)?.type ?? "")?.ports.find((p) => p.id === port)?.kind;
+    if (kind(a, ap) === "logic") {
+      const err = connectLogic(this.c, { part: a, port: ap }, { part: b, port: bp });
+      if (err && err !== "Already connected.") throw new Error(`${this.c.parts.find((p) => p.id === a)?.type}.${ap} → ${this.c.parts.find((p) => p.id === b)?.type}.${bp}: ${err}`);
+      return this;
+    }
     const plan = planWire(this.c, { part: a, port: ap }, { part: b, port: bp });
     if ("error" in plan) throw new Error(`${a}.${ap} → ${b}.${bp}: ${plan.error}`);
     this.c.wires.push({ id: newId("w"), ...plan.wire });
     return this;
   }
+}
+
+/** Paints tiles along a polyline of grid points. */
+function draw(b: CircuitBuilder, kind: "w" | "r", ...pts: [number, number][]) {
+  const path: [number, number][] = [];
+  for (let i = 1; i < pts.length; i++) path.push(...cellLine(pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1]).slice(i > 1 ? 1 : 0));
+  paint(b.c.cells, kind, path);
 }
 
 export interface Example {
@@ -161,6 +177,39 @@ function filterSplit(): Circuit {
   return b.c;
 }
 
+/** Four signals on one ribbon tile: plain wire on bit 0, Ribbon Writers on bits 1–3. */
+function ribbonBus(): Circuit {
+  const b = new CircuitBuilder("Ribbon bus");
+  b.add("label", 0, -3, { text: "Four levers share one ribbon" });
+  // Levers along the top, outputs facing down (rotated a quarter turn).
+  for (let i = 0; i < 4; i++) {
+    b.add("lever", 1 + i * 3, -1, { on: i % 2 === 0 }, 1);
+    b.add("label", i * 3, -2, { text: `bit ${i}` });
+  }
+  // Bit 0: a plain wire straight onto the ribbon.
+  draw(b, "w", [1, 0], [1, 3]);
+  // Bits 1–3: lever → Ribbon Writer (turned to face down) → ribbon.
+  for (let i = 1; i < 4; i++) {
+    const x = 1 + i * 3;
+    b.add("ribbon-writer", x, 1, { bit: String(i) }, 1);
+    draw(b, "w", [x, 0], [x, 0]);
+    draw(b, "r", [x, 2], [x, 4]);
+  }
+  // The ribbon itself, along row 4, joined to each feed.
+  draw(b, "r", [1, 4], [12, 4], [14, 4]);
+  for (let i = 0; i < 4; i++) draw(b, "r", [1 + i * 3, 3], [1 + i * 3, 4]);
+  draw(b, "w", [1, 0], [1, 3]);
+  // Read everything at the far end, and pick out bit 2 with a reader.
+  b.add("pixel4", 15, 4);
+  b.add("label", 16, 4, { text: "Four Pixel Display" });
+  draw(b, "r", [14, 4], [14, 7]);
+  b.add("ribbon-reader", 14, 8, { bit: "2" }, 1);
+  b.add("pixel", 14, 11, {}, 1);
+  draw(b, "w", [14, 9], [14, 10]);
+  b.add("label", 15, 9, { text: "Reader: bit 2" });
+  return b.c;
+}
+
 export const EXAMPLES: Example[] = [
   {
     id: "distribution",
@@ -170,5 +219,6 @@ export const EXAMPLES: Example[] = [
   },
   { id: "latch", name: "Latch (SR memory)", blurb: "Set/Reset buttons, plus the same latch built from gates.", build: latchDemo },
   { id: "timer", name: "Timer pulses", blurb: "A timer feeding buffer, filter and counter gates.", build: timerDemo },
+  { id: "ribbon", name: "Ribbon bus", blurb: "Four signals on one ribbon: writers, a reader and a Four Pixel Display.", build: ribbonBus },
   { id: "filter", name: "Filter split", blurb: "Mixed items split by an Item Filter, with a pressure pad and blocker.", build: filterSplit },
 ];

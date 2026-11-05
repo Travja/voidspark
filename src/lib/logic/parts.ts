@@ -457,16 +457,69 @@ const pixel4: PartType<Config, { on: boolean[] }> = {
   id: "pixel4",
   name: "Four Pixel Display",
   category: "Wireless & display",
-  blurb: "Four lamps, one per input.",
+  blurb: "Four lamps showing the four bits of a ribbon.",
   wiki: "Four Pixel Display",
   w: 1,
-  h: 2,
-  ports: [logicIn("p0", "l", 0.125, "1"), logicIn("p1", "l", 0.375, "2"), logicIn("p2", "l", 0.625, "3"), logicIn("p3", "l", 0.875, "4")],
+  h: 1,
+  ports: [{ ...logicIn("in", "l", 0.5, "ribbon"), bus: "all" }],
   fields: [],
   defaults: () => ({}),
   init: () => ({ on: [false, false, false, false] }),
-  step: (ctx) => void (ctx.state.on = [0, 1, 2, 3].map((i) => ctx.in(`p${i}`))),
+  step: (ctx) => void (ctx.state.on = ctx.bits("in")),
   status: (_c, s) => ({ active: s.on.some(Boolean), badge: s.on.map((b) => (b ? "●" : "○")).join("") }),
+  describe: (_c, s) => [`Bits 0–3: ${s.on.map((b) => (b ? "1" : "0")).join(" ")}.`, "On a plain wire only bit 0 (the first lamp) can light."],
+};
+
+const bitField: FieldDef = {
+  key: "bit",
+  label: "Ribbon bit",
+  type: "select",
+  options: [
+    { value: "1", label: "Bit 1" },
+    { value: "2", label: "Bit 2" },
+    { value: "3", label: "Bit 3" },
+  ],
+  help: "A plain wire meeting a ribbon always uses bit 0.",
+};
+
+const ribbonWriter: PartType<{ bit: string }, { on: boolean }> = {
+  id: "ribbon-writer",
+  name: "Ribbon Writer",
+  category: "Wireless & display",
+  blurb: "Puts a wire's signal onto bit 1–3 of the ribbon at its output.",
+  wiki: "Ribbon Writer",
+  w: 1,
+  h: 1,
+  ports: [logicIn("in", "l", 0.5, "wire"), { ...logicOut("out", "r", 0.5, "ribbon"), bus: "bit" }],
+  fields: [bitField],
+  defaults: () => ({ bit: "1" }),
+  init: () => ({ on: false }),
+  step: (ctx) => {
+    ctx.state.on = ctx.in("in");
+    ctx.set("out", ctx.state.on);
+  },
+  status: (c, s) => ({ active: s.on, badge: `b${c.bit}` }),
+  describe: (c, s) => [`Writes ${s.on ? "1" : "0"} to bit ${c.bit}.`],
+};
+
+const ribbonReader: PartType<{ bit: string }, { on: boolean }> = {
+  id: "ribbon-reader",
+  name: "Ribbon Reader",
+  category: "Wireless & display",
+  blurb: "Reads bit 1–3 of the ribbon at its input onto a plain wire.",
+  wiki: "Ribbon Reader",
+  w: 1,
+  h: 1,
+  ports: [{ ...logicIn("in", "l", 0.5, "ribbon"), bus: "bit" }, logicOut("out", "r", 0.5, "wire")],
+  fields: [bitField],
+  defaults: () => ({ bit: "1" }),
+  init: () => ({ on: false }),
+  step: (ctx) => {
+    ctx.state.on = ctx.in("in");
+    ctx.set("out", ctx.state.on);
+  },
+  status: (c, s) => ({ active: s.on, badge: `b${c.bit}` }),
+  describe: (c, s) => [`Bit ${c.bit} is ${s.on ? "on" : "off"}.`],
 };
 
 // --- paths -------------------------------------------------------------------------------------
@@ -958,6 +1011,8 @@ export const PART_TYPES: PartType<any, any>[] = [
   wirelessReceiver,
   pixel,
   pixel4,
+  ribbonWriter,
+  ribbonReader,
   source,
   itemFilter,
   amountFilter,

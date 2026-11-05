@@ -38,7 +38,10 @@ function load(): Stored {
   return { version: 1, circuits: [first], current: first.id };
 }
 
-export type Selection = { kind: "part"; id: string } | { kind: "wire"; id: string } | null;
+/** Canvas tool: select/move, or paint wire, ribbon or bridge tiles, or erase them. */
+export type Tool = "select" | "wire" | "ribbon" | "bridge" | "erase";
+
+export type Selection = { kind: "part"; id: string } | { kind: "wire"; id: string } | { kind: "cell"; id: string } | null;
 
 export class LogicStore {
   #store = $state<Stored>(load());
@@ -125,6 +128,7 @@ export class LogicStore {
   }
 
   private exists(sel: NonNullable<Selection>) {
+    if (sel.kind === "cell") return !!this.circuit.cells[sel.id];
     return sel.kind === "part" ? this.circuit.parts.some((p) => p.id === sel.id) : this.circuit.wires.some((w) => w.id === sel.id);
   }
 

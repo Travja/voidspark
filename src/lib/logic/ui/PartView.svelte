@@ -113,14 +113,12 @@
       <circle class="lamp" cx={size.w / 2} cy={size.h / 2} r=".3" />
     {:else if part.type === "pixel4"}
       {#each [0, 1, 2, 3] as i (i)}
-        {@const vertical = part.rot % 2 === 0}
-        {@const on = status.badge?.[i] === "●"}
         <circle
           class="lamp"
-          class:on
-          cx={vertical ? size.w / 2 : (i + 0.5) * (size.w / 4)}
-          cy={vertical ? (i + 0.5) * (size.h / 4) : size.h / 2}
-          r=".18"
+          class:on={status.badge?.[i] === "●"}
+          cx={size.w / 2 + (i % 2 ? 0.2 : -0.2)}
+          cy={size.h / 2 + (i < 2 ? -0.2 : 0.2)}
+          r=".15"
         />
       {/each}
     {:else if !gate}

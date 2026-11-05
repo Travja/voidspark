@@ -105,11 +105,23 @@ sandbox keeps those port counts.
 ## Connectors
 
 ### Logic Wire and Wire Bridge
-- **Wiki:** wires are buried tiles that carry signals, and bridges let wires cross.
-- **Sandbox:** wires are drawn port-to-port, which works better on a phone than painting tiles.
-  Everything joined by wires forms one network. The network is on if **any** output on it is on.
-  Bridges aren't needed because drawn wires never join where they cross. *Assumption:* in the game,
-  outputs wired together combine as an OR.
+- **Wiki:** a Logic Wire is "a buried wire that can transmit signals", one tile per wire. The Wire
+  Bridge "allows for two logic wires to cross each other without being connected". Its footprint
+  is a tile, a gap and a tile, hopping over the middle.
+- **Sandbox:** logic runs on **wire tiles on the grid**, as in the game. Tiles are buried, so they
+  can run under parts.
+  - Each tile records which neighbours it was drawn to, and two tiles join only if both point at
+    each other. *Assumption:* wires laid side by side stay separate. This has to be so, or two
+    different signals could never reach the two adjacent input tiles of a 2×2 gate.
+  - A part's logic port plugs into the tile just outside it, in the direction the port faces.
+    *Assumption:* the wiki doesn't say exactly how a wire attaches to a building's port tile.
+  - Everything joined forms one network. The network is on if **any** output plugged into it is
+    on. *Assumption:* outputs wired together combine as an OR.
+  - A **bridge** is a single crossing tile: left–right and up–down stay separate. *Simplification:*
+    in the game the bridge spans three tiles.
+  - You can draw tiles with the Wire tool. You can also tap one port and then another, and the
+    sandbox lays the wire for you. It takes a short route around parts and other ports, and
+    bridges any wire it has to cross.
 
 ### Wireless Signal Sender / Receiver
 - **Wiki:** the channel is an **item** placed in the building's one filter slot. "Requires an
@@ -120,16 +132,24 @@ sandbox keeps those port counts.
   limit, and senders on the same channel combine as an OR.
 
 ### Logic Ribbon, Ribbon Writer, Ribbon Reader, Four Pixel Display
-- **Wiki:** a ribbon carries 4 signals on bits 0 to 3. A plain wire feeding a ribbon lands on bit
-  0, and writers and readers move a wire's signal to or from bits 1 to 3. The Four Pixel Display
-  shows four signals.
-- **Sandbox:** ribbons only save space in the game, so they aren't modelled. Use separate wires.
-  The **Four Pixel Display** is included, with four inputs.
+- **Wiki:** a Logic Ribbon is "a buried ribbon of wires that can store up to four separate
+  signals", on bits 0 to 3. "If a Ribbon is receiving a signal (without the use of a Ribbon
+  Writer), it will be held on Bit 0." A Ribbon Writer puts a wire's signal on bit 1 to 3, and a
+  Ribbon Reader reads bit 1 to 3 back onto a wire. Each is two tiles, input and output. The Four
+  Pixel Display is one tile with one logic input, and lights four elements individually.
+- **Sandbox:**
+  - **Ribbon tiles** carry four networks, one per bit. Joined ribbon tiles join bit for bit.
+  - A plain wire tile joined to a ribbon, or a plain port plugged into one, uses **bit 0**.
+  - **Ribbon Writer:** a wire in, a ribbon out on its chosen bit (1–3).
+  - **Ribbon Reader:** a ribbon in on its chosen bit (1–3), a wire out.
+  - **Four Pixel Display:** one input that shows all four bits of the ribbon it plugs into. On a
+    plain wire, only the first lamp (bit 0) can light.
+  - *Simplification:* the writer and reader take one tile instead of two.
 
 ## Outputs
 
 - **Pixel Display (wiki):** "Lights up if it receives a signal." **Sandbox:** a lamp.
-- **Four Pixel Display:** see above.
+- **Four Pixel Display:** shows a ribbon's four bits; see above.
 
 ## Path add-ons (logic-enabled)
 
@@ -222,7 +242,8 @@ part's item input. Items move along it as tokens at a set walking speed (default
 
 ## Summary of assumptions
 
-1. Outputs wired together, and wireless senders on one channel, combine as OR.
+1. Outputs wired together, and wireless senders on one channel, combine as OR. Wire tiles join
+   only where drawn, so wires side by side stay separate. Ports plug into the tile they face.
 2. Each gate adds 0.05 s of delay. The simulator runs fixed 0.05 s ticks.
 3. Signal Timer has no input and starts sending, unless set to start off.
 4. Counter Gate: the edge that ends the output doesn't count toward the next N (configurable).
@@ -236,8 +257,9 @@ part's item input. Items move along it as tokens at a set walking speed (default
 11. Items walk at 2 tiles/s by default, and a path holds about 2 items per tile.
 12. Machines run while their enable input is on, or always if unwired. Recipe time is at 1× crew
     speed.
-13. Not modelled: Motion Sensor, Spark Filter, One Way, Crossing, Signpost, Logic Ribbon (and its
-    reader and writer), Wire Bridge, Cannon, Train Stop.
+13. Wire Bridge, Ribbon Writer and Ribbon Reader each take one tile (the game's are longer).
+14. Not modelled: Motion Sensor, Spark Filter, One Way, Crossing, Signpost, Cannon, Train Stop.
+    Item paths are still drawn as links between ports, not as path tiles.
 
 ## Icons
 

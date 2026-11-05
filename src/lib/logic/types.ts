@@ -17,6 +17,12 @@ export interface PortDef {
   at: number;
   /** Short label shown in the inspector ("Set", "Clock", "reject"). */
   label?: string;
+  /**
+   * Logic ports only. "bit": on a ribbon tile, uses the bit in the part's `bit` setting (Ribbon
+   * Writer/Reader). "all": reads all four bits of a ribbon (Four Pixel Display). Otherwise a port
+   * on a ribbon uses bit 0, as a plain wire does.
+   */
+  bus?: "bit" | "all";
 }
 
 export type FieldDef =
@@ -51,9 +57,9 @@ export interface PortRef {
 }
 
 /**
- * A connection between two ports. Logic wires are undirected (everything joined forms one
- * network). Item paths always run from an item output (`from`) to an item input (`to`). Observe
- * links run from a sensor's eye (`from`) to a storage (`to`).
+ * A path or sensor link between two ports. Item paths always run from an item output (`from`) to
+ * an item input (`to`). Observe links run from a sensor's eye (`from`) to a storage (`to`). Logic
+ * signals don't use these: they run on wire tiles (`Circuit.cells`).
  */
 export interface Wire {
   id: string;
@@ -66,10 +72,18 @@ export interface CircuitSettings {
   walkSpeed: number;
 }
 
+/** A logic tile: plain wire, ribbon (bits 0–3) or bridge (a crossing). */
+export type CellKind = "w" | "r" | "b";
+
 export interface Circuit {
   name: string;
   parts: Part[];
   wires: Wire[];
+  /**
+   * Logic tiles by "x,y": the kind and which neighbours it joins, e.g. "w5" (see grid.ts). A
+   * bridge is just "b".
+   */
+  cells: Record<string, string>;
   settings: CircuitSettings;
 }
 
@@ -97,7 +111,9 @@ export interface StepCtx<C = Config, S = Record<string, unknown>> {
   tick: number;
   /** Value of the logic network on an input (as of the previous tick). False when unwired. */
   in(port: string): boolean;
-  /** Whether a logic port is wired to anything (or an item port linked to a path). */
+  /** The four ribbon bits on a port that reads a whole ribbon (`bus: "all"`). */
+  bits(port: string): boolean[];
+  /** Whether a logic port touches a wire tile (or an item port is linked to a path). */
   wired(port: string): boolean;
   /** Sets a logic output for the next tick. */
   set(port: string, on: boolean): void;

@@ -3,6 +3,7 @@
   // outputs), and its settings.
   import { GAME } from "$lib/engine/data";
   import { sanitizeConfig } from "../circuit";
+  import { connectedTiles, erase, kindOf, toggleBridge } from "../grid";
   import { itemName, PARTS, STORAGE_PRESETS } from "../parts";
   import type { Sim } from "../sim";
   import type { LogicStore } from "../store.svelte";
@@ -84,6 +85,31 @@
       to: name(b, wire.to.port),
       on: pa.kind === "logic" && sim.port(a.id, wire.from.port),
       items: pa.kind === "item" ? (sim.paths.find((l) => l.wireId === wire.id)?.tokens.length ?? 0) : 0,
+    };
+  });
+
+  const cellKey = $derived(sel?.kind === "cell" && store.circuit.cells[sel.id] ? sel.id : undefined);
+  const cellInfo = $derived.by(() => {
+    void frame;
+    void store.version;
+    if (!cellKey) return null;
+    const kind = kindOf(store.circuit.cells[cellKey])!;
+    const nets = sim.grid.cellNets.get(cellKey) ?? [];
+    const names = kind === "r" ? ["Bit 0", "Bit 1", "Bit 2", "Bit 3"] : kind === "b" ? ["Left–right", "Up–down"] : ["Signal"];
+    const partName = (id: string) => {
+      const p = store.circuit.parts.find((x) => x.id === id);
+      return p ? ((p.cfg.label as string) || PARTS.get(p.type)!.name) : id;
+    };
+    return {
+      kind,
+      lanes: nets.map((n, i) => ({
+        name: names[i] ?? `#${i}`,
+        on: sim.netOn(n),
+        ports: sim.netPorts(n).map((x) => {
+          const port = PARTS.get(store.circuit.parts.find((p) => p.id === x.part)?.type ?? "")?.ports.find((p) => p.id === x.port);
+          return { name: `${partName(x.part)} · ${port?.label ?? x.port}`, dir: x.dir, on: x.dir === "out" ? sim.port(x.part, x.port) : false };
+        }),
+      })),
     };
   });
 
@@ -245,6 +271,54 @@
         {/each}
       </section>
     {/if}
+  {:else if cellKey && cellInfo}
+    <header class="insp-head">
+      <div>
+        <h2>{cellInfo.kind === "w" ? "Logic Wire" : cellInfo.kind === "r" ? "Logic Ribbon" : "Wire Bridge"}</h2>
+        <div class="muted small">
+          {cellInfo.kind === "w"
+            ? "A buried wire tile. It joins the tiles it was drawn to."
+            : cellInfo.kind === "r"
+              ? "Carries four signals (bits 0–3). A plain wire joining it uses bit 0; Ribbon Writers and Readers use bits 1–3."
+              : "Two wires cross here without connecting."}
+          <a href="https://oddsparks.wiki.gg/wiki/{cellInfo.kind === 'w' ? 'Logic_Wire' : cellInfo.kind === 'r' ? 'Logic_Ribbon' : 'Wire_Bridge'}" target="_blank" rel="noopener">Wiki</a>
+        </div>
+      </div>
+      <button class="icon-btn close" aria-label="Close" onclick={onclose}>✕</button>
+    </header>
+    <section class="insp-live" aria-live="polite">
+      {#each cellInfo.lanes as lane (lane.name)}
+        <p><strong>{lane.name}:</strong> <span class:sig-on={lane.on}>{lane.on ? "ON" : "off"}</span></p>
+        {#if lane.ports.length}
+          <ul class="io">
+            {#each lane.ports as p, i (i)}
+              <li class:on={p.on}>
+                <span class="io-dot logic"></span>
+                <span>{p.name}</span>
+                <span class="muted">{p.dir === "out" ? "drives" : "reads"}</span>
+                <span class="io-val">{p.dir === "out" ? (p.on ? "ON" : "off") : ""}</span>
+              </li>
+            {/each}
+          </ul>
+        {:else}
+          <p class="muted small">Nothing plugged in.</p>
+        {/if}
+      {/each}
+      {#if cellInfo.lanes.some((l) => l.ports.some((p) => p.dir === "out"))}
+        <p class="muted small">A network is on while any part driving it is on.</p>
+      {/if}
+    </section>
+    <div class="insp-actions">
+      <button onclick={() => store.edit((c) => toggleBridge(c.cells, cellKey))}>{cellInfo.kind === "b" ? "Make plain wire" : "Make bridge"}</button>
+      <button class="danger" onclick={() => store.edit((c) => erase(c.cells, cellKey))}>🗑 Tile</button>
+      <button
+        class="danger"
+        onclick={() =>
+          store.edit((c) => {
+            for (const k of connectedTiles(c.cells, cellKey)) erase(c.cells, k);
+          })}>🗑 Whole wire</button
+      >
+    </div>
   {:else if wire && wireInfo}
     <header class="insp-head">
       <div>

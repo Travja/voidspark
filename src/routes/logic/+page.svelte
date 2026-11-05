@@ -3,11 +3,12 @@
   import "$lib/logic/logic.css";
   import { resolve } from "$app/paths";
   import Icon from "$lib/components/Icon.svelte";
-  import { freeSpot, newId } from "$lib/logic/circuit";
+  import { emptyCircuit, freeSpot, newId } from "$lib/logic/circuit";
   import { EXAMPLES } from "$lib/logic/examples";
   import { TICK } from "$lib/logic/parts";
   import { Sim } from "$lib/logic/sim";
-  import { LogicStore } from "$lib/logic/store.svelte";
+  import { LogicStore, type Tool } from "$lib/logic/store.svelte";
+  import { erase } from "$lib/logic/grid";
   import type { Circuit, PortRef, Rot } from "$lib/logic/types";
   import Canvas from "$lib/logic/ui/Canvas.svelte";
   import Inspector from "$lib/logic/ui/Inspector.svelte";
@@ -84,6 +85,14 @@
   let canvas: Canvas;
   let placing = $state<string | null>(null);
   let wiringFrom = $state<PortRef | null>(null);
+  let tool = $state<Tool>("select");
+  const TOOLS: { id: Tool; label: string; icon: string; key: string; tip: string }[] = [
+    { id: "select", label: "Select", icon: "✋", key: "v", tip: "Select, move, wire port-to-port, pan" },
+    { id: "wire", label: "Wire", icon: "╱", key: "w", tip: "Draw wire tiles: drag across the grid" },
+    { id: "ribbon", label: "Ribbon", icon: "☰", key: "g", tip: "Draw ribbon tiles (4 bits)" },
+    { id: "bridge", label: "Bridge", icon: "⌒", key: "b", tip: "Tap a tile to make a crossing" },
+    { id: "erase", label: "Erase", icon: "⌫", key: "x", tip: "Drag over tiles to remove them" },
+  ];
   let paletteOpen = $state(false);
   let sheetMin = $state(false);
   const wide = typeof matchMedia !== "undefined" ? matchMedia("(min-width: 900px)") : null;
@@ -96,6 +105,7 @@
 
   function pick(type: string | null) {
     placing = type;
+    if (type) tool = "select";
     wiringFrom = null;
     paletteOpen = false;
   }
@@ -104,7 +114,8 @@
     const sel = store.selection;
     if (!sel) return;
     store.edit((c) => {
-      if (sel.kind === "part") {
+      if (sel.kind === "cell") erase(c.cells, sel.id);
+      else if (sel.kind === "part") {
         c.parts = c.parts.filter((p) => p.id !== sel.id);
         c.wires = c.wires.filter((w) => w.from.part !== sel.id && w.to.part !== sel.id);
       } else c.wires = c.wires.filter((w) => w.id !== sel.id);
@@ -151,9 +162,14 @@
         deleteSelection();
       }
     } else if (e.key === "r" && !mod) rotateSelection();
-    else if (e.key === "Escape") {
+    else if (!mod && TOOLS.some((t) => t.key === e.key)) {
+      tool = TOOLS.find((t) => t.key === e.key)!.id;
       placing = null;
       wiringFrom = null;
+    } else if (e.key === "Escape") {
+      placing = null;
+      wiringFrom = null;
+      tool = "select";
       store.selection = null;
     } else if (e.key === " " && !mod) {
       e.preventDefault();
@@ -182,7 +198,7 @@
     notify(`Opened example “${ex.name}”`);
   }
   function newCircuit() {
-    store.add({ name: "New circuit", parts: [], wires: [], settings: { walkSpeed: 2 } });
+    store.add(emptyCircuit());
     reset();
   }
   function deleteCircuit() {
@@ -306,19 +322,40 @@
     {/if}
 
     <div class="stage">
-      <Canvas bind:this={canvas} {store} {sim} {frame} {running} bind:placing bind:wiringFrom {notify} />
-      {#if placing || wiringFrom}
+      <Canvas bind:this={canvas} {store} {sim} {frame} {running} bind:placing bind:wiringFrom bind:tool {notify} />
+      <div class="tools" role="toolbar" aria-label="Tools">
+        {#each TOOLS as t (t.id)}
+          <button
+            class:active={tool === t.id}
+            aria-pressed={tool === t.id}
+            title="{t.tip} ({t.key.toUpperCase()})"
+            onclick={() => {
+              tool = t.id;
+              placing = null;
+              wiringFrom = null;
+            }}><span class="tool-icon" aria-hidden="true">{t.icon}</span><span class="tool-label">{t.label}</span></button
+          >
+        {/each}
+      </div>
+      {#if placing || wiringFrom || tool !== "select"}
         <div class="hint" role="status">
           {#if placing}
             Tap the grid to place <strong>{placing.replace(/-/g, " ")}</strong>
+          {:else if wiringFrom}
+            Tap another port: a wire is laid on the grid
+          {:else if tool === "bridge"}
+            Tap a wire tile to make it a crossing
+          {:else if tool === "erase"}
+            Drag over tiles to erase · two fingers pan
           {:else}
-            Tap another port to connect, or drag between ports
+            Drag to draw {tool} tiles · two fingers pan
           {/if}
           <button
             onclick={() => {
               placing = null;
               wiringFrom = null;
-            }}>Cancel</button
+              tool = "select";
+            }}>{placing || wiringFrom ? "Cancel" : "Done"}</button
           >
         </div>
       {/if}
@@ -377,13 +414,24 @@
 {#snippet help()}
   <div class="help">
     <h2>{store.circuit.name}</h2>
-    <p class="muted small">{store.circuit.parts.length} parts · {store.circuit.wires.length} connections</p>
+    <p class="muted small">
+      {store.circuit.parts.length} parts · {Object.keys(store.circuit.cells).length} wire tiles · {store.circuit.wires.length} paths and sensor links
+    </p>
     <ul class="small">
       <li><strong>Add:</strong> pick a part, then tap the grid.</li>
-      <li><strong>Wire:</strong> tap a port, then another port (or drag between them). Round ports are signals, square ports are paths, diamonds link a Capacity Sensor to a storage.</li>
+      <li>
+        <strong>Wire:</strong> logic runs on buried wire tiles, as in the game. Tap a logic port, then another, and a wire is laid on the grid for you
+        (crossing other wires with a bridge if it must). Or draw tiles yourself with the Wire tool. Tiles only join where drawn, so wires can run side
+        by side.
+      </li>
+      <li>
+        <strong>Ribbon:</strong> one tile carrying four signals (bits 0–3). A plain wire joining a ribbon uses bit 0; Ribbon Writers and Readers use bits
+        1–3; a Four Pixel Display shows all four.
+      </li>
+      <li><strong>Paths:</strong> square ports carry items; tap an exit then an entrance. Diamonds link a Capacity Sensor to a storage.</li>
       <li><strong>Move:</strong> drag a part. <strong>Pan:</strong> drag the grid. <strong>Zoom:</strong> wheel or pinch.</li>
       <li><strong>Run:</strong> ▶ plays; tap levers, buttons and blockers to toggle them. Select a part to see its inputs, outputs and why it's on or off.</li>
-      <li>Keys: R rotate, Delete remove, Ctrl+Z / Ctrl+Y undo/redo, Space play/pause, Esc cancel.</li>
+      <li>Keys: V select, W wire, G ribbon, B bridge, X erase, R rotate, Delete remove, Ctrl+Z / Ctrl+Y undo/redo, Space play/pause, Esc cancel.</li>
     </ul>
     <label>
       Spark walking speed <span class="muted">(tiles/s)</span>
