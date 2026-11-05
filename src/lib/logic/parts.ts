@@ -882,12 +882,15 @@ type MachineCfg = {
   makeItem: string;
   makeAmount: number;
   seconds: number;
+  /** Items each output slot holds; 0 means one stack of that product. */
+  slot: number;
 };
 type MachineState = {
   buf: Record<string, number>;
   /** Seconds of work done on the current craft, or -1 when idle. */
   work: number;
-  out: Token[];
+  /** Output slots: finished products waiting to be taken, by item. */
+  out: Record<string, number>;
   made: number;
   on: boolean;
   why: string;
@@ -898,6 +901,15 @@ export interface MachineRecipe {
   to: { material: string; amount: number }[];
   seconds: number;
 }
+
+/** Stack size used when the wiki has none for an item. */
+export const DEFAULT_STACK = 20;
+
+/** One stack of an item, per the game data (wiki, with overrides). */
+export const stackSize = (item: string) => GAME.materials.get(item)?.stack ?? DEFAULT_STACK;
+
+/** How many of an item a machine's output slot holds. */
+export const slotSize = (cfg: { slot: number }, item: string) => (cfg.slot > 0 ? cfg.slot : stackSize(item));
 
 /** The recipe a machine runs: a game recipe, or the custom consume/produce settings. */
 export function machineRecipe(cfg: MachineCfg): MachineRecipe {
@@ -920,7 +932,7 @@ const machine: PartType<MachineCfg, MachineState> = {
   id: "machine",
   name: "Machine",
   category: "Storage & machines",
-  blurb: "Any workstation: crafts while its enable signal is on.",
+  blurb: "Any workstation: crafts while its enable signal is on, until its output slot is full.",
   w: 2,
   h: 2,
   ports: [itemIn("in", "l", 0.5), itemOut("out", "r", 0.5), logicIn("en", "t", 0.5, "enable")],
@@ -933,9 +945,18 @@ const machine: PartType<MachineCfg, MachineState> = {
     { key: "makeItem", label: "Makes", type: "item", allowEmpty: true, emptyLabel: "Nothing" },
     { key: "makeAmount", label: "Makes per craft", type: "number", min: 0, max: 100, step: 1 },
     seconds("seconds", "Seconds per craft", 0.1, 600),
+    {
+      key: "slot",
+      label: "Output slot holds",
+      type: "number",
+      min: 0,
+      max: 999,
+      step: 1,
+      help: "0 = one stack of the product, from the wiki (Quartz 20). The machine stops when the slot is full and nothing takes the items.",
+    },
   ],
-  defaults: () => ({ label: "", recipe: "", speed: 3, useItem: "", useAmount: 1, makeItem: "", makeAmount: 0, seconds: 2 }),
-  init: () => ({ buf: {}, work: -1, out: [], made: 0, on: false, why: "" }),
+  defaults: () => ({ label: "", recipe: "", speed: 3, useItem: "", useAmount: 1, makeItem: "", makeAmount: 0, seconds: 2, slot: 0 }),
+  init: () => ({ buf: {}, work: -1, out: {}, made: 0, on: false, why: "" }),
   accept: (ctx, _p, t) => {
     const r = machineRecipe(ctx.cfg);
     const need = r.from.find((f) => f.material === t.item || f.material === "");
@@ -949,16 +970,23 @@ const machine: PartType<MachineCfg, MachineState> = {
   step: (ctx) => {
     const { state: s, cfg } = ctx;
     const r = machineRecipe(cfg);
-    // Hand finished products to the exit path (discarded if nothing is linked).
-    while (s.out.length && (!ctx.wired("out") || ctx.emit("out", s.out[0]))) s.out.shift();
+    if (Array.isArray(s.out)) s.out = {}; // state from before output slots existed
+    // Sparks carry finished products off along the exit path, one at a time.
+    if (ctx.wired("out")) {
+      const item = Object.keys(s.out).find((k) => s.out[k] > 0);
+      if (item && ctx.emit("out", ctx.token(item, 1)) && !--s.out[item]) delete s.out[item];
+    }
     s.on = powered(ctx);
     if (!s.on) {
       s.why = "Disabled: no enable signal.";
       return;
     }
     if (s.work < 0) {
-      if (s.out.length) {
-        s.why = "Waiting: exit path is full.";
+      // Like the game: a craft only starts if its products will fit in the output slots.
+      const full = r.to.find((t) => (s.out[t.material] ?? 0) + t.amount > slotSize(cfg, t.material));
+      if (full) {
+        const n = s.out[full.material] ?? 0;
+        s.why = `Waiting: output slot full (${n}/${slotSize(cfg, full.material)} ${itemName(full.material)}).`;
         return;
       }
       const missing = r.from.find((f) => (s.buf[f.material || "*"] ?? 0) < f.amount);
@@ -978,9 +1006,10 @@ const machine: PartType<MachineCfg, MachineState> = {
     if (s.work >= r.seconds - 1e-9) {
       s.work = -1;
       s.made++;
-      for (const t of r.to) s.out.push(ctx.token(t.material, t.amount));
+      for (const t of r.to) s.out[t.material] = (s.out[t.material] ?? 0) + t.amount;
     }
   },
+  action: { label: "Take output", run: (_cfg, s) => void (s.out = {}) },
   status: (cfg, s) => {
     const r = machineRecipe(cfg);
     return { active: s.on && s.work >= 0, fill: s.work >= 0 ? s.work / r.seconds : 0, badge: String(s.made), warn: s.on && s.why.startsWith("Waiting") };
@@ -991,10 +1020,13 @@ const machine: PartType<MachineCfg, MachineState> = {
     const stock = Object.entries(s.buf)
       .filter(([, n]) => n > 0)
       .map(([k, n]) => `${k === "*" ? "items" : itemName(k)} × ${n}`);
+    const out = Array.isArray(s.out) ? {} : s.out;
+    const slots = r.to.map((t) => `${itemName(t.material)} ${out[t.material] ?? 0}/${slotSize(cfg, t.material)}`);
     return [
       s.why || "Idle.",
       `Uses ${fmt(r.from)} → makes ${fmt(r.to)} every ${+r.seconds.toFixed(2)} s.`,
       stock.length ? `Has ${stock.join(", ")}.` : "Input buffer empty.",
+      slots.length ? `Output slot: ${slots.join(", ")}.` : "Makes nothing (a consumer).",
       `${s.made} craft(s) done.`,
     ];
   },

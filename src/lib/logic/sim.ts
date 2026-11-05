@@ -346,6 +346,14 @@ export class Sim {
     return true;
   }
 
+  /** Runs a part's inspector action (e.g. "Take output"). Returns true if it has one. */
+  act(partId: string): boolean {
+    const rp = this.rp(partId);
+    if (!rp?.type.action) return false;
+    rp.type.action.run(rp.part.cfg, rp.state);
+    return true;
+  }
+
   /** Items currently on paths. */
   tokenCount(): number {
     return this.paths.reduce((n, l) => n + l.tokens.length, 0);
