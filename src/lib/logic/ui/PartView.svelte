@@ -121,7 +121,7 @@
         {/if}
       {:else}
         <rect class="body" x=".06" y=".06" width={type.w - 0.12} height={type.h - 0.12} rx=".18" stroke-width={S} />
-        <Glyph type={part.type} w={type.w} h={type.h} {cfg} {status} compact={!!caption} />
+        <Glyph type={part.type} w={type.w} h={type.h} {cfg} {status} compact={!!caption} rot={part.rot} />
       {/if}
     </g>
 

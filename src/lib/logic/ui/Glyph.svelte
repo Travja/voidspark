@@ -11,11 +11,17 @@
     cfg,
     status,
     compact = false,
-  }: { type: string; w: number; h: number; cfg: Record<string, any>; status: PartStatus; compact?: boolean } = $props();
+    rot = 0,
+  }: { type: string; w: number; h: number; cfg: Record<string, any>; status: PartStatus; compact?: boolean; rot?: number } = $props();
 
   /** Unit-box glyphs: scaled to the smaller side, centred; a little smaller when a caption sits under them. */
-  const k = $derived(Math.min(w, h) * (compact ? 0.78 : 1));
-  const unit = $derived(`translate(${(w - k) / 2} ${(h - k) / 2 - (compact ? 0.08 * Math.min(w, h) : 0)}) scale(${k})`);
+  const small = $derived(compact && Math.min(w, h) < 2);
+  const k = $derived(Math.min(w, h) * (small ? 0.64 : compact ? 0.8 : 1));
+  // With a caption under it, a one-tile symbol moves up the screen, clear of the caption. This
+  // box is turned with the part, so "up the screen" depends on the rotation.
+  const up = $derived([[0, -1], [-1, 0], [0, 1], [1, 0]][rot % 4]);
+  const nudge = $derived(small ? 0.13 : 0);
+  const unit = $derived(`translate(${(w - k) / 2 + up[0] * nudge} ${(h - k) / 2 + up[1] * nudge}) scale(${k})`);
   const S = $derived(0.06 / Math.max(1, k));
   const on = $derived(!!status.active);
 </script>
