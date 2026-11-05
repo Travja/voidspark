@@ -203,3 +203,22 @@ describe("ribbon bus example", () => {
     expect(sim.state(lamp).on).toBe(false);
   });
 });
+
+describe("port wiring status", () => {
+  it("reports logic ports as wired when a tile is in front of them, bridge ends included", () => {
+    const b = new CircuitBuilder("t");
+    const l = b.add("lever", 0, 2, { on: true });
+    const p = b.add("pixel", 8, 2);
+    const loose = b.add("not", 0, 6);
+    stroke(b.c, "w", 1, 2, 7, 2);
+    stroke(b.c, "w", 4, -1, 4, 5);
+    expect(bridgeCrossing(b.c, cellKey(4, 2))).toBeNull();
+    const bridge = b.c.parts.find((x) => x.type === "wire-bridge")!.id;
+    const sim = settle(b.c);
+    expect(sim.portWired(l, "out")).toBe(true);
+    expect(sim.portWired(bridge, "a")).toBe(true);
+    expect(sim.portWired(bridge, "b")).toBe(true);
+    expect(sim.portWired(loose, "in")).toBe(false);
+    expect(sim.state(p).on).toBe(true);
+  });
+});

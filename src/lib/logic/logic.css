@@ -961,6 +961,23 @@ svg.canvas.placing {
   }
 }
 
+@media (max-width: 899px) {
+  .tools {
+    left: 6px;
+    padding: 3px;
+    gap: 2px;
+  }
+
+  .tools button {
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .tool-label {
+    display: none;
+  }
+}
+
 @media (max-width: 420px) {
   .share-btn {
     display: none;

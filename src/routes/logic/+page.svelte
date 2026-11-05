@@ -327,6 +327,7 @@
           <button
             class:active={tool === t.id}
             aria-pressed={tool === t.id}
+            aria-label={t.label}
             title="{t.tip} ({t.key.toUpperCase()})"
             onclick={() => {
               tool = t.id;

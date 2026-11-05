@@ -59,9 +59,13 @@
     return {
       lines: sim.describe(part.id),
       ports: type.ports.map((p) => {
-        const wired = store.circuit.wires.some(
-          (w) => (w.from.part === part.id && w.from.port === p.id) || (w.to.part === part.id && w.to.port === p.id),
-        );
+        // Logic ports connect through the wire tile they face; paths and sensor links are wires.
+        const wired =
+          p.kind === "logic"
+            ? sim.portWired(part.id, p.id)
+            : store.circuit.wires.some(
+                (w) => (w.from.part === part.id && w.from.port === p.id) || (w.to.part === part.id && w.to.port === p.id),
+              );
         return { ...p, wired, on: p.kind === "logic" ? sim.port(part.id, p.id) : false };
       }),
     };

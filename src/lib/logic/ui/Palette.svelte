@@ -26,7 +26,7 @@
           {:else}
             <span class="palette-glyph" aria-hidden="true">{GLYPH[t.id] ?? "□"}</span>
           {/if}
-          <span>{t.name.replace(" Gate", "").replace("Wireless Signal ", "Wireless ")}</span>
+          <span>{t.name.replace("Wireless Signal ", "Wireless ")}</span>
         </button>
       {/each}
     </div>
