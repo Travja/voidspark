@@ -91,6 +91,10 @@ function distribution(): Circuit {
     b.wire(ex, "out", dest, "in");
     const machine = b.add("machine", 26, y + 3, { label: line.station, recipe: line.recipe, speed: 3 });
     b.wire(dest, "out", machine, "in");
+    // Products go to a crate; with nowhere to go, the machine would stop once its output slot
+    // held a full stack.
+    const product = b.add("storage", 30, y + 3, { label: `${line.station} output`, capacity: 400, rate: 0 });
+    b.wire(machine, "out", product, "in");
 
     // Refill band: Set when ≤ 25 %, Reset when ≥ 90 %. The latch holds the request in between.
     // Sensors face down (eyes on the storage), outputs up into the latch's inputs.

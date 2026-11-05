@@ -59,6 +59,14 @@ const CRAFT_CAP = {
   "Miasma Collector": [7.5, "Miasma arrives at 15/min and a craft uses 2 (wiki: capped to 8 s)"],
 };
 
+/**
+ * Stack sizes the wiki gets wrong for the current game, by item name: [size, why]. The logic
+ * sandbox limits a machine's output slot to one stack, so these matter.
+ */
+const STACK_SIZE_OVERRIDES = {
+  Quartz: [40, "a player reports 40 in the current game; the wiki's infobox says 20"],
+};
+
 /** Default recipe per item when the automatic choice isn't what players usually want. */
 const DEFAULT_RECIPE_OVERRIDES = {
   "tree-bark": ["bark", "Sawbench bark from logs (PirateSpark's default)"],
@@ -480,11 +488,17 @@ async function main() {
     if (siteResource) {
       report.decisions.push(`**${name}** comes from **${siteResource.site}** sites at ${siteResource.perMinute}/min each: ${siteResource.why}.`);
     }
+    const wikiStack = page ? num(field(page.text, "stacksize")) : null;
+    const stackOverride = STACK_SIZE_OVERRIDES[name];
+    if (stackOverride) report.decisions.push(`Stack size for **${name}**: ${stackOverride[0]} (${stackOverride[1]}).`);
+    else if (page && !wikiStack) report.missing.push(`No stack size on the wiki for **${name}**`);
+    const stack = stackOverride?.[0] ?? wikiStack;
     materials.push({
       id,
       name,
       category,
       craftable: false,
+      ...(stack ? { stack } : {}),
       ...(siteResource ? { siteResource: { site: siteResource.site, perMinute: siteResource.perMinute } } : {}),
       image: page ? field(page.text, "image") : null,
       page: page?.title,

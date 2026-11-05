@@ -166,6 +166,8 @@ export interface PartType<C extends Config = Config, S = any> {
   step?(ctx: StepCtx<C, S>): void;
   /** Offered a token arriving on an item input. Return true to take it. */
   accept?(ctx: StepCtx<C, S>, port: string, token: Token): boolean;
+  /** A one-off action offered in the inspector (e.g. a player emptying a machine's output). */
+  action?: { label: string; run(cfg: C, state: S): void };
   /** Tapped while the simulation runs (levers, buttons, blockers). */
   tap?(cfg: C, state: S): void;
   /** Whether tapping does something right now (so taps don't toggle a lever while editing). */

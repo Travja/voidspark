@@ -230,6 +230,13 @@ part's item input. Items move along it as tokens at a set walking speed (default
   data and it takes that recipe's inputs, outputs and duration. Or leave it as a pure consumer, for
   example "uses 1 item every 2 s", to stand in for a station using up a resource. *Assumption:* the
   recipe time is per craft at 1× crew speed. A speed multiplier setting is available.
+- **Output slot (sandbox):** each product has an output slot that holds one stack. The stack
+  size comes from the item's wiki infobox (`stacksize`). The importer's `STACK_SIZE_OVERRIDES`
+  covers items where the game differs: Quartz is 40 in the game, though the wiki says 20. Items
+  with no wiki stack size use 20. A craft starts only if its products will fit. With no exit path
+  and nothing taking the products, the machine stops when the slot is full, and **Take output** in
+  the inspector empties it, as a player would. With a path, sparks carry products away one at a
+  time. Each machine can override the slot size ("Output slot holds").
 
 ## Sandbox-only helpers
 
@@ -263,7 +270,8 @@ part's item input. Items move along it as tokens at a set walking speed (default
     a single item type (sandbox extra).
 11. Items walk at 2 tiles/s by default, and a path holds about 2 items per tile.
 12. Machines run while their enable input is on, or always if unwired. Recipe time is at 1× crew
-    speed.
+    speed. A machine's output slot holds one stack (wiki stack size, with overrides such as Quartz
+    40; 20 when unknown).
 13. A Wire Bridge's ends plug into the tiles beyond them, and its gap can hold exactly one other
     wire.
 14. Not modelled: Motion Sensor, Spark Filter, One Way, Crossing, Signpost, Cannon, Train Stop.

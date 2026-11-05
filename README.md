@@ -43,7 +43,8 @@ greenhouses, the Arboretum, and the metal sparks. It started from the PirateSpar
   and Counter gates; Set-Reset Latch and Data Flip-Flop; wireless senders and receivers (the
   channel is an item, as in the game); pixel displays; path add-ons (Item and Amount Filters,
   Blocker, Spark Gate, Splitter, Wait Gate, Counter); storage, an extractor and generic machines
-  that can run any game recipe. Logic runs on **wire tiles on the grid**, as in the game. Tiles join
+  that can run any game recipe (a machine's output slot holds one stack, using wiki stack sizes,
+  and it stops when the slot is full). Logic runs on **wire tiles on the grid**, as in the game. Tiles join
   only where drawn, so wires can run side by side. Three-tile **Wire Bridges** carry a wire over
   another, and **ribbons** carry four signals (bits 0–3) on one tile, used with Ribbon Writers and
   Readers and the Four Pixel Display. Parts take the same number of tiles as their wiki footprints.

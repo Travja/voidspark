@@ -1,5 +1,5 @@
 {
-  "version": "wiki 2026-11-04",
+  "version": "wiki 2026-11-05",
   "source": "https://oddsparks.wiki.gg (CC BY-SA)",
   "spark": [
     {
@@ -3069,6 +3069,7 @@
       "name": "Aether Apple",
       "category": "magic-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "aether-tree"
     },
     {
@@ -3076,6 +3077,7 @@
       "name": "Aether Crystal",
       "category": "magic-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "aether-seed-crystallization"
     },
     {
@@ -3083,6 +3085,7 @@
       "name": "Aether Flower",
       "category": "magic-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "aetheric-flower"
     },
     {
@@ -3097,6 +3100,7 @@
       "name": "Aether Seed",
       "category": "magic-items",
       "craftable": true,
+      "stack": 40,
       "defaultRecipe": "extract-aether-flower"
     },
     {
@@ -3104,6 +3108,7 @@
       "name": "Aether Segment",
       "category": "magic-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "extract-aether-apple"
     },
     {
@@ -3111,6 +3116,7 @@
       "name": "Aether Shard",
       "category": "magic-items",
       "craftable": true,
+      "stack": 40,
       "defaultRecipe": null
     },
     {
@@ -3118,6 +3124,7 @@
       "name": "Aetheric Clump",
       "category": "magic-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "aether-pellet-fusion"
     },
     {
@@ -3125,6 +3132,7 @@
       "name": "Aetheric Pellet",
       "category": "magic-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "clump-dividing"
     },
     {
@@ -3139,6 +3147,7 @@
       "name": "Beelephant Carapace",
       "category": "woodland-items",
       "craftable": false,
+      "stack": 20,
       "defaultRecipe": null
     },
     {
@@ -3146,6 +3155,7 @@
       "name": "Big Vial",
       "category": "mountain-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "big-vial"
     },
     {
@@ -3153,6 +3163,7 @@
       "name": "Black Paint",
       "category": "mountain-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "black-paint"
     },
     {
@@ -3160,6 +3171,7 @@
       "name": "Blue Paint",
       "category": "mountain-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "blue-paint"
     },
     {
@@ -3174,6 +3186,7 @@
       "name": "Bumpy Geode",
       "category": "mountain-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": null
     },
     {
@@ -3202,6 +3215,7 @@
       "name": "Cleansing Fragment",
       "category": "magic-items",
       "craftable": true,
+      "stack": 40,
       "defaultRecipe": "corrupted-aether-purification"
     },
     {
@@ -3209,6 +3223,7 @@
       "name": "Coal",
       "category": "woodland-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "coal"
     },
     {
@@ -3216,6 +3231,7 @@
       "name": "Copper Cutting",
       "category": "metal-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "copper-bamboo"
     },
     {
@@ -3223,6 +3239,7 @@
       "name": "Copper Ingot",
       "category": "metal-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "copper-ore-smelting"
     },
     {
@@ -3230,6 +3247,7 @@
       "name": "Copper Ore",
       "category": "metal-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "copper-ore-harvesting"
     },
     {
@@ -3237,6 +3255,7 @@
       "name": "Copper Sap",
       "category": "metal-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "extract-copper-cuttings"
     },
     {
@@ -3244,6 +3263,7 @@
       "name": "Copper Seed",
       "category": "metal-items",
       "craftable": true,
+      "stack": 40,
       "defaultRecipe": "copper-seed-germination"
     },
     {
@@ -3251,6 +3271,7 @@
       "name": "Coral",
       "category": "mountain-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "coral"
     },
     {
@@ -3258,6 +3279,7 @@
       "name": "Coral Seed",
       "category": "mountain-items",
       "craftable": true,
+      "stack": 40,
       "defaultRecipe": "coral-seed-germination"
     },
     {
@@ -3265,6 +3287,7 @@
       "name": "Corrupted Aether",
       "category": "magic-items",
       "craftable": false,
+      "stack": 10,
       "defaultRecipe": null
     },
     {
@@ -3272,6 +3295,7 @@
       "name": "Corrupted Spark Token",
       "category": "magic-items",
       "craftable": false,
+      "stack": 20,
       "defaultRecipe": null
     },
     {
@@ -3279,6 +3303,7 @@
       "name": "Cracked Geode",
       "category": "mountain-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": null
     },
     {
@@ -3314,6 +3339,7 @@
       "name": "Dowsing Stone",
       "category": "mountain-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "dowsing-stone"
     },
     {
@@ -3321,6 +3347,7 @@
       "name": "Drill Bit",
       "category": "metal-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "drill-bit"
     },
     {
@@ -3335,6 +3362,7 @@
       "name": "Explosives",
       "category": "mountain-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "explosives"
     },
     {
@@ -3342,6 +3370,7 @@
       "name": "Fabric",
       "category": "woodland-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "fabric"
     },
     {
@@ -3349,6 +3378,7 @@
       "name": "Fertiliser",
       "category": "woodland-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "fertiliser"
     },
     {
@@ -3356,6 +3386,7 @@
       "name": "Fireshroom Cluster",
       "category": "mountain-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "fireshroom-colony"
     },
     {
@@ -3363,6 +3394,7 @@
       "name": "Fluted Coral",
       "category": "mountain-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": null
     },
     {
@@ -3377,6 +3409,7 @@
       "name": "Frowl Sac",
       "category": "mountain-items",
       "craftable": false,
+      "stack": 20,
       "defaultRecipe": null
     },
     {
@@ -3384,6 +3417,7 @@
       "name": "Frozen Log",
       "category": "plateau-items",
       "craftable": false,
+      "stack": 20,
       "defaultRecipe": null
     },
     {
@@ -3391,6 +3425,7 @@
       "name": "Frozen Stone",
       "category": "plateau-items",
       "craftable": false,
+      "stack": 20,
       "defaultRecipe": null
     },
     {
@@ -3398,6 +3433,7 @@
       "name": "Geode Cluster",
       "category": "mountain-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "geode-reef"
     },
     {
@@ -3405,6 +3441,7 @@
       "name": "Glowshroom",
       "category": "mountain-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "break-bumpy-geode"
     },
     {
@@ -3412,6 +3449,7 @@
       "name": "Green Paint",
       "category": "mountain-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "green-paint"
     },
     {
@@ -3419,6 +3457,7 @@
       "name": "Grey Aether",
       "category": "magic-items",
       "craftable": true,
+      "stack": 10,
       "defaultRecipe": null
     },
     {
@@ -3440,6 +3479,7 @@
       "name": "Ladder",
       "category": "woodland-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "ladder"
     },
     {
@@ -3447,6 +3487,7 @@
       "name": "Lava Cap",
       "category": "mountain-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "extract-fireshroom-cluster"
     },
     {
@@ -3454,6 +3495,7 @@
       "name": "Leaf Knot",
       "category": "woodland-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "leafy-growth"
     },
     {
@@ -3461,6 +3503,7 @@
       "name": "Leaves",
       "category": "woodland-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "leaves-harvesting"
     },
     {
@@ -3468,6 +3511,7 @@
       "name": "Limestone",
       "category": "mountain-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "limestone-harvesting"
     },
     {
@@ -3475,6 +3519,7 @@
       "name": "Liquid Fertiliser",
       "category": "woodland-items",
       "craftable": true,
+      "stack": 10,
       "defaultRecipe": "liquid-fertiliser"
     },
     {
@@ -3507,6 +3552,7 @@
       "name": "Miasma Vial",
       "category": "magic-items",
       "craftable": true,
+      "stack": 10,
       "defaultRecipe": "miasma-vial"
     },
     {
@@ -3514,6 +3560,7 @@
       "name": "Orange Paint",
       "category": "mountain-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "orange-paint"
     },
     {
@@ -3521,6 +3568,7 @@
       "name": "Path Tile",
       "category": "mountain-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "path-tile"
     },
     {
@@ -3528,6 +3576,7 @@
       "name": "Pebble",
       "category": "mountain-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "pebble"
     },
     {
@@ -3549,6 +3598,7 @@
       "name": "Purple Paint",
       "category": "mountain-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "purple-paint"
     },
     {
@@ -3556,6 +3606,7 @@
       "name": "Quartz",
       "category": "mountain-items",
       "craftable": true,
+      "stack": 40,
       "defaultRecipe": "quartz-harvesting"
     },
     {
@@ -3563,6 +3614,7 @@
       "name": "Raw Aether",
       "category": "magic-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "miasma-transmutation"
     },
     {
@@ -3570,6 +3622,7 @@
       "name": "Red Paint",
       "category": "woodland-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "red-paint"
     },
     {
@@ -3577,6 +3630,7 @@
       "name": "Refined Aether",
       "category": "magic-items",
       "craftable": true,
+      "stack": 10,
       "defaultRecipe": "aether-refinement"
     },
     {
@@ -3598,6 +3652,7 @@
       "name": "Rope",
       "category": "woodland-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "rope"
     },
     {
@@ -3605,6 +3660,7 @@
       "name": "Sawn Timber",
       "category": "woodland-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "sawn-timber"
     },
     {
@@ -3626,6 +3682,7 @@
       "name": "Shiny Geode",
       "category": "mountain-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": null
     },
     {
@@ -3640,6 +3697,7 @@
       "name": "Small Vial",
       "category": "mountain-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "small-vial"
     },
     {
@@ -3647,6 +3705,7 @@
       "name": "Sponge",
       "category": "woodland-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "sponge"
     },
     {
@@ -3661,6 +3720,7 @@
       "name": "Stellar Fertiliser",
       "category": "plateau-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "stellar-fertiliser"
     },
     {
@@ -3668,6 +3728,7 @@
       "name": "Stellar Ice",
       "category": "plateau-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "frozen-log-cutting"
     },
     {
@@ -3675,6 +3736,7 @@
       "name": "Stellar Leaves",
       "category": "plateau-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "stellar-cactus"
     },
     {
@@ -3682,6 +3744,7 @@
       "name": "Stellar Seed",
       "category": "plateau-items",
       "craftable": true,
+      "stack": 40,
       "defaultRecipe": "extract-stellar-ice"
     },
     {
@@ -3689,6 +3752,7 @@
       "name": "Stone",
       "category": "mountain-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "stone-harvesting"
     },
     {
@@ -3696,6 +3760,7 @@
       "name": "Stone Block",
       "category": "mountain-items",
       "craftable": true,
+      "stack": 10,
       "defaultRecipe": "stone-block"
     },
     {
@@ -3703,6 +3768,7 @@
       "name": "Stone Plate",
       "category": "mountain-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "stone-plate"
     },
     {
@@ -3710,6 +3776,7 @@
       "name": "Stone Spike",
       "category": "mountain-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "stone-spike"
     },
     {
@@ -3717,6 +3784,7 @@
       "name": "Stone Wheel",
       "category": "mountain-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "stone-wheel"
     },
     {
@@ -3731,6 +3799,7 @@
       "name": "Tree Bark",
       "category": "woodland-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "bark"
     },
     {
@@ -3738,6 +3807,7 @@
       "name": "Turpentine",
       "category": "woodland-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "turpentine"
     },
     {
@@ -3745,6 +3815,7 @@
       "name": "Volcanic Soil",
       "category": "mountain-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": null
     },
     {
@@ -3752,6 +3823,7 @@
       "name": "White Paint",
       "category": "mountain-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "white-paint"
     },
     {
@@ -3759,6 +3831,7 @@
       "name": "Wooden Blade",
       "category": "woodland-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "wooden-blade"
     },
     {
@@ -3766,6 +3839,7 @@
       "name": "Wooden Log",
       "category": "woodland-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "log-harvesting"
     },
     {
@@ -3773,6 +3847,7 @@
       "name": "Wooden Panel",
       "category": "woodland-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "wooden-panel"
     },
     {
@@ -3780,6 +3855,7 @@
       "name": "Yellow Paint",
       "category": "woodland-items",
       "craftable": true,
+      "stack": 20,
       "defaultRecipe": "yellow-paint"
     }
   ],
