@@ -3606,7 +3606,7 @@
       "name": "Quartz",
       "category": "mountain-items",
       "craftable": true,
-      "stack": 40,
+      "stack": 20,
       "defaultRecipe": "quartz-harvesting"
     },
     {

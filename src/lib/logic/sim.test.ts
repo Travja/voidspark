@@ -676,17 +676,17 @@ describe("machine output slot", () => {
     return { sim: new Sim(c.c), m, out };
   }
 
-  it("uses the item's stack size from the game data (Quartz: 40)", () => {
-    expect(stackSize("quartz")).toBe(40);
+  it("uses the item's stack size from the game data (Quartz: 20)", () => {
+    expect(stackSize("quartz")).toBe(20);
     expect(stackSize("limestone")).toBe(20);
   });
 
   it("stops when its output slot holds a full stack and nothing takes it", () => {
     const { sim, m } = furnace();
     sim.run(120);
-    expect(sim.state(m).out).toEqual({ quartz: 40 });
-    expect(sim.state(m).made).toBe(40);
-    expect(sim.describe(m)[0]).toMatch(/output slot full \(40\/40 Quartz\)/);
+    expect(sim.state(m).out).toEqual({ quartz: 20 });
+    expect(sim.state(m).made).toBe(20);
+    expect(sim.describe(m)[0]).toMatch(/output slot full \(20\/20 Quartz\)/);
     expect(sim.status(m).warn).toBe(true);
   });
 
@@ -695,7 +695,7 @@ describe("machine output slot", () => {
     sim.run(120);
     expect(sim.act(m)).toBe(true);
     sim.run(10.5);
-    expect(sim.state(m).made).toBeGreaterThanOrEqual(49);
+    expect(sim.state(m).made).toBeGreaterThanOrEqual(29);
   });
 
   it("keeps going while a path carries the products away", () => {

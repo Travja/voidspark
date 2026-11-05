@@ -63,9 +63,7 @@ const CRAFT_CAP = {
  * Stack sizes the wiki gets wrong for the current game, by item name: [size, why]. The logic
  * sandbox limits a machine's output slot to one stack, so these matter.
  */
-const STACK_SIZE_OVERRIDES = {
-  Quartz: [40, "a player reports 40 in the current game; the wiki's infobox says 20"],
-};
+const STACK_SIZE_OVERRIDES = {};
 
 /** Default recipe per item when the automatic choice isn't what players usually want. */
 const DEFAULT_RECIPE_OVERRIDES = {

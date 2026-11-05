@@ -952,7 +952,7 @@ const machine: PartType<MachineCfg, MachineState> = {
       min: 0,
       max: 999,
       step: 1,
-      help: "0 = one stack of the product, from the wiki (Quartz 40). The machine stops when the slot is full and nothing takes the items.",
+      help: "0 = one stack of the product, from the wiki (Quartz 20). The machine stops when the slot is full and nothing takes the items.",
     },
   ],
   defaults: () => ({ label: "", recipe: "", speed: 3, useItem: "", useAmount: 1, makeItem: "", makeAmount: 0, seconds: 2, slot: 0 }),
