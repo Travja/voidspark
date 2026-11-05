@@ -152,6 +152,11 @@
           {part.type === "button" ? "Press" : "Toggle"}
         </button>
       {/if}
+      {#if type.action}
+        <button class="primary" onclick={() => sim.act(part.id)} disabled={!running} title={running ? "" : "Start the simulation first"}>
+          {type.action.label}
+        </button>
+      {/if}
       <button onclick={onrotate}>⟳ Rotate</button>
       <button onclick={onduplicate}>⧉ Copy</button>
       <button class="danger" onclick={ondelete}>🗑 Delete</button>

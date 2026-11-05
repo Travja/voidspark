@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { decodeCircuit, encodeCircuit, planWire, validateCircuit } from "./circuit";
 import { CircuitBuilder, EXAMPLES } from "./examples";
-import { PART_TYPES, TICK } from "./parts";
+import { PART_TYPES, stackSize, TICK } from "./parts";
 import { Sim } from "./sim";
 
 /** Levers a/b → gate → lamp. Returns the lamp's value once settled. */
@@ -658,5 +658,56 @@ describe("circuits and share links", () => {
     b.wire(src, "out", st, "in");
     expect("error" in planWire(b.c, { part: src, port: "out" }, { part: st, port: "in" })).toBe(true);
     expect("wire" in planWire(b.c, { part: st, port: "sense" }, { part: s, port: "eye" })).toBe(true);
+  });
+});
+
+describe("machine output slot", () => {
+  /** Furnace making Quartz from plenty of Limestone, output not connected. */
+  function furnace(cfg: Record<string, unknown> = {}, linked = false) {
+    const c = new CircuitBuilder("t");
+    const st = c.add("storage", 0, 0, { capacity: 9999, stock: [["limestone", 9999]], rate: 10 });
+    const m = c.add("machine", 3, 0, { recipe: "quartz", speed: 8, ...cfg }); // 8 s / 8 = 1 s per Quartz
+    c.wire(st, "out", m, "in");
+    let out: string | undefined;
+    if (linked) {
+      out = c.add("storage", 7, 0, { capacity: 9999, rate: 0 });
+      c.wire(m, "out", out, "in");
+    }
+    return { sim: new Sim(c.c), m, out };
+  }
+
+  it("uses the item's stack size from the game data (Quartz: 20)", () => {
+    expect(stackSize("quartz")).toBe(20);
+    expect(stackSize("limestone")).toBe(20);
+  });
+
+  it("stops when its output slot holds a full stack and nothing takes it", () => {
+    const { sim, m } = furnace();
+    sim.run(120);
+    expect(sim.state(m).out).toEqual({ quartz: 20 });
+    expect(sim.state(m).made).toBe(20);
+    expect(sim.describe(m)[0]).toMatch(/output slot full \(20\/20 Quartz\)/);
+    expect(sim.status(m).warn).toBe(true);
+  });
+
+  it("starts again once the output is taken", () => {
+    const { sim, m } = furnace();
+    sim.run(120);
+    expect(sim.act(m)).toBe(true);
+    sim.run(10.5);
+    expect(sim.state(m).made).toBeGreaterThanOrEqual(29);
+  });
+
+  it("keeps going while a path carries the products away", () => {
+    const { sim, m, out } = furnace({}, true);
+    sim.run(120);
+    expect(sim.state(m).made).toBeGreaterThan(100);
+    expect(sim.storage(out!)!.count("quartz")).toBeGreaterThan(100);
+  });
+
+  it("can be set to hold a different amount", () => {
+    const { sim, m } = furnace({ slot: 5 });
+    sim.run(60);
+    expect(sim.state(m).out).toEqual({ quartz: 5 });
   });
 });

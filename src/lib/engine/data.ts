@@ -39,6 +39,8 @@ export interface Material {
    * rather than crafted or carried in.
    */
   siteResource?: { site: string; perMinute: number };
+  /** Items per stack (wiki infobox, with importer overrides). */
+  stack?: number;
 }
 
 export interface Workstation {
