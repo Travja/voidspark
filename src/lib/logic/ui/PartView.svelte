@@ -138,6 +138,22 @@
           r=".15"
         />
       {/each}
+    {:else if part.type === "storage" && status.items?.length}
+      <!-- What it holds: the main item large, up to two more beside it. -->
+      {@const big = Math.min(size.w, size.h) * 0.42}
+      {@const small = big * 0.62}
+      {@const cx = size.w / 2}
+      {@const cy = size.h / 2 - 0.08}
+      {#each status.items as it, i (it)}
+        {@const url = iconUrl(it)}
+        {@const s = i ? small : big}
+        {@const x = i ? cx + big / 2 + (i - 1) * (small + 0.04) - 0.04 : cx - big / 2}
+        {@const y = i ? cy - big / 2 - small * 0.25 : cy - big / 2}
+        {#if url}
+          <circle class="icon-bg item-chip" cx={x + s / 2} cy={y + s / 2} r={s / 2 + 0.04} />
+          <image href={url} x={x} y={y} width={s} height={s}><title>{itemName(it)}</title></image>
+        {/if}
+      {/each}
     {:else if centerIcon || recipeIcon}
       <!-- The item it's set to (filter item, channel, product), small in a corner. -->
       {@const icon = (centerIcon ?? recipeIcon)!}

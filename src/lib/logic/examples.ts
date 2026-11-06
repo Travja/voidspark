@@ -1,5 +1,5 @@
 // Example circuits that ship with the sandbox. Built in code so they always match the registry.
-import { connectLogic, emptyCircuit, makePart, planWire, newId } from "./circuit";
+import { connectLogic, connectPath, emptyCircuit, makePart, onPath, planWire, newId } from "./circuit";
 import { cellLine, paint } from "./grid";
 import { PARTS } from "./parts";
 import type { Circuit, Config, Rot } from "./types";
@@ -15,9 +15,19 @@ export class CircuitBuilder {
     this.c.parts.push(p);
     return p.id;
   }
-  /** Connects two ports: logic by laying wire tiles on the grid, items and sensors by a link. */
+  /**
+   * Connects two ports: logic by laying wire tiles, items by laying path tiles (to a building's
+   * entrance or exit, or to a part on a path), sensors by a link.
+   */
   wire(a: string, ap: string, b: string, bp: string): this {
-    const kind = (id: string, port: string) => PARTS.get(this.c.parts.find((p) => p.id === id)?.type ?? "")?.ports.find((p) => p.id === port)?.kind;
+    const typeOf = (id: string) => this.c.parts.find((p) => p.id === id)?.type ?? "";
+    const kind = (id: string, port: string) => PARTS.get(typeOf(id))?.ports.find((p) => p.id === port)?.kind;
+    const pathEnd = (id: string, port: string) => kind(id, port) === "item" || (onPath(typeOf(id)) && kind(id, port) !== "logic");
+    if (pathEnd(a, ap) && pathEnd(b, bp)) {
+      const err = connectPath(this.c, { part: a, port: ap }, { part: b, port: bp });
+      if (err) throw new Error(`${typeOf(a)}.${ap} → ${typeOf(b)}.${bp}: ${err}`);
+      return this;
+    }
     if (kind(a, ap) === "logic") {
       const err = connectLogic(this.c, { part: a, port: ap }, { part: b, port: bp });
       if (err && err !== "Already connected.") throw new Error(`${this.c.parts.find((p) => p.id === a)?.type}.${ap} → ${this.c.parts.find((p) => p.id === b)?.type}.${bp}: ${err}`);
@@ -27,6 +37,17 @@ export class CircuitBuilder {
     if ("error" in plan) throw new Error(`${a}.${ap} → ${b}.${bp}: ${plan.error}`);
     this.c.wires.push({ id: newId("w"), ...plan.wire });
     return this;
+  }
+  /** Paints path tiles along a polyline (consecutive points joined). "s" Stone, "d" Dirt. */
+  path(kind: "s" | "d", ...pts: [number, number][]): this {
+    const tiles: [number, number][] = [];
+    for (let i = 1; i < pts.length; i++) tiles.push(...cellLine(pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1]).slice(i > 1 ? 1 : 0));
+    paint(this.c.paths, kind, tiles);
+    return this;
+  }
+  /** Puts `count` sparks on the path tile at (x, y), facing `rot` (0 right, 1 down, 2 left, 3 up). */
+  sparks(x: number, y: number, count: number, carry = 1, rot: Rot = 0): string {
+    return this.add("sparks", x, y, { count, carry }, rot);
   }
 }
 
@@ -45,75 +66,87 @@ export interface Example {
 }
 
 /**
- * The distribution center: a train unloads mixed items at a hub, item filters sort them into
- * per-item storage, and each destination workshop asks for more over wireless when it runs low.
- * Low/high capacity sensors and a Set-Reset Latch give each workshop a refill band, so the hub
- * sends a batch instead of trickling one item at a time.
+ * The distribution center. Sparks always take the right turn when they can, then straight on,
+ * then left, then back, so the layout does the sorting:
+ *
+ * - Hub: a loop runs east along the main row from the train. Each item has a branch on the right
+ *   (south) guarded by an Item Filter, so only sparks carrying that item turn in. They drop it in
+ *   the hub storage and the branch brings them back onto the main row further east; a One Way at
+ *   the branch's exit stops eastbound sparks turning into it. Anything left (pebbles, or items
+ *   whose storage is full) is dropped in a Compressor on the way back to the train.
+ * - Workshops: each hub storage's exit feeds a small loop to its workshop. A Spark Gate holds the
+ *   sparks until the workshop asks for more over wireless: its ≤ 25 % sensor sets a latch and
+ *   its ≥ 90 % sensor resets it, so it refills in batches.
  */
 function distribution(): Circuit {
   const b = new CircuitBuilder("Distribution center");
+  b.c.settings.walkSpeed = 3;
   const lines = [
     { item: "wooden-log", name: "Logs", recipe: "sawn-timber", station: "Sawbench" },
     { item: "stone", name: "Stone", recipe: "stone-plate", station: "Stonecutter" },
     { item: "limestone", name: "Limestone", recipe: "quartz", station: "Furnace" },
   ];
-  b.add("label", 0, -3, { text: "HUB: the train unloads here" });
-  b.add("label", 16, -3, { text: "WORKSHOPS (far away)" });
-  const train = b.add("source", 0, 4, { items: ["wooden-log", "stone", "limestone", "pebble"], rate: 2, stack: 1 });
-  const unload = b.add("lever", 0, 1, { on: true });
-  b.add("label", -1, 0, { text: "Train unloading" });
+  const SPACING = 14;
+  const first = 4;
+  const end = first + SPACING * (lines.length - 1) + 4;
+
+  // --- hub loop ---
+  b.add("label", 0, -7, { text: "HUB: sparks sort the train's cargo by turning right into filtered branches" });
+  const train = b.add("source", -1, 0, { items: ["wooden-log", "stone", "limestone", "pebble"], rate: 2, stack: 20 });
+  const unload = b.add("lever", -1, -3, { on: true }, 1);
+  b.add("label", -4, -4, { text: "Train unloading" });
   b.wire(unload, "out", train, "en");
+  // Main row east, up at the far end, back west along the top, and down to the train.
+  b.path("s", [0, 0], [end, 0], [end, -2], [0, -2], [0, 0]);
+  b.sparks(1, 0, 12, 0, 0);
+  // Anything still carried on the way back goes to the Recycler.
+  b.add("compressor", 20, -5, {}, 3);
+  b.add("label", 23, -4, { text: "Overflow → Compressor" });
 
-  let feed = { part: train, port: "out" };
   lines.forEach((line, i) => {
-    const y = i * 8;
-    const filter = b.add("item-filter", 3, y + 4, { item: line.item });
-    b.wire(feed.part, feed.port, filter, "in");
-    feed = { part: filter, port: "reject" };
-
-    // Hub storage for this item, with a "running out" lamp so you know to call the train.
-    const hub = b.add("storage", 6, y + 3, { label: `Hub ${line.name}`, capacity: 200, stock: [[line.item, 60]], rate: 2 });
-    b.wire(filter, "pass", hub, "in");
-    const hubLow = b.add("capacity-sensor", 6, y + 1, { mode: "percent", cmp: "le", value: 10 }, 3);
+    const bx = first + i * SPACING;
+    // Branch: filter, down to the drop-off, across, and back up through a One Way.
+    b.path("s", [bx, 0], [bx, 4], [bx + 1, 4], [bx + 1, 0]);
+    b.add("item-filter", bx, 1, { item: line.item });
+    b.add("one-way", bx + 1, 1, {}, 3);
+    // Hub storage turned so its entrance faces up (the branch) and its exit down (the workshop).
+    const hub = b.add("storage", bx, 5, { label: `Hub ${line.name}`, capacity: 200, stock: [[line.item, 60]] }, 1);
+    const hubLow = b.add("capacity-sensor", bx + 3, 5, { mode: "percent", cmp: "le", value: 10 });
     b.wire(hubLow, "eye", hub, "sense");
-    const lamp = b.add("pixel", 8, y + 1);
+    const lamp = b.add("pixel", bx + 5, 5);
     b.wire(hubLow, "out", lamp, "in");
-    b.add("label", 9, y + 1, { text: `Hub ${line.name.toLowerCase()} low` });
+    b.add("label", bx + 6, 5, { text: `Hub ${line.name.toLowerCase()} low` });
 
-    // Extraction: runs only while the destination's request arrives over wireless.
-    const rx = b.add("wireless-receiver", 9, y + 2, { channel: line.item }, 1);
-    const ex = b.add("extractor", 10, y + 4, { rate: 2 });
-    b.wire(hub, "out", ex, "in");
-    b.wire(rx, "out", ex, "en");
-
-    // Destination workshop: its own small storage feeding the machine.
-    const dest = b.add("storage", 22, y + 3, { label: `${line.station} ${line.name.toLowerCase()}`, capacity: 40, stock: [[line.item, 16]], rate: 2 });
-    b.wire(ex, "out", dest, "in");
-    const machine = b.add("machine", 26, y + 3, { label: line.station, recipe: line.recipe, speed: 3 });
-    b.wire(dest, "out", machine, "in");
-    // Products go to a Compressor (stand-in for wherever they're used next). With nowhere to
-    // go, the machine would stop once its output slot held a full stack.
-    const product = b.add("compressor", 30, y + 3);
-    b.wire(machine, "out", product, "in");
+    // --- workshop loop: down from the hub storage's exit, past the workshop, back up. ---
+    b.path("s", [bx, 7], [bx, 13], [bx - 1, 13], [bx - 1, 7], [bx, 7]);
+    b.sparks(bx - 1, 10, 2, 10, 3);
+    const gate = b.add("spark-gate", bx, 9, {}, 3);
+    const rx = b.add("wireless-receiver", bx - 2, 9, { channel: line.item });
+    b.wire(rx, "out", gate, "en");
+    const dest = b.add("storage", bx + 1, 11, { label: `${line.station} ${line.name.toLowerCase()}`, capacity: 40, stock: [[line.item, 16]] });
 
     // Refill band: Set when ≤ 25 %, Reset when ≥ 90 %. The latch holds the request in between.
-    // Sensors face down (eyes on the storage), outputs up into the latch's inputs.
-    const low = b.add("capacity-sensor", 16, y + 1, { mode: "percent", cmp: "le", value: 25 }, 3);
-    const high = b.add("capacity-sensor", 17, y + 1, { mode: "percent", cmp: "ge", value: 90 }, 3);
+    const low = b.add("capacity-sensor", bx + 1, 10, { mode: "percent", cmp: "le", value: 25 }, 3);
+    const high = b.add("capacity-sensor", bx + 2, 10, { mode: "percent", cmp: "ge", value: 90 }, 3);
     b.wire(low, "eye", dest, "sense");
     b.wire(high, "eye", dest, "sense");
-    const latch = b.add("sr-latch", 19, y - 1);
-    const tx = b.add("wireless-sender", 22, y - 1, { channel: line.item });
+    const latch = b.add("sr-latch", bx + 4, 8);
+    const tx = b.add("wireless-sender", bx + 7, 8, { channel: line.item });
     b.wire(latch, "q", tx, "in");
     b.wire(low, "out", latch, "s");
     b.wire(high, "out", latch, "r");
-    b.add("label", 23, y - 1, { text: `requests ${line.name.toLowerCase()}` });
+    b.add("label", bx + 8, 8, { text: `requests ${line.name.toLowerCase()}` });
+
+    // Workshop: a spark carries from the storage's exit to the machine, another carries the
+    // products to a Compressor (stand-in for wherever they're used next).
+    const machine = b.add("machine", bx + 5, 11, { label: line.station, recipe: line.recipe, speed: 3 });
+    b.path("s", [bx + 3, 12], [bx + 4, 12]);
+    b.sparks(bx + 3, 12, 1, 0, 0);
+    b.add("compressor", bx + 8, 11);
+    b.path("s", [bx + 7, 12], [bx + 7, 13]);
+    b.sparks(bx + 7, 13, 1, 0, 3);
+    void machine;
   });
-  // Anything that matched no filter, or whose hub storage was full, goes to the Recycler, so the
-  // train never backs up.
-  const overflow = b.add("compressor", 6, 3 * 8 + 3);
-  b.wire(feed.part, feed.port, overflow, "in");
-  b.add("label", 10, 3 * 8 + 4, { text: "Overflow → Compressor" });
   return b.c;
 }
 
@@ -167,20 +200,32 @@ function timerDemo(): Circuit {
   return b.c;
 }
 
+/**
+ * Sparks circle a loop clockwise. At the junction they'd turn right into the logs branch, but the
+ * Item Filter only lets sparks carrying logs in, so stone goes on round to the stone storage. A
+ * One Way at the bottom of the branch stops sparks coming back along the bottom from turning up
+ * into it. A lever closes a Blocker on the branch, and a Pressure Sensor lights a lamp as sparks
+ * walk over it.
+ */
 function filterSplit(): Circuit {
   const b = new CircuitBuilder("Filter split");
   const src = b.add("source", 0, 2, { items: ["wooden-log", "stone"], rate: 1 });
-  const pad = b.add("pressure-sensor", 3, 2);
-  const lamp = b.add("pixel", 3, 4);
-  const f = b.add("item-filter", 6, 2, { item: "wooden-log" });
-  const block = b.add("blocker", 9, 2);
-  const lever = b.add("lever", 9, 0);
-  const logs = b.add("storage", 12, 1, { label: "Logs", capacity: 50, rate: 0 });
-  const stone = b.add("storage", 9, 6, { label: "Stone", capacity: 50, rate: 0 });
-  b.wire(src, "out", pad, "in").wire(pad, "out", f, "in").wire(pad, "sig", lamp, "in");
-  b.wire(f, "pass", block, "in").wire(block, "out", logs, "in").wire(f, "reject", stone, "in");
+  void src;
+  b.path("s", [1, 2], [9, 2], [9, 8], [1, 8], [1, 2]);
+  b.path("s", [5, 2], [5, 8]);
+  b.sparks(2, 2, 3, 1, 0);
+  b.add("item-filter", 5, 3, { item: "wooden-log" });
+  b.add("one-way", 5, 7, {}, 1);
+  const block = b.add("blocker", 5, 4, {}, 3);
+  const lever = b.add("lever", 2, 4);
   b.wire(lever, "out", block, "en");
-  b.add("label", 11, -1, { text: "Lever on = block logs" });
+  b.add("storage", 6, 4, { label: "Logs", capacity: 30 });
+  b.add("storage", 10, 5, { label: "Stone", capacity: 30 });
+  const pad = b.add("pressure-sensor", 3, 2);
+  const lamp = b.add("pixel", 3, 0, {}, 3);
+  b.wire(pad, "sig", lamp, "in");
+  b.add("label", -1, 5, { text: "Lever: block the branch" });
+  b.add("label", 4, 0, { text: "Pressure Sensor lamp" });
   return b.c;
 }
 
@@ -227,5 +272,5 @@ export const EXAMPLES: Example[] = [
   { id: "latch", name: "Latch (SR memory)", blurb: "Set/Reset buttons, plus the same latch built from gates.", build: latchDemo },
   { id: "timer", name: "Timer pulses", blurb: "A timer feeding buffer, filter and counter gates.", build: timerDemo },
   { id: "ribbon", name: "Ribbon bus", blurb: "Four signals on one ribbon: writers, a reader and a Four Pixel Display.", build: ribbonBus },
-  { id: "filter", name: "Filter split", blurb: "Mixed items split by an Item Filter, with a pressure pad and blocker.", build: filterSplit },
+  { id: "filter", name: "Filter split", blurb: "Sparks on a loop: an Item Filter, a One Way, a Blocker and a Pressure Sensor.", build: filterSplit },
 ];

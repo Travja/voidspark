@@ -7,6 +7,11 @@
   --wire-off: #a59c8c;
   --part-bg: #fffdf9;
   --grid-dot: #cfc7b8;
+  --stone: #d9d2c3;
+  --stone-edge: #b3a994;
+  --dirt: #b88a5c;
+  --dirt-edge: #8c6440;
+  --spark: #f2b632;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -18,6 +23,11 @@
     --wire-off: #5d566b;
     --part-bg: #232029;
     --grid-dot: #36313f;
+    --stone: #4a4552;
+    --stone-edge: #6b6475;
+    --dirt: #6e5238;
+    --dirt-edge: #8f6c4b;
+    --spark: #ffc94a;
   }
 }
 
@@ -250,7 +260,8 @@ svg.canvas.placing {
 .logic-view .part,
 .logic-view .wire.item,
 .logic-view .wire.observe,
-.logic-view .token,
+.logic-view .paths,
+.logic-view .sparks-layer,
 .logic-view .port.item,
 .logic-view .port.observe {
   opacity: 0.28;
@@ -626,14 +637,83 @@ svg.canvas.placing {
   pointer-events: none;
 }
 
-.token {
+/* ---------- Path tiles and sparks ---------- */
+
+.path-t .path-edge,
+.path-t .path-top {
+  fill: none;
+  stroke-linecap: butt;
+}
+
+.path-t .path-edge {
+  stroke-width: 0.72;
+}
+
+.path-t .path-top {
+  stroke-width: 0.6;
+}
+
+.path-t.stone .path-edge {
+  stroke: var(--stone-edge);
+}
+
+.path-t.stone .path-edge-node {
+  fill: var(--stone-edge);
+}
+
+.path-t.stone .path-top {
+  stroke: var(--stone);
+}
+
+.path-t.stone .path-node {
+  fill: var(--stone);
+}
+
+.path-t.dirt .path-edge {
+  stroke: var(--dirt-edge);
+}
+
+.path-t.dirt .path-edge-node {
+  fill: var(--dirt-edge);
+}
+
+.path-t.dirt .path-top {
+  stroke: var(--dirt);
+}
+
+.path-t.dirt .path-node {
+  fill: var(--dirt);
+}
+
+.path-t.selected .tile-hit {
+  fill: color-mix(in srgb, var(--accent) 22%, transparent);
+  stroke: var(--accent);
+  stroke-width: 0.05;
+}
+
+.spark-dot {
+  fill: var(--spark);
+}
+
+.sparks-layer {
   pointer-events: none;
 }
 
-.token circle {
+.spark .spark-body {
+  fill: var(--spark);
+  stroke: color-mix(in srgb, var(--spark) 55%, #000);
+  stroke-width: 0.035;
+}
+
+.spark .spark-load {
   fill: var(--surface);
-  stroke: var(--path);
-  stroke-width: 0.04;
+  stroke: var(--spark);
+  stroke-width: 0.05;
+}
+
+.spark.stuck .spark-body,
+.spark.stuck .spark-load {
+  stroke-dasharray: 0.08 0.05;
 }
 
 /* ---------- Logic tiles ---------- */

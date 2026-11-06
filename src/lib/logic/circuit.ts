@@ -3,7 +3,25 @@
 import { base64UrlToBytes, bytesToBase64Url } from "../base64url";
 import { GAME } from "../engine/data";
 import { footprint } from "./geometry";
-import { applyRoute, buildNets, cellKey, erase, kindOf, maskOf, parseKey, partCells, routeWire, tile, VALID_TILE, type Route } from "./grid";
+import {
+  applyRoute,
+  buildNets,
+  cellKey,
+  DIRS,
+  erase,
+  joined,
+  kindOf,
+  maskOf,
+  paint,
+  parseKey,
+  partCells,
+  portCell,
+  routeWire,
+  tile,
+  VALID_PATH_TILE,
+  VALID_TILE,
+  type Route,
+} from "./grid";
 import { PARTS } from "./parts";
 import { findPort } from "./sim";
 import type { Circuit, Config, FieldDef, Part, PortRef, Rot, Wire } from "./types";
@@ -13,7 +31,7 @@ export const LIMITS = { parts: 2000, wires: 4000, cells: 40000, coord: 5000 };
 let seq = 1;
 export const newId = (prefix: string) => `${prefix}${Date.now().toString(36)}${(seq++).toString(36)}`;
 
-export const emptyCircuit = (name = "New circuit"): Circuit => ({ name, parts: [], wires: [], cells: {}, settings: { walkSpeed: 2 } });
+export const emptyCircuit = (name = "New circuit"): Circuit => ({ name, parts: [], wires: [], cells: {}, paths: {}, settings: { walkSpeed: 2 } });
 
 const isItem = (v: unknown): v is string => typeof v === "string" && GAME.materials.has(v);
 
@@ -121,14 +139,14 @@ export function planWire(c: Circuit, a: PortRef, b: PortRef): { wire: Omit<Wire,
     return { error: `Can't connect ${name[pa.kind]} to ${name[pb.kind]}.` };
   }
   if (pa.kind === "logic") return { error: "Logic runs on wire tiles: use connectLogic." };
+  if (pa.kind === "item") return { error: "Items travel on path tiles: use connectPath." };
   let from = a;
   let to = b;
-  if (pa.dir === pb.dir) {
-    return { error: pa.kind === "item" ? "Paths run from an exit (out) to an entrance (in)." : "Link a Capacity Sensor's eye to a storage." };
-  }
+  // Only sensor links are left as wires: a Capacity Sensor's eye to a storage.
+  if (pa.dir === pb.dir) return { error: "Link a Capacity Sensor's eye to a storage." };
   if (pa.dir === "in") [from, to] = [b, a];
   const taken = c.wires.find((w) => w.from.part === from.part && w.from.port === from.port);
-  if (taken) return { error: pa.kind === "item" ? "That exit already has a path. Use a Splitter to branch." : "That sensor already watches a storage." };
+  if (taken) return { error: "That sensor already watches a storage." };
   const dup = c.wires.some(
     (w) =>
       (w.from.part === from.part && w.from.port === from.port && w.to.part === to.part && w.to.port === to.port) ||
@@ -152,6 +170,129 @@ export function connectLogic(c: Pick<Circuit, "parts" | "cells">, a: PortRef, b:
   if (!route) return "No room to run a wire there. Move the parts apart, or draw it with the Wire tool.";
   if (!route.path.length && !route.bridges.length) return "Already connected.";
   layRoute(c, route);
+  return null;
+}
+
+// --- paths -----------------------------------------------------------------------------------
+
+/** Whether a part sits on a path tile (add-ons and Sparks) rather than standing beside one. */
+export const onPath = (type: string) => !!PARTS.get(type)?.path || type === "sparks";
+
+/**
+ * The path tile a reference ends at: the tile an entrance or exit faces, or, for a part that sits
+ * on a path (filters, gates, Sparks), its own tile.
+ */
+export function pathEndpoint(c: Pick<Circuit, "parts">, r: PortRef): { x: number; y: number } | null {
+  const part = c.parts.find((p) => p.id === r.part);
+  if (!part) return null;
+  if (onPath(part.type)) return { x: part.x, y: part.y };
+  const port = findPort(part.type, r.port);
+  return port?.kind === "item" ? portCell(part, port) : null;
+}
+
+/**
+ * A short run of path tiles from one tile to another, around buildings, preferring existing path
+ * (joining onto it is fine: sparks share paths). Returns the tiles, start to end, or null.
+ */
+export function routePath(c: Pick<Circuit, "parts" | "paths">, from: { x: number; y: number }, to: { x: number; y: number }): [number, number][] | null {
+  const blocked = new Set<string>();
+  for (const p of c.parts) if (!onPath(p.type)) for (const k of partCells(p)) blocked.add(k);
+  const goal = cellKey(to.x, to.y);
+  blocked.delete(cellKey(from.x, from.y));
+  blocked.delete(goal);
+  if (blocked.has(cellKey(from.x, from.y))) return null;
+  let x0 = Math.min(from.x, to.x) - 4,
+    x1 = Math.max(from.x, to.x) + 4,
+    y0 = Math.min(from.y, to.y) - 4,
+    y1 = Math.max(from.y, to.y) + 4;
+  for (const p of c.parts) {
+    x0 = Math.min(x0, p.x - 3);
+    x1 = Math.max(x1, p.x + 5);
+    y0 = Math.min(y0, p.y - 3);
+    y1 = Math.max(y1, p.y + 5);
+  }
+  // Dijkstra with cheap existing path and a small turn penalty, so routes come out tidy.
+  type St = { x: number; y: number; d: number; cost: number; prev: St | null };
+  const open: St[] = [{ x: from.x, y: from.y, d: -1, cost: 0, prev: null }];
+  const best = new Map<string, number>();
+  let guard = 0;
+  while (open.length && guard++ < 100_000) {
+    let bi = 0;
+    for (let i = 1; i < open.length; i++) if (open[i].cost < open[bi].cost) bi = i;
+    const cur = open[bi];
+    open[bi] = open[open.length - 1];
+    open.pop();
+    if (cellKey(cur.x, cur.y) === goal) {
+      const out: [number, number][] = [];
+      for (let s: St | null = cur; s; s = s.prev) out.push([s.x, s.y]);
+      return out.reverse();
+    }
+    for (let d = 0; d < 4; d++) {
+      const nx = cur.x + DIRS[d].x;
+      const ny = cur.y + DIRS[d].y;
+      const k = cellKey(nx, ny);
+      if (nx < x0 || nx > x1 || ny < y0 || ny > y1 || blocked.has(k)) continue;
+      const cost = cur.cost + (c.paths[k] ? 0.6 : 1) + (cur.d >= 0 && d !== cur.d ? 0.3 : 0);
+      if ((best.get(`${k}|${d}`) ?? Infinity) <= cost) continue;
+      best.set(`${k}|${d}`, cost);
+      open.push({ x: nx, y: ny, d, cost, prev: cur });
+    }
+  }
+  return null;
+}
+
+/** All path tiles joined to tile k. */
+export function pathNetwork(paths: Record<string, string>, k: string): Set<string> {
+  const seen = new Set<string>();
+  if (!paths[k]) return seen;
+  const todo = [k];
+  seen.add(k);
+  while (todo.length) {
+    const cur = todo.pop()!;
+    const [x, y] = parseKey(cur);
+    DIRS.forEach((dv, d) => {
+      const n = cellKey(x + dv.x, y + dv.y);
+      if (!seen.has(n) && joined(paths, cur, n, d)) {
+        seen.add(n);
+        todo.push(n);
+      }
+    });
+  }
+  return seen;
+}
+
+/**
+ * Makes sure the path through tile k has sparks walking it: if no Sparks part sits on that path,
+ * one is added on a free tile of it. Returns the new part's id, or null if none was needed.
+ */
+export function ensureSparks(c: Pick<Circuit, "parts" | "paths">, k: string, count = 2): string | null {
+  const net = pathNetwork(c.paths, k);
+  if (!net.size) return null;
+  if (c.parts.some((p) => p.type === "sparks" && net.has(cellKey(p.x, p.y)))) return null;
+  const taken = new Set(c.parts.flatMap((p) => partCells(p)));
+  const spot = [k, ...net].find((t) => !taken.has(t));
+  if (!spot) return null;
+  const [x, y] = parseKey(spot);
+  // Face along the path, so the sparks set off down it.
+  const m = maskOf(c.paths[spot]);
+  const rot = ([0, 1, 2, 3].find((d) => m & (1 << d)) ?? 0) as Rot;
+  const part = makePart("sparks", x, y, rot, { count, carry: 1 });
+  c.parts.push(part);
+  return part.id;
+}
+
+/**
+ * Lays path tiles between two building entrances/exits (or add-ons on a path). Returns an error
+ * message, or null when done. Sparks aren't added here; see `ensureSparks`.
+ */
+export function connectPath(c: Pick<Circuit, "parts" | "paths">, a: PortRef, b: PortRef, kind = "s"): string | null {
+  const ea = pathEndpoint(c, a);
+  const eb = pathEndpoint(c, b);
+  if (!ea || !eb) return "Pick building entrances and exits (square ports), or parts on a path.";
+  if (a.part === b.part && a.port === b.port) return "That's the same port.";
+  const route = routePath(c, ea, eb);
+  if (!route) return "No room for a path there. Move the parts apart, or draw it with the Path tool.";
+  paint(c.paths, kind, route);
   return null;
 }
 
@@ -222,8 +363,18 @@ export function validateCircuit(raw: unknown): Circuit | null {
     parts,
     wires: [],
     cells: {},
+    paths: {},
     settings: { walkSpeed: 2 },
   };
+  if (r.paths && typeof r.paths === "object" && !Array.isArray(r.paths)) {
+    let n = 0;
+    for (const [k, v] of Object.entries(r.paths as Record<string, unknown>)) {
+      const m = /^(-?\d+),(-?\d+)$/.exec(k);
+      if (!m || typeof v !== "string" || !VALID_PATH_TILE.test(v) || !int(+m[1]) || !int(+m[2])) continue;
+      if (++n > LIMITS.cells) break;
+      c.paths[cellKey(+m[1], +m[2])] = v;
+    }
+  }
   if (r.cells && typeof r.cells === "object" && !Array.isArray(r.cells)) {
     let n = 0;
     for (const [k, v] of Object.entries(r.cells as Record<string, unknown>)) {
@@ -235,6 +386,8 @@ export function validateCircuit(raw: unknown): Circuit | null {
   }
   /** Logic wires from before tiles existed: laid onto the grid below. */
   const legacy: [PortRef, PortRef][] = [];
+  /** Item links from before path tiles existed: laid as paths, with sparks, below. */
+  const legacyPaths: [PortRef, PortRef][] = [];
   const s = r.settings as Record<string, unknown> | undefined;
   if (s && typeof s.walkSpeed === "number" && Number.isFinite(s.walkSpeed)) c.settings.walkSpeed = Math.min(10, Math.max(0.2, s.walkSpeed));
   const wireIds = new Set<string>();
@@ -252,6 +405,10 @@ export function validateCircuit(raw: unknown): Circuit | null {
       legacy.push([from, to]);
       continue;
     }
+    if (pathEndpoint(c, from) && pathEndpoint(c, to)) {
+      legacyPaths.push([from, to]);
+      continue;
+    }
     const plan = planWire(c, from, to);
     if ("error" in plan) continue;
     let id = typeof q.id === "string" && /^[\w-]{1,40}$/.test(q.id) ? q.id : newId("w");
@@ -262,6 +419,11 @@ export function validateCircuit(raw: unknown): Circuit | null {
   for (const [a, b] of legacy.slice(0, 500)) {
     const route = routeWire(c, a, b, buildNets(c));
     if (route) layRoute(c, route);
+  }
+  for (const [a, b] of legacyPaths.slice(0, 500)) {
+    if (connectPath(c, a, b)) continue;
+    const e = pathEndpoint(c, a)!;
+    ensureSparks(c, cellKey(e.x, e.y));
   }
   return c;
 }
@@ -280,6 +442,8 @@ interface SharePayload {
   w: [number, string, number, string][];
   /** Logic tiles: [x, y, kind] */
   c?: [number, number, string][];
+  /** Path tiles: [x, y, kind] */
+  q?: [number, number, string][];
 }
 
 async function pipe(bytes: Uint8Array, stream: CompressionStream | DecompressionStream): Promise<Uint8Array> {
@@ -302,6 +466,10 @@ export function toPayload(c: Circuit): SharePayload {
       const [x, y] = k.split(",").map(Number);
       return [x, y, v];
     }),
+    q: Object.entries(c.paths).map(([k, v]) => {
+      const [x, y] = k.split(",").map(Number);
+      return [x, y, v];
+    }),
   };
 }
 
@@ -316,7 +484,9 @@ export function fromPayload(raw: unknown): Circuit | null {
   );
   const cells: Record<string, unknown> = {};
   if (Array.isArray(p.c)) for (const e of p.c.slice(0, LIMITS.cells)) if (Array.isArray(e)) cells[`${e[0]},${e[1]}`] = e[2];
-  const c = validateCircuit({ name: p.n, parts, wires, cells, settings: { walkSpeed: p.s ?? 2 } });
+  const paths: Record<string, unknown> = {};
+  if (Array.isArray(p.q)) for (const e of p.q.slice(0, LIMITS.cells)) if (Array.isArray(e)) paths[`${e[0]},${e[1]}`] = e[2];
+  const c = validateCircuit({ name: p.n, parts, wires, cells, paths, settings: { walkSpeed: p.s ?? 2 } });
   if (!c) return null;
   // Fresh ids so a shared circuit never collides with a saved one.
   const ren = new Map(c.parts.map((x) => [x.id, newId("c")]));

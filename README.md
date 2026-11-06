@@ -42,19 +42,20 @@ greenhouses, the Arboretum, and the metal sparks. It started from the PirateSpar
   and automation: levers, timers, capacity and pressure sensors; NOT/AND/OR/XOR, Buffer, Filter
   and Counter gates; Set-Reset Latch and Data Flip-Flop; wireless senders and receivers (the
   channel is an item, as in the game); pixel displays; path add-ons (Item and Amount Filters,
-  Blocker, Spark Gate, Splitter, Wait Gate, Counter); storage, an extractor and generic machines
+  Blocker, Spark Gate, Splitter, Wait Gate, Counter, One Way, Crossing); storage and generic machines
   that can run any game recipe (a machine's output slot holds one stack, using wiki stack sizes,
   and it stops when the slot is full). The **Compressor** takes any item and sends it to the
-  Recycler, so overflow never backs a line up. Filters send matching items on down the line
-  when their pass exit is backed up. A **Grid** toggle draws tile lines (heavier every 5 tiles),
+  Recycler, so overflow never backs a line up. A **Grid** toggle draws tile lines (heavier every 5 tiles),
   and a **Logic** overlay fades buildings and paths so wires show through, like the game's logic
   view. Logic runs on **wire tiles on the grid**, as in the game. Tiles join
   only where drawn, so wires can run side by side. Three-tile **Wire Bridges** carry a wire over
   another, and **ribbons** carry four signals (bits 0–3) on one tile, used with Ribbon Writers and
   Readers and the Four Pixel Display. Parts take the same number of tiles as their wiki footprints.
   Draw tiles with the Wire, Ribbon and Erase tools. Or tap one port and then another, and a
-  wire is routed on the grid for you. Items walk along paths as tokens, so you can watch sorting,
-  queues and refills. Pan, zoom and pinch; tap a palette entry, then tap the grid to place it. Play, pause, step and change speed, and tap levers and buttons
+  wire is routed on the grid for you. Items travel as in the game: **sparks carry them along path
+  tiles** (Stone or Dirt), drawn with the Path tool or laid for you between a building's exit and
+  an entrance. Sparks always take the first of right, straight on, left or back that's open, so
+  filters and One Ways sort them, and you can watch queues and refills. Pan, zoom and pinch; tap a palette entry, then tap the grid to place it. Play, pause, step and change speed, and tap levers and buttons
   while it runs. Selecting a part shows its live inputs and outputs and why it's on or off. Undo
   and redo, several named circuits, and share links (`#circuit=…`, compressed and validated) are
   all there. It ships with examples: a **distribution center** (filters sort a train's cargo into
@@ -143,11 +144,12 @@ were at the end of the previous tick and writes its outputs for the next. So eac
 tick of delay, and feedback loops (latches made from gates, a NOT gate wired to itself) settle or
 oscillate instead of recursing. Logic networks come from the wire tiles (`src/lib/logic/grid.ts`).
 Each tile records which neighbours it joins. A ribbon tile carries four networks. A Wire Bridge
-joins the tiles beyond its two ends into one network, and hops whatever runs through its gap. A network is on when any output plugged into it is on. Wireless channels work the same way across the whole map. Items are tokens that
-walk along a path at the spark walking speed, keeping a gap between them. When a token reaches the
-end of a path, the part there decides whether to take it: storage takes it if there's room, a filter
-takes it if its exit path has room, a blocker refuses it. Otherwise the token waits, and the queue
-backs up. The game's timings aren't documented, so the 0.05 s gate delay, walking speed, stack size
+joins the tiles beyond its two ends into one network, and hops whatever runs through its gap. A network is on when any output plugged into it is on. Wireless channels work the same way across the whole map. Sparks walk path
+tiles (a separate layer that joins the same way wire tiles do). On reaching a tile, a spark drops
+its load at any building entrance facing that tile and picks up at any exit, then turns right if it
+can, else goes straight, left, or back. Add-ons on a tile change that: filters and blockers are
+walls to some sparks, a Spark Gate holds them, a Splitter or One Way picks their exit. A tile holds
+two sparks heading the same way, so queues form behind a closed gate. The game's timings aren't documented, so the 0.05 s gate delay, walking speed, stack size
 and the other gaps are listed as assumptions in
 [docs/logic-components.md](docs/logic-components.md).
 

@@ -82,6 +82,19 @@
       <path class="g" class:g-on={on} stroke-width={S * 1.4} d={on ? "M.22 .4L.66 .1" : "M.2 .46H.8"} />
     {:else if type === "splitter"}
       <path class="g" stroke-width={S} d="M.08 .5H.5M.5 .5V.14M.5 .5H.9M.5 .5V.86M.4 .24L.5 .12L.6 .24M.78 .4L.9 .5L.78 .6M.4 .76L.5 .88L.6 .76" />
+    {:else if type === "crossing"}
+      <!-- Straight across both ways, never turning. -->
+      <path class="g" stroke-width={S} d="M.1 .5H.9M.5 .1V.9M.78 .4L.9 .5L.78 .6M.4 .78L.5 .9L.6 .78" />
+      <rect class="g-fill" x=".42" y=".42" width=".16" height=".16" />
+    {:else if type === "one-way"}
+      <!-- Points the only way sparks may cross it. -->
+      <path class="g" stroke-width={S * 1.4} d="M.14 .5H.8M.56 .26L.82 .5L.56 .74" />
+    {:else if type === "sparks"}
+      <!-- A little crew: the spark that leads, and friends. -->
+      <circle class="g-fill spark-dot" cx=".5" cy=".42" r=".14" />
+      <circle class="g-fill spark-dot" cx=".26" cy=".66" r=".09" />
+      <circle class="g-fill spark-dot" cx=".74" cy=".66" r=".09" />
+      <path class="g" stroke-width={S * 0.8} d="M.5 .14V.22M.28 .3L.34 .34M.72 .3L.66 .34" />
     {:else if type === "wait-gate"}
       <path class="g" class:g-on={on} stroke-width={S} d="M.3 .16H.7L.5 .5L.7 .84H.3L.5 .5Z" />
       <path class="g-fill" d="M.38 .78H.62L.5 .62Z" />

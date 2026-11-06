@@ -4,34 +4,21 @@
 //   1. Every part steps once, reading logic networks and wireless channels as they were at the
 //      end of the previous tick, and writing its outputs for the next one. So every gate adds one
 //      tick of delay and feedback loops can't recurse.
-//   2. Items move along paths. A token that reaches the end of a path is offered to the part at
-//      the other end, and waits there until that part takes it.
+//   2. Sparks walk the path tiles. At each tile a spark first lets the add-on there act (a Wait
+//      Gate holds it, a Pressure Sensor fires), then drops its load at a building entrance facing
+//      the tile (if the building takes it) or picks up at an exit (if empty-handed), then picks
+//      its next tile: right if it can, else straight, else left, else back. Filters and
+//      Blockers are walls to sparks that may not pass; Splitters, Crossings and One Ways choose
+//      the exit; a closed Spark Gate makes sparks wait in front of it.
 //   3. Outputs are combined into networks (any output on → network on) and channels. Networks
 //      are the groups of touching wire tiles (see grid.ts); a ribbon tile carries four.
-import { curveLength, portPosition, wireCurve, type Point } from "./geometry";
-import { buildNets, type GridNets } from "./grid";
-import { PARTS, TICK } from "./parts";
-import type { Circuit, Part, PartStatus, PartType, PortDef, StepCtx, StorageView, Token } from "./types";
+import { portPosition } from "./geometry";
+import { buildNets, cellKey, DIRS, joined, kindOf, PATH_SPEED, portCell, type GridNets } from "./grid";
+import { PARTS, stackSize, TICK } from "./parts";
+import type { Circuit, Part, PartStatus, PartType, PortDef, SparkView, StepCtx, StorageView, Token } from "./types";
 
-/** Minimum gap between sparks on a path, in tiles. */
-export const SPACING = 0.5;
-
-export interface PathToken {
-  token: Token;
-  /** Distance travelled along the path, in tiles. */
-  pos: number;
-}
-
-export interface PathLink {
-  wireId: string;
-  from: number;
-  fromPort: string;
-  to: number;
-  toPort: string;
-  length: number;
-  curve: [Point, Point, Point, Point];
-  tokens: PathToken[];
-}
+/** Sparks that fit on one path tile at once. */
+export const TILE_CAPACITY = 2;
 
 interface RuntimePart {
   part: Part;
@@ -41,6 +28,28 @@ interface RuntimePart {
   outs: Record<string, boolean>;
   next: Record<string, boolean>;
   ctx: StepCtx;
+}
+
+export interface Spark {
+  id: number;
+  /** The Sparks part that placed it. */
+  owner: string;
+  /** Tile it's on (or leaving). */
+  x: number;
+  y: number;
+  /** Direction it's moving, or last moved. */
+  dir: number;
+  /** Heading for the next tile. */
+  moving: boolean;
+  /** Progress toward the next tile, 0..1. */
+  p: number;
+  load: Token | null;
+  /** Items per trip; 0 = a whole stack. */
+  carry: number;
+  /** Ticks left to wait (Wait Gate). */
+  wait: number;
+  /** Why it isn't moving, for the inspector ("waiting at a Spark Gate"). */
+  stuck: string;
 }
 
 export function portDefs(type: string): PortDef[] {
@@ -58,21 +67,21 @@ export function placedPort(part: Part, port: string) {
 }
 
 /**
- * Pulls the runtime state out of a previous simulation so a rebuilt one (after an edit) carries
- * on where it was. Parts are matched by id and type.
+ * The runtime state of a previous simulation, so a rebuilt one (after an edit) carries on where
+ * it was. Parts are matched by id and type; sparks by the Sparks part that owns them.
  */
 export interface SimSnapshot {
   time: number;
   tick: number;
   states: Map<string, { type: string; state: unknown; outs: Record<string, boolean> }>;
-  tokens: Map<string, PathToken[]>;
+  sparks: Spark[];
   channels: Set<string>;
 }
 
 export class Sim {
   readonly parts: RuntimePart[] = [];
-  readonly paths: PathLink[] = [];
   readonly byId = new Map<string, number>();
+  readonly sparks: Spark[] = [];
   tick = 0;
   time = 0;
   walkSpeed: number;
@@ -84,15 +93,23 @@ export class Sim {
   /** Per network: the output ports driving it, as [part index, port id]. */
   private drivers: [number, string][][] = [];
   private netValue: Uint8Array = new Uint8Array(0);
-  private pathOut = new Map<string, PathLink>();
-  private itemLinked = new Set<string>();
   private observed = new Map<string, number>();
   private channels = new Set<string>();
   private nextChannels = new Set<string>();
   private tokenId = 1;
+  private sparkId = 1;
+
+  private paths: Record<string, string>;
+  /** Path tile -> the add-on part sitting on it. */
+  private addOn = new Map<string, number>();
+  /** Path tile -> building entrances and exits facing it. */
+  private portsAt = new Map<string, { pi: number; port: PortDef }[]>();
+  /** "part.port" for item ports that face a path tile. */
+  private itemOnPath = new Set<string>();
 
   constructor(circuit: Circuit, prev?: SimSnapshot) {
     this.walkSpeed = circuit.settings.walkSpeed;
+    this.paths = circuit.paths ?? {};
     circuit.parts.forEach((part) => {
       const type = PARTS.get(part.type);
       if (!type) return;
@@ -110,43 +127,29 @@ export class Sim {
         next: { ...outs },
         ctx: undefined as unknown as StepCtx,
       };
-      rp.ctx = this.makeCtx(i, rp);
+      rp.ctx = this.makeCtx(rp);
       this.parts.push(rp);
+      if (type.path) this.addOn.set(cellKey(part.x, part.y), i);
+      for (const port of type.ports) {
+        if (port.kind !== "item") continue;
+        const c = portCell(part, port);
+        const k = cellKey(c.x, c.y);
+        if (!this.paths[k]) continue;
+        this.itemOnPath.add(`${part.id}.${port.id}`);
+        this.portsAt.set(k, [...(this.portsAt.get(k) ?? []), { pi: i, port }]);
+      }
     });
 
+    // Sensor links (a Capacity Sensor's eye to a storage).
     for (const w of circuit.wires) {
       const a = this.byId.get(w.from.part);
       const b = this.byId.get(w.to.part);
       if (a === undefined || b === undefined) continue;
       const pa = findPort(this.parts[a].part.type, w.from.port);
       const pb = findPort(this.parts[b].part.type, w.to.port);
-      if (!pa || !pb || pa.kind !== pb.kind) continue;
-      const ka = `${w.from.part}.${w.from.port}`;
-      const kb = `${w.to.part}.${w.to.port}`;
-      if (pa.kind === "item") {
-        if (pa.dir !== "out" || pb.dir !== "in" || this.pathOut.has(ka)) continue;
-        const ca = placedPort(this.parts[a].part, pa.id);
-        const cb = placedPort(this.parts[b].part, pb.id);
-        const curve = wireCurve(ca, cb);
-        const link: PathLink = {
-          wireId: w.id,
-          from: a,
-          fromPort: pa.id,
-          to: b,
-          toPort: pb.id,
-          length: Math.max(SPACING, curveLength(curve)),
-          curve,
-          tokens: [],
-        };
-        const kept = prev?.tokens.get(w.id);
-        if (kept) link.tokens = kept.map((t) => ({ token: t.token, pos: Math.min(t.pos, link.length) }));
-        this.paths.push(link);
-        this.pathOut.set(ka, link);
-        this.itemLinked.add(ka).add(kb);
-      } else if (pa.dir === "out" && pb.dir === "in") {
-        this.observed.set(ka, b);
-      }
+      if (pa?.kind === "observe" && pb?.kind === "observe" && pa.dir === "out") this.observed.set(`${w.from.part}.${w.from.port}`, b);
     }
+
     this.grid = buildNets(circuit);
     this.drivers = Array.from({ length: this.grid.count }, () => []);
     for (const att of this.grid.ports) {
@@ -157,16 +160,43 @@ export class Sim {
       for (const n of att.nets) if (n >= 0) this.drivers[n].push([pi, att.port]);
     }
     this.netValue = new Uint8Array(this.drivers.length);
-    for (const link of this.paths) for (const t of link.tokens) this.tokenId = Math.max(this.tokenId, t.token.id + 1);
     if (prev) {
       this.time = prev.time;
       this.tick = prev.tick;
       this.channels = new Set(prev.channels);
     }
+    this.placeSparks(prev?.sparks ?? []);
     this.computeNets();
   }
 
-  private makeCtx(i: number, rp: RuntimePart): StepCtx {
+  /** Keeps sparks from before an edit where they still fit, and adds any the Sparks parts ask for. */
+  private placeSparks(old: Spark[]) {
+    for (const rp of this.parts) {
+      if (rp.part.type !== "sparks") continue;
+      const { id, x, y, rot } = rp.part;
+      const count = Number(rp.part.cfg.count) || 0;
+      const carry = Number(rp.part.cfg.carry) || 0;
+      const home = cellKey(x, y);
+      const mine = old.filter((s) => s.owner === id && this.paths[cellKey(s.x, s.y)]).slice(0, count);
+      for (const s of mine) {
+        const keep = { ...s, carry };
+        // A spark whose next tile has gone stops where it is.
+        if (keep.moving && !this.paths[cellKey(s.x + DIRS[s.dir].x, s.y + DIRS[s.dir].y)]) {
+          keep.moving = false;
+          keep.p = 0;
+        }
+        this.sparks.push(keep);
+        this.sparkId = Math.max(this.sparkId, s.id + 1);
+        if (s.load) this.tokenId = Math.max(this.tokenId, s.load.id + 1);
+      }
+      if (!this.paths[home]) continue;
+      for (let k = mine.length; k < count; k++) {
+        this.sparks.push({ id: this.sparkId++, owner: id, x, y, dir: rot, moving: false, p: 0, load: null, carry, wait: 0, stuck: "" });
+      }
+    }
+  }
+
+  private makeCtx(rp: RuntimePart): StepCtx {
     const id = rp.part.id;
     const sim = this;
     return {
@@ -189,24 +219,8 @@ export class Sim {
         const nets = sim.netOf.get(`${id}.${port}`) ?? [];
         return [0, 1, 2, 3].map((b) => (nets[b] ?? -1) >= 0 && sim.netValue[nets[b]] === 1);
       },
-      wired: (port) => sim.netOf.has(`${id}.${port}`) || sim.itemLinked.has(`${id}.${port}`) || sim.observed.has(`${id}.${port}`),
+      wired: (port) => sim.netOf.has(`${id}.${port}`) || sim.itemOnPath.has(`${id}.${port}`) || sim.observed.has(`${id}.${port}`),
       set: (port, on) => void (rp.next[port] = on),
-      emit: (port, token) => {
-        const link = sim.pathOut.get(`${id}.${port}`);
-        if (!link || !sim.room(link)) return false;
-        link.tokens.push({ token, pos: 0 });
-        return true;
-      },
-      hasRoom: (port) => {
-        const link = sim.pathOut.get(`${id}.${port}`);
-        return !!link && sim.room(link);
-      },
-      backedUp: (port) => {
-        const link = sim.pathOut.get(`${id}.${port}`);
-        if (!link) return true;
-        const front = link.tokens[0];
-        return !!front && front.pos >= link.length - 1e-9 && !sim.room(link);
-      },
       observe: (port) => {
         const j = sim.observed.get(`${id}.${port}`);
         if (j === undefined) return null;
@@ -217,12 +231,6 @@ export class Sim {
       send: (ch) => void sim.nextChannels.add(ch),
       token: (item, n = 1) => ({ id: sim.tokenId++, item, n }),
     } as StepCtx;
-    void i;
-  }
-
-  private room(link: PathLink): boolean {
-    const last = link.tokens[link.tokens.length - 1];
-    return !last || last.pos >= Math.min(SPACING, link.length) - 1e-9;
   }
 
   private computeNets() {
@@ -238,29 +246,151 @@ export class Sim {
     }
   }
 
+  // --- sparks ---------------------------------------------------------------------------------
+
+  private view(s: Spark): SparkView {
+    return { item: s.load?.item ?? null, n: s.load?.n ?? 0 };
+  }
+
+  private addOnAt(k: string) {
+    const i = this.addOn.get(k);
+    return i === undefined ? undefined : this.parts[i];
+  }
+
+  /** The tile a spark counts as occupying: the one it's mostly on. */
+  private tileOf(s: Spark) {
+    return s.moving && s.p >= 0.5 ? cellKey(s.x + DIRS[s.dir].x, s.y + DIRS[s.dir].y) : cellKey(s.x, s.y);
+  }
+
+  /**
+   * The direction a spark on its tile takes next, or -1 to stay put. Right, straight, left,
+   * back, skipping tiles it can't step onto, unless the add-on here chooses the exit.
+   */
+  private choose(s: Spark): number {
+    const here = cellKey(s.x, s.y);
+    const sv = this.view(s);
+    const open: number[] = [];
+    for (let d = 0; d < 4; d++) {
+      const nk = cellKey(s.x + DIRS[d].x, s.y + DIRS[d].y);
+      if (!joined(this.paths, here, nk, d)) continue;
+      const a = this.addOnAt(nk);
+      if (a?.type.path?.passable && !a.type.path.passable(a.ctx, sv, d, a.part.rot)) continue;
+      open.push(d);
+    }
+    const d = s.dir;
+    const own = this.addOnAt(here);
+    const order = own?.type.path?.exits?.(own.ctx, sv, d, own.part.rot, open) ?? [(d + 1) % 4, d, (d + 3) % 4, (d + 2) % 4];
+    const pick = order.find((x) => open.includes(x));
+    if (pick === undefined) {
+      s.stuck = open.length ? "" : "No path it may take from here.";
+      return -1;
+    }
+    const nk = cellKey(s.x + DIRS[pick].x, s.y + DIRS[pick].y);
+    const next = this.addOnAt(nk);
+    if (next?.type.path?.holds?.(next.ctx, sv, pick, next.part.rot)) {
+      s.stuck = `Waiting at a ${next.type.name}.`;
+      return -1;
+    }
+    return pick;
+  }
+
+  /** A spark has reached the middle of its tile. */
+  private arrive(s: Spark) {
+    const k = cellKey(s.x, s.y);
+    const sv = this.view(s);
+    const a = this.addOnAt(k);
+    const wait = a?.type.path?.arrive?.(a.ctx, sv, s.dir, a.part.rot);
+    if (wait) s.wait = Math.round(wait / TICK);
+    const ports = this.portsAt.get(k);
+    if (!ports) return;
+    // Drop off first (it may free the spark to pick something up at the next exit).
+    for (const { pi, port } of ports) {
+      if (port.dir !== "in" || !s.load) continue;
+      const b = this.parts[pi];
+      if (b.type.accept?.(b.ctx, port.id, s.load)) s.load = null;
+    }
+    for (const { pi, port } of ports) {
+      if (port.dir !== "out") continue;
+      const b = this.parts[pi];
+      if (!b.type.give) continue;
+      if (!s.load) {
+        const t = b.type.give(b.ctx, port.id, s.carry, null);
+        if (t) s.load = t;
+      } else {
+        const room = (s.carry || stackSize(s.load.item)) - s.load.n;
+        if (room <= 0) continue;
+        const t = b.type.give(b.ctx, port.id, room, s.load.item);
+        if (t) s.load = { ...s.load, n: s.load.n + t.n };
+      }
+    }
+  }
+
+  private moveSparks() {
+    const occupied = new Map<string, number>();
+    // A walking spark has already claimed the tile it's walking to and given up the one it left.
+    // Room is counted per heading, so sparks going opposite ways pass each other instead of
+    // locking up head to head.
+    const claim = (s: Spark) =>
+      (s.moving ? cellKey(s.x + DIRS[s.dir].x, s.y + DIRS[s.dir].y) : cellKey(s.x, s.y)) + ">" + s.dir;
+    for (const s of this.sparks) {
+      const k = claim(s);
+      occupied.set(k, (occupied.get(k) ?? 0) + 1);
+    }
+    for (const s of this.sparks) {
+      if (s.wait > 0) {
+        s.wait--;
+        s.stuck = s.wait > 0 ? "Waiting at a Wait Gate." : "";
+        continue;
+      }
+      let budget = 1;
+      // A spark can arrive and set off again within one tick, so it never pauses on a tile.
+      for (let guard = 0; guard < 3 && budget > 1e-9; guard++) {
+        if (!s.moving) {
+          const d = this.choose(s);
+          if (d < 0) break;
+          const target = cellKey(s.x + DIRS[d].x, s.y + DIRS[d].y) + ">" + d;
+          if ((occupied.get(target) ?? 0) >= TILE_CAPACITY) {
+            s.stuck = "Waiting: the next tile is full of sparks.";
+            break;
+          }
+          const own = this.addOnAt(cellKey(s.x, s.y));
+          own?.type.path?.leave?.(own.ctx, this.view(s), s.dir, own.part.rot, d);
+          const here = cellKey(s.x, s.y) + ">" + s.dir;
+          s.dir = d;
+          s.moving = true;
+          s.p = 0;
+          s.stuck = "";
+          occupied.set(here, Math.max(0, (occupied.get(here) ?? 1) - 1));
+          occupied.set(target, (occupied.get(target) ?? 0) + 1);
+        }
+        const nx = s.x + DIRS[s.dir].x;
+        const ny = s.y + DIRS[s.dir].y;
+        const speed = (PATH_SPEED[kindOf(this.paths[cellKey(s.x, s.y)]) ?? "s"] + PATH_SPEED[kindOf(this.paths[cellKey(nx, ny)]) ?? "s"]) / 2;
+        const step = this.walkSpeed * speed * TICK * budget;
+        if (s.p + step < 1) {
+          s.p += step;
+          budget = 0;
+          break;
+        }
+        budget *= 1 - (1 - s.p) / step;
+        s.x = nx;
+        s.y = ny;
+        s.moving = false;
+        s.p = 0;
+        this.arrive(s);
+        if (s.wait > 0) break;
+      }
+    }
+  }
+
   /** Advances one tick. */
   step() {
     this.nextChannels = new Set();
     for (const rp of this.parts) rp.type.step?.(rp.ctx);
-
-    const move = this.walkSpeed * TICK;
-    for (const link of this.paths) {
-      const toks = link.tokens;
-      for (let k = 0; k < toks.length; k++) {
-        const limit = k === 0 ? link.length : toks[k - 1].pos - SPACING;
-        toks[k].pos = Math.max(toks[k].pos, Math.min(toks[k].pos + move, limit));
-      }
-      if (toks.length && toks[0].pos >= link.length - 1e-9) {
-        const dest = this.parts[link.to];
-        if (dest.type.accept?.(dest.ctx, link.toPort, toks[0].token)) toks.shift();
-      }
-    }
-
+    this.moveSparks();
     for (const rp of this.parts) {
-      const o = rp.outs;
       rp.outs = rp.next;
       rp.next = { ...rp.outs };
-      void o;
     }
     this.channels = this.nextChannels;
     this.computeNets();
@@ -276,9 +406,7 @@ export class Sim {
   snapshot(): SimSnapshot {
     const states = new Map<string, { type: string; state: unknown; outs: Record<string, boolean> }>();
     for (const rp of this.parts) states.set(rp.part.id, { type: rp.part.type, state: rp.state, outs: rp.outs });
-    const tokens = new Map<string, PathToken[]>();
-    for (const l of this.paths) tokens.set(l.wireId, l.tokens);
-    return { time: this.time, tick: this.tick, states, tokens, channels: this.channels };
+    return { time: this.time, tick: this.tick, states, sparks: this.sparks.map((s) => ({ ...s })), channels: this.channels };
   }
 
   // --- queries for the editor and tests ---------------------------------------------------------
@@ -302,11 +430,16 @@ export class Sim {
     return this.netOf.has(`${partId}.${port}`);
   }
 
+  /** Whether an item entrance or exit faces a path tile. */
+  portOnPath(partId: string, port: string): boolean {
+    return this.itemOnPath.has(`${partId}.${port}`);
+  }
+
   netOn(n: number): boolean {
     return n >= 0 && this.netValue[n] === 1;
   }
 
-  /** Signal on each network a tile carries (one, four for a ribbon, two for a bridge). */
+  /** Signal on each network a tile carries (one, or four for a ribbon). */
   cellOn(key: string): boolean[] {
     return (this.grid.cellNets.get(key) ?? []).map((n) => this.netValue[n] === 1);
   }
@@ -321,18 +454,39 @@ export class Sim {
     return out;
   }
 
+  /** Where a spark is drawn: the middle of its tile, plus how far it is toward the next. */
+  sparkPosition(s: Spark): { x: number; y: number } {
+    const k = s.moving ? s.p : 0;
+    return { x: s.x + 0.5 + DIRS[s.dir].x * k, y: s.y + 0.5 + DIRS[s.dir].y * k };
+  }
+
   state<S = any>(partId: string): S | undefined {
     return this.rp(partId)?.state as S | undefined;
   }
 
   status(partId: string): PartStatus {
     const rp = this.rp(partId);
-    return rp?.type.status?.(rp.part.cfg, rp.state) ?? {};
+    const st = rp?.type.status?.(rp.part.cfg, rp.state) ?? {};
+    // Sparks on a tile with no path can't go anywhere.
+    if (rp?.part.type === "sparks" && !this.paths[cellKey(rp.part.x, rp.part.y)]) return { ...st, warn: true };
+    return st;
   }
 
   describe(partId: string): string[] {
     const rp = this.rp(partId);
-    return rp?.type.describe?.(rp.part.cfg, rp.state) ?? [];
+    const lines = rp?.type.describe?.(rp.part.cfg, rp.state) ?? [];
+    if (rp?.part.type === "sparks") {
+      const mine = this.sparks.filter((s) => s.owner === partId);
+      if (!this.paths[cellKey(rp.part.x, rp.part.y)]) return ["Not on a path tile, so no sparks are placed. Move it onto a path.", ...lines];
+      const loaded = mine.filter((s) => s.load);
+      const stuck = mine.filter((s) => s.stuck).map((s) => s.stuck);
+      return [
+        `${mine.length} spark(s) walking; ${loaded.length} carrying ${loaded.map((s) => `${s.load!.n} ${s.load!.item}`).join(", ") || "nothing"}.`,
+        ...(stuck.length ? [`Waiting: ${[...new Set(stuck)].join(" ")}`] : []),
+        ...lines,
+      ];
+    }
+    return lines;
   }
 
   storage(partId: string): StorageView | null {
@@ -342,6 +496,11 @@ export class Sim {
 
   channelOn(ch: string): boolean {
     return this.channels.has(ch);
+  }
+
+  /** Sparks on a path tile right now. */
+  sparksOn(key: string): Spark[] {
+    return this.sparks.filter((s) => this.tileOf(s) === key);
   }
 
   /** Taps an interactive part (lever, button, blocker). Returns true if it reacted. */
@@ -358,10 +517,5 @@ export class Sim {
     if (!rp?.type.action) return false;
     rp.type.action.run(rp.part.cfg, rp.state);
     return true;
-  }
-
-  /** Items currently on paths. */
-  tokenCount(): number {
-    return this.paths.reduce((n, l) => n + l.tokens.length, 0);
   }
 }

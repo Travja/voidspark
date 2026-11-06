@@ -3,8 +3,8 @@
   // items. Touch-first: tap a palette entry then tap the grid to place; tap a port then another
   // port to wire; drag parts to move them.
   import { iconUrl } from "$lib/components/icons";
-  import { connectLogic, freeSpot, makePart, newId, overlaps, partSize, planWire } from "../circuit";
-  import { bezierPoint, wireCurve, type Point } from "../geometry";
+  import { connectLogic, connectPath, ensureSparks, freeSpot, makePart, newId, overlaps, partSize, pathEndpoint, planWire } from "../circuit";
+  import { wireCurve, type Point } from "../geometry";
   import { cellKey, cellLine, DIRS, erase, kindOf, maskOf, paint, parseKey, portCell } from "../grid";
   import { PARTS } from "../parts";
   import { placedPort, type Sim } from "../sim";
@@ -126,16 +126,19 @@
     void frame;
     void store.version;
     const status = new Map(circuit.parts.map((p) => [p.id, sim.status(p.id)]));
-    const tokens: { id: number; item: string; x: number; y: number }[] = [];
-    for (const l of sim.paths) {
-      for (const t of l.tokens) {
-        const pt = bezierPoint(l.curve, Math.min(1, t.pos / l.length));
-        tokens.push({ id: t.token.id, item: t.token.item, x: pt.x, y: pt.y });
-      }
-    }
+    // Two sparks sharing a tile sit side by side rather than on top of each other.
+    const seen = new Map<string, number>();
+    const sparks = sim.sparks.map((s) => {
+      const pt = sim.sparkPosition(s);
+      const k = `${Math.round(pt.x * 4)},${Math.round(pt.y * 4)}`;
+      const n = seen.get(k) ?? 0;
+      seen.set(k, n + 1);
+      const side = n ? 0.22 * (n % 2 ? 1 : -1) : 0;
+      return { id: s.id, item: s.load?.item ?? null, n: s.load?.n ?? 0, stuck: !!s.stuck, x: pt.x - DIRS[s.dir].y * side, y: pt.y + DIRS[s.dir].x * side };
+    });
     const cellOn = new Map<string, boolean[]>();
     for (const k of Object.keys(circuit.cells)) cellOn.set(k, sim.cellOn(k));
-    return { status, tokens, cellOn };
+    return { status, sparks, cellOn };
   });
 
   /** Short stubs from a tile to the ports plugged into it (direction from the tile centre). */
@@ -167,6 +170,16 @@
     }),
   );
 
+  /** Path tiles: a strip along each joined side (Stone pale, Dirt darker). */
+  const pathTiles = $derived(
+    Object.entries(circuit.paths).map(([k, v]) => {
+      const [x, y] = parseKey(k);
+      const arms = [0, 1, 2, 3].filter((d) => maskOf(v) & (1 << d));
+      const d = arms.map((a) => `M${x + 0.5} ${y + 0.5}l${DIRS[a].x * 0.5} ${DIRS[a].y * 0.5}`).join("");
+      return { k, x, y, kind: kindOf(v)!, d, lone: !arms.length };
+    }),
+  );
+
   function portOn(part: string, port: string) {
     void frame;
     return sim.port(part, port);
@@ -190,6 +203,7 @@
   function compatible(part: Part, port: PortDef) {
     if (!wiringFrom || !wiringPort) return true;
     if (part.id === wiringFrom.part && port.id === wiringFrom.port) return true;
+    if (wiringPort.kind === "item") return port.kind === "item" || (port.kind !== "observe" && !!pathEndpoint(circuit, { part: part.id, port: port.id }) && !!PARTS.get(part.type)?.path);
     return "wire" in planWire(circuit, wiringFrom, { part: part.id, port: port.id });
   }
 
@@ -201,6 +215,7 @@
     | { kind: "port"; ref: PortRef; sx: number; sy: number; moved: boolean }
     | { kind: "wire"; id: string; sx: number; sy: number }
     | { kind: "cell"; id: string; sx: number; sy: number; tx: number; ty: number }
+    | { kind: "path"; id: string; sx: number; sy: number; tx: number; ty: number }
     | { kind: "paint"; last: [number, number]; sx: number; sy: number }
     | { kind: "pinch" };
 
@@ -210,9 +225,10 @@
   const SLOP = 7;
 
   function targetOf(el: EventTarget | null) {
-    const e = (el as Element | null)?.closest?.("[data-port],[data-part],[data-wire],[data-cell]") as HTMLElement | null;
+    const e = (el as Element | null)?.closest?.("[data-port],[data-part],[data-wire],[data-cell],[data-path]") as HTMLElement | null;
     if (!e) return null;
     if (e.dataset.cell) return { kind: "cell" as const, id: e.dataset.cell };
+    if (e.dataset.path) return { kind: "path" as const, id: e.dataset.path };
     if (e.dataset.port) {
       const [part, port] = e.dataset.port.split("|");
       return { kind: "port" as const, ref: { part, port } };
@@ -255,6 +271,7 @@
       press = { kind: "part", id: t.id, sx: p.x, sy: p.y, ox: part.x, oy: part.y, moved: false };
     } else if (t?.kind === "wire" && !placing) press = { kind: "wire", id: t.id, sx: p.x, sy: p.y };
     else if (t?.kind === "cell" && !placing) press = { kind: "cell", id: t.id, sx: p.x, sy: p.y, tx, ty };
+    else if (t?.kind === "path" && !placing) press = { kind: "path", id: t.id, sx: p.x, sy: p.y, tx, ty };
     else press = { kind: "pan", sx: p.x, sy: p.y, tx, ty };
   }
 
@@ -286,7 +303,7 @@
       press.last = cell;
       return;
     }
-    if (press.kind === "pan" || press.kind === "cell") {
+    if (press.kind === "pan" || press.kind === "cell" || press.kind === "path") {
       tx = press.tx + (p.x - press.sx);
       ty = press.ty + (p.y - press.sy);
     } else if (press.kind === "part") {
@@ -330,10 +347,10 @@
       store.touched();
       return;
     }
-    if (pr.kind === "cell") {
+    if (pr.kind === "cell" || pr.kind === "path") {
       if (tapped) {
         if (wiringFrom) wiringFrom = null;
-        else store.selection = { kind: "cell", id: pr.id };
+        else store.selection = { kind: pr.kind, id: pr.id };
       }
       return;
     }
@@ -420,7 +437,14 @@
   /** Applies the current tool to a run of tiles. */
   function brush(path: [number, number][]) {
     if (tool === "wire" || tool === "ribbon") paint(circuit.cells, tool === "wire" ? "w" : "r", path);
-    else if (tool === "erase") for (const [x, y] of path) erase(circuit.cells, cellKey(x, y));
+    else if (tool === "path") paint(circuit.paths, "s", path);
+    else if (tool === "erase")
+      for (const [x, y] of path) {
+        // In the logic overlay the eraser takes wire tiles; otherwise the path on top goes first.
+        const k = cellKey(x, y);
+        if (!overlay && circuit.paths[k]) erase(circuit.paths, k);
+        else erase(circuit.cells, k);
+      }
   }
 
   function connect(a: PortRef, b: PortRef) {
@@ -439,6 +463,26 @@
         c.cells = draft.cells;
         c.parts = draft.parts;
       });
+      wiringFrom = null;
+      return;
+    }
+    const partA = partById.get(a.part);
+    const isPathEnd = (r: PortRef, kind: string | undefined) => kind === "item" || (kind !== "observe" && !!PARTS.get(partById.get(r.part)?.type ?? "")?.path);
+    const kindB = PARTS.get(partById.get(b.part)?.type ?? "")?.ports.find((p) => p.id === b.port)?.kind;
+    if (partA && isPathEnd(a, kindA) && isPathEnd(b, kindB) && (kindA === "item" || kindB === "item")) {
+      const draft = $state.snapshot(circuit) as Circuit;
+      const err = connectPath(draft, a, b);
+      if (err) {
+        notify(err);
+        return;
+      }
+      const end = pathEndpoint(draft, a)!;
+      const added = ensureSparks(draft, cellKey(end.x, end.y));
+      store.edit((c) => {
+        c.paths = draft.paths;
+        c.parts = draft.parts;
+      });
+      if (added) notify("Path laid, with 2 sparks to walk it. Tap the sparks to change how many.");
       wiringFrom = null;
       return;
     }
@@ -464,6 +508,7 @@
 
   const PORT_R = 0.13;
   const tokenIcon = (item: string) => iconUrl(item);
+  const PATH_LABEL: Record<string, string> = { s: "stone", d: "dirt" };
   const selectedId = $derived(store.selection?.id);
   /** The logic overlay is on when asked for, and while drawing wire or ribbon tiles. */
   const overlay = $derived(logicView || tool === "wire" || tool === "ribbon");
@@ -507,7 +552,25 @@
     <g transform="translate({tx} {ty}) scale({zoom})">
       {#if !overlay}{@render tileLayer()}{/if}
 
-      <!-- Paths and sensor links -->
+      <!-- Path tiles: on the ground, under buildings; faded in the logic overlay. -->
+      <g class="paths" class:faded={overlay}>
+        <!-- Two passes, so a tile's border never paints over its neighbour's surface. -->
+        {#each pathTiles as t (t.k)}
+          <g class="path-t {PATH_LABEL[t.kind]}">
+            <path class="path-edge" d={t.d} />
+            <rect class="path-edge-node" x={t.x + 0.14} y={t.y + 0.14} width=".72" height=".72" rx=".14" />
+          </g>
+        {/each}
+        {#each pathTiles as t (t.k)}
+          <g data-path={t.k} class="path-t {PATH_LABEL[t.kind]}" class:selected={selectedId === t.k}>
+            <path class="path-top" d={t.d} />
+            <rect class="path-node" x={t.x + 0.2} y={t.y + 0.2} width=".6" height=".6" rx=".1" />
+            <rect class="tile-hit" x={t.x} y={t.y} width="1" height="1" />
+          </g>
+        {/each}
+      </g>
+
+      <!-- Sensor links -->
       {#each circuit.wires as w (w.id)}
         {@const c = curveFor(w.from, w.to)}
         {#if c}
@@ -529,14 +592,22 @@
       <!-- In the logic overlay, wire tiles show through buildings, as in the game's logic view. -->
       {#if overlay}{@render tileLayer()}{/if}
 
-      <!-- Items on paths -->
-      {#each live.tokens as t (t.id)}
-        {@const url = tokenIcon(t.item)}
-        <g class="token" transform="translate({t.x} {t.y})">
-          <circle r=".2" />
-          {#if url}<image href={url} x="-.17" y="-.17" width=".34" height=".34" />{/if}
-        </g>
-      {/each}
+      <!-- Sparks walking the paths, with what they carry -->
+      <g class="sparks-layer" class:faded={overlay}>
+        {#each live.sparks as s (s.id)}
+          {@const url = s.item ? tokenIcon(s.item) : null}
+          <g class="spark" class:loaded={!!s.item} class:stuck={s.stuck} transform="translate({s.x} {s.y})">
+            {#if s.item}
+              <!-- A loaded spark is drawn as what it carries, with the spark peeking out behind. -->
+              <circle class="spark-body" cx=".2" cy="-.2" r=".1" />
+              <circle class="spark-load" r=".3" />
+              {#if url}<image href={url} x="-.27" y="-.27" width=".54" height=".54" />{/if}
+            {:else}
+              <circle class="spark-body" r=".15" />
+            {/if}
+          </g>
+        {/each}
+      </g>
 
       <!-- Ports (on top so they're easy to hit) -->
       {#each circuit.parts as part (part.id)}
