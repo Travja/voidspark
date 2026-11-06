@@ -110,6 +110,11 @@
       {:else}
         <path class="g" class:g-on={on} stroke-width={S} d="M.3 .2Q.5 .32 .7 .2M.22 .1Q.5 .26 .78 .1" />
       {/if}
+    {:else if type === "compressor"}
+      <!-- A press squashing items into a cube, bound for the Recycler. -->
+      <rect class="g" stroke-width={S} x=".16" y=".14" width=".68" height=".72" rx=".05" />
+      <path class="g" stroke-width={S * 1.3} d="M.24 .44H.76M.5 .2V.38M.42 .3L.5 .38L.58 .3" />
+      <rect class="g-fill" x=".4" y=".58" width=".2" height=".18" rx=".02" />
     {:else if type === "sr-latch" || type === "d-flipflop"}
       <!-- A memory cell: two cross-coupled halves. Port letters are drawn upright by PartView. -->
       <path class="g" stroke-width={S} d="M.36 .3H.64V.46H.36ZM.36 .54H.64V.7H.36Z" />

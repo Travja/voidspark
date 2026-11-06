@@ -538,13 +538,29 @@ describe("distribution center example", () => {
       const v = sim.storage(byLabel(label))!;
       expect(v.count(item)).toBe(v.total);
     }
-    expect(sim.storage(byLabel("Overflow"))!.count("pebble")).toBeGreaterThan(0);
+    // Pebbles match no filter and end up in the overflow Compressor at the end of the line.
+    const compressors = c.parts.filter((p) => p.type === "compressor");
+    expect(Math.max(...compressors.map((p) => sim.state(p.id).sent))).toBeGreaterThan(0);
     // The furnace (fastest consumer) kept running: it was refilled from the hub.
     const furnace = c.parts.find((p) => p.cfg.label === "Furnace")!.id;
     expect(sim.state(furnace).made).toBeGreaterThan(30);
     // Requests went out over wireless at least once.
     const ex = c.parts.filter((p) => p.type === "extractor").map((p) => sim.state(p.id).moved);
     expect(Math.max(...ex)).toBeGreaterThan(10);
+  });
+
+  it("keeps flowing for a long run: no jams at the hub or the workshops", () => {
+    const c = EXAMPLES[0].build();
+    const sim = new Sim(c);
+    const train = c.parts.find((p) => p.type === "source")!.id;
+    const machines = c.parts.filter((p) => p.type === "machine").map((p) => p.id);
+    sim.run(600);
+    const sentAt10 = sim.state(train).made;
+    const madeAt10 = machines.map((m) => sim.state(m).made);
+    sim.run(300);
+    // The train is still unloading at full rate (2/s) and every workshop is still crafting.
+    expect(sim.state(train).made - sentAt10).toBeGreaterThan(550);
+    machines.forEach((m, i) => expect(sim.state(m).made).toBeGreaterThan(madeAt10[i]));
   });
 
   it("a few hundred parts simulate quickly", () => {
@@ -709,5 +725,70 @@ describe("machine output slot", () => {
     const { sim, m } = furnace({ slot: 5 });
     sim.run(60);
     expect(sim.state(m).out).toEqual({ quartz: 5 });
+  });
+});
+
+describe("filter overflow and the compressor", () => {
+  function line(filterCfg: Record<string, unknown>, rate = 2) {
+    const c = new CircuitBuilder("t");
+    const src = c.add("source", 0, 0, { items: ["wooden-log"], rate });
+    const f = c.add("item-filter", 3, 0, { item: "wooden-log", ...filterCfg });
+    const pass = c.add("storage", 6, 0, { capacity: 5, rate: 0 });
+    const rest = c.add("storage", 3, 4, { capacity: 999, rate: 0 });
+    c.wire(src, "out", f, "in").wire(f, "pass", pass, "in").wire(f, "reject", rest, "in");
+    const sim = new Sim(c.c);
+    sim.run(20);
+    return { sim, pass, rest, src, f };
+  }
+
+  it("sends matching items on down the line when the pass exit is backed up", () => {
+    const { sim, pass, rest, f } = line({});
+    expect(sim.storage(pass)!.total).toBe(5);
+    expect(sim.storage(rest)!.count("wooden-log")).toBeGreaterThan(20);
+    expect(sim.state(f).overflowed).toBeGreaterThan(20);
+  });
+
+  it("can be set to wait instead (the line backs up)", () => {
+    const { sim, pass, rest, src } = line({ overflow: false });
+    expect(sim.storage(pass)!.total).toBe(5);
+    expect(sim.storage(rest)!.total).toBe(0);
+    const made = sim.state(src).made;
+    sim.run(10);
+    expect(sim.state(src).made).toBe(made);
+  });
+
+  it("Compressor takes everything when it has no rate set", () => {
+    const c = new CircuitBuilder("t");
+    const src = c.add("source", 0, 0, { items: ["stone", "quartz"], rate: 5 });
+    const comp = c.add("compressor", 3, 0);
+    c.wire(src, "out", comp, "in");
+    const sim = new Sim(c.c);
+    sim.run(30);
+    expect(sim.state(comp).sent).toBeGreaterThan(100); // a path carries up to 4 items/s at walking speed 2
+    expect(sim.state(src).made - sim.state(comp).sent).toBeLessThanOrEqual(6); // only what's on the path
+  });
+
+  it("Compressor with a rate holds up to 20 stacks, then backs up", () => {
+    const c = new CircuitBuilder("t");
+    const src = c.add("source", 0, 0, { items: ["stone"], rate: 10 });
+    const comp = c.add("compressor", 3, 0, { rate: 1 });
+    c.wire(src, "out", comp, "in");
+    const sim = new Sim(c.c);
+    sim.run(300);
+    const held = sim.state(comp).held.stone;
+    expect(held).toBe(20 * 20); // 20 slots of Stone (stack 20)
+    expect(sim.state(comp).sent).toBeGreaterThanOrEqual(295);
+    expect(sim.state(comp).sent).toBeLessThanOrEqual(301);
+  });
+
+  it("Compressor accepts items on both inputs", () => {
+    const c = new CircuitBuilder("t");
+    const a = c.add("source", 0, -2, { items: ["stone"], rate: 2 });
+    const b = c.add("source", 0, 3, { items: ["wooden-log"], rate: 2 });
+    const comp = c.add("compressor", 4, 0);
+    c.wire(a, "out", comp, "in").wire(b, "out", comp, "in2");
+    const sim = new Sim(c.c);
+    sim.run(10);
+    expect(sim.state(comp).sent).toBeGreaterThan(30);
   });
 });

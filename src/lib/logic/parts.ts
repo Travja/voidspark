@@ -548,8 +548,43 @@ const ribbonReader: PartType<{ bit: string }, { on: boolean }> = {
 // --- paths -------------------------------------------------------------------------------------
 
 /** Pass-through path add-on with a pass exit and a "keep walking" exit. */
-type FilterCfg = { item: string; invert: boolean };
-const itemFilter: PartType<FilterCfg, { passed: number; rejected: number }> = {
+type FilterState = { passed: number; rejected: number; overflowed: number };
+
+const overflowField: FieldDef = {
+  key: "overflow",
+  label: "Pass exit full: send on down the line",
+  type: "bool",
+  help: "Matching items take the reject exit when the pass exit is backed up, instead of blocking the whole line (sandbox assumption).",
+};
+
+/** Routes a token through a filter: matches to pass (or on down the line when that's full). */
+function filterRoute(ctx: StepCtx<{ overflow: boolean }, FilterState>, t: Token, match: boolean): boolean {
+  const s = ctx.state;
+  if (match) {
+    if (ctx.emit("pass", t)) {
+      s.passed += t.n;
+      return true;
+    }
+    // Only when the pass exit is really backed up, not for the gap between two items.
+    if (ctx.cfg.overflow && ctx.backedUp("pass") && ctx.emit("reject", t)) {
+      s.overflowed += t.n;
+      return true;
+    }
+    return false;
+  }
+  if (ctx.emit("reject", t)) {
+    s.rejected += t.n;
+    return true;
+  }
+  return false;
+}
+
+const filterLines = (s: FilterState) => [
+  `${s.passed} passed, ${s.rejected} sent on${s.overflowed ? `, ${s.overflowed} sent on because the pass exit was full` : ""}.`,
+];
+
+type FilterCfg = { item: string; invert: boolean; overflow: boolean };
+const itemFilter: PartType<FilterCfg, FilterState> = {
   id: "item-filter",
   name: "Item Filter",
   category: "Paths",
@@ -561,26 +596,22 @@ const itemFilter: PartType<FilterCfg, { passed: number; rejected: number }> = {
   fields: [
     { key: "item", label: "Item", type: "item", allowEmpty: true, emptyLabel: "Empty (only empty-handed sparks)" },
     { key: "invert", label: "Reverse (block this item)", type: "bool" },
+    overflowField,
   ],
-  defaults: () => ({ item: "", invert: false }),
-  init: () => ({ passed: 0, rejected: 0 }),
-  accept: (ctx, _p, t) => {
-    if (!powered(ctx)) return ctx.emit("pass", t) && !!++ctx.state.passed;
-    const match = (t.item === ctx.cfg.item) !== ctx.cfg.invert;
-    const ok = ctx.emit(match ? "pass" : "reject", t);
-    if (ok) ctx.state[match ? "passed" : "rejected"] += t.n;
-    return ok;
-  },
+  defaults: () => ({ item: "", invert: false, overflow: true }),
+  init: () => ({ passed: 0, rejected: 0, overflowed: 0 }),
+  // Wired and unpowered, sparks ignore it: everything counts as a match.
+  accept: (ctx, _p, t) => filterRoute(ctx, t, !powered(ctx) || (t.item === ctx.cfg.item) !== ctx.cfg.invert),
   status: (c) => ({ warn: !c.item }),
   describe: (c, s) => [
     `${c.invert ? "Blocks" : "Passes"} ${c.item ? itemName(c.item) : "nothing (empty filter)"}.`,
-    `${s.passed} passed, ${s.rejected} sent on.`,
+    ...filterLines(s),
     "Wired and unpowered: sparks ignore it (everything takes the pass exit).",
   ],
 };
 
-type AmountCfg = { cmp: "eq" | "ge" | "le"; amount: number };
-const amountFilter: PartType<AmountCfg, { passed: number; rejected: number }> = {
+type AmountCfg = { cmp: "eq" | "ge" | "le"; amount: number; overflow: boolean };
+const amountFilter: PartType<AmountCfg, FilterState> = {
   id: "amount-filter",
   name: "Amount Filter",
   category: "Paths",
@@ -601,18 +632,16 @@ const amountFilter: PartType<AmountCfg, { passed: number; rejected: number }> = 
       ],
     },
     { key: "amount", label: "Amount", type: "number", min: 0, max: 999, step: 1 },
+    overflowField,
   ],
-  defaults: () => ({ cmp: "eq", amount: 1 }),
-  init: () => ({ passed: 0, rejected: 0 }),
+  defaults: () => ({ cmp: "eq", amount: 1, overflow: true }),
+  init: () => ({ passed: 0, rejected: 0, overflowed: 0 }),
   accept: (ctx, _p, t) => {
-    if (!powered(ctx)) return ctx.emit("pass", t);
     const { cmp, amount } = ctx.cfg;
     const match = cmp === "eq" ? t.n === amount : cmp === "ge" ? t.n >= amount : t.n <= amount;
-    const ok = ctx.emit(match ? "pass" : "reject", t);
-    if (ok) ctx.state[match ? "passed" : "rejected"]++;
-    return ok;
+    return filterRoute(ctx, t, !powered(ctx) || match);
   },
-  describe: (c, s) => [`Passes stacks ${c.cmp === "eq" ? "of exactly" : c.cmp === "ge" ? "of at least" : "of at most"} ${c.amount}.`, `${s.passed} passed, ${s.rejected} sent on.`],
+  describe: (c, s) => [`Passes stacks ${c.cmp === "eq" ? "of exactly" : c.cmp === "ge" ? "of at least" : "of at most"} ${c.amount}.`, ...filterLines(s)],
 };
 
 const blocker: PartType<{ closed: boolean }, { closed: boolean; shut: boolean }> = {
@@ -1032,6 +1061,67 @@ const machine: PartType<MachineCfg, MachineState> = {
   },
 };
 
+/** Item slots a Compressor holds while it works through them (wiki: 20 storage slots). */
+const COMPRESSOR_SLOTS = 20;
+
+type CompressorState = { held: Record<string, number>; credit: number; sent: number };
+const slotsUsed = (held: Record<string, number>) => Object.entries(held).reduce((n, [item, c]) => n + Math.ceil(c / stackSize(item)), 0);
+
+const compressor: PartType<{ rate: number }, CompressorState> = {
+  id: "compressor",
+  name: "Compressor",
+  category: "Storage & machines",
+  blurb: "Compresses items and sends them to the Recycler. Takes anything, so lines don't back up.",
+  wiki: "Compressor",
+  // Wiki footprint: 2 × 3 with two input tiles on one short side; here inputs face left.
+  w: 3,
+  h: 2,
+  ports: [itemIn("in", "l", 0.25), itemIn("in2", "l", 0.75)],
+  fields: [
+    {
+      key: "rate",
+      label: "Sends per second",
+      type: "number",
+      min: 0,
+      max: 100,
+      step: 0.5,
+      unit: "/s",
+      help: "0 = as fast as items arrive (the wiki gives no rate). With a rate, it holds up to 20 stacks and then backs up.",
+    },
+  ],
+  defaults: () => ({ rate: 0 }),
+  init: () => ({ held: {}, credit: 0, sent: 0 }),
+  accept: (ctx, _p, t) => {
+    const s = ctx.state;
+    if (!ctx.cfg.rate) {
+      s.sent += t.n;
+      return true;
+    }
+    const next = { ...s.held, [t.item]: (s.held[t.item] ?? 0) + t.n };
+    if (slotsUsed(next) > COMPRESSOR_SLOTS) return false;
+    s.held = next;
+    return true;
+  },
+  step: (ctx) => {
+    const s = ctx.state;
+    if (!ctx.cfg.rate) return;
+    s.credit = Math.min(s.credit + ctx.cfg.rate * ctx.dt, Math.max(1, ctx.cfg.rate));
+    for (const item of Object.keys(s.held)) {
+      while (s.credit >= 1 - 1e-9 && s.held[item] > 0) {
+        s.held[item]--;
+        s.sent++;
+        s.credit -= 1;
+      }
+      if (!s.held[item]) delete s.held[item];
+    }
+  },
+  status: (c, s) => ({ active: true, badge: String(s.sent), fill: c.rate ? slotsUsed(s.held) / COMPRESSOR_SLOTS : undefined }),
+  describe: (c, s) => [
+    `${s.sent} item(s) sent to the Recycler.`,
+    c.rate ? `Holding ${slotsUsed(s.held)} of ${COMPRESSOR_SLOTS} slots; sends ${c.rate}/s.` : "Sends items as fast as they arrive.",
+  ],
+};
+
 const label: PartType<{ text: string }, Record<string, never>> = {
   id: "label",
   name: "Label",
@@ -1080,6 +1170,7 @@ export const PART_TYPES: PartType<any, any>[] = [
   storage,
   extractor,
   machine,
+  compressor,
   label,
 ];
 

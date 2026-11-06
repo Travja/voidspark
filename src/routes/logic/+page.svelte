@@ -86,6 +86,26 @@
   let placing = $state<string | null>(null);
   let wiringFrom = $state<PortRef | null>(null);
   let tool = $state<Tool>("select");
+
+  // View aids, remembered per device: tile grid lines and the logic overlay.
+  const VIEW_KEY = "voidspark:logic:view";
+  const savedView = (() => {
+    try {
+      return JSON.parse(localStorage.getItem(VIEW_KEY) ?? "{}") as { grid?: boolean; logic?: boolean };
+    } catch {
+      return {};
+    }
+  })();
+  let showGrid = $state(!!savedView.grid);
+  let logicView = $state(!!savedView.logic);
+  $effect(() => {
+    const json = JSON.stringify({ grid: showGrid, logic: logicView });
+    try {
+      localStorage.setItem(VIEW_KEY, json);
+    } catch {
+      /* storage unavailable */
+    }
+  });
   const TOOLS: { id: Tool; label: string; icon: string; key: string; tip: string }[] = [
     { id: "select", label: "Select", icon: "✋", key: "v", tip: "Select, move, wire port-to-port, pan" },
     { id: "wire", label: "Wire", icon: "╱", key: "w", tip: "Draw wire tiles: drag across the grid" },
@@ -161,6 +181,7 @@
         deleteSelection();
       }
     } else if (e.key === "r" && !mod) rotateSelection();
+    else if (e.key === "l" && !mod) logicView = !logicView;
     else if (!mod && TOOLS.some((t) => t.key === e.key)) {
       tool = TOOLS.find((t) => t.key === e.key)!.id;
       placing = null;
@@ -321,7 +342,7 @@
     {/if}
 
     <div class="stage">
-      <Canvas bind:this={canvas} {store} {sim} {frame} {running} bind:placing bind:wiringFrom bind:tool {notify} />
+      <Canvas bind:this={canvas} {store} {sim} {frame} {running} bind:placing bind:wiringFrom bind:tool {showGrid} {logicView} {notify} />
       <div class="tools" role="toolbar" aria-label="Tools">
         {#each TOOLS as t (t.id)}
           <button
@@ -336,6 +357,17 @@
             }}><span class="tool-icon" aria-hidden="true">{t.icon}</span><span class="tool-label">{t.label}</span></button
           >
         {/each}
+        <hr />
+        <button class:active={showGrid} aria-pressed={showGrid} aria-label="Grid" title="Show tile grid lines (heavier every 5 tiles)" onclick={() => (showGrid = !showGrid)}
+          ><span class="tool-icon" aria-hidden="true">▦</span><span class="tool-label">Grid</span></button
+        >
+        <button
+          class:active={logicView}
+          aria-pressed={logicView}
+          aria-label="Logic overlay"
+          title="Logic overlay: fade buildings and paths, show wires through them (L)"
+          onclick={() => (logicView = !logicView)}><span class="tool-icon" aria-hidden="true">ϟ</span><span class="tool-label">Logic</span></button
+        >
       </div>
       {#if placing || wiringFrom || tool !== "select"}
         <div class="hint" role="status">
@@ -429,7 +461,7 @@
       <li><strong>Paths:</strong> square ports carry items; tap an exit then an entrance. Diamonds link a Capacity Sensor to a storage.</li>
       <li><strong>Move:</strong> drag a part. <strong>Pan:</strong> drag the grid. <strong>Zoom:</strong> wheel or pinch.</li>
       <li><strong>Run:</strong> ▶ plays; tap levers, buttons and blockers to toggle them. Select a part to see its inputs, outputs and why it's on or off.</li>
-      <li>Keys: V select, W wire, G ribbon, X erase, R rotate, Delete remove, Ctrl+Z / Ctrl+Y undo/redo, Space play/pause, Esc cancel.</li>
+      <li>Keys: V select, W wire, G ribbon, X erase, L logic overlay, R rotate, Delete remove, Ctrl+Z / Ctrl+Y undo/redo, Space play/pause, Esc cancel.</li>
     </ul>
     <label>
       Spark walking speed <span class="muted">(tiles/s)</span>

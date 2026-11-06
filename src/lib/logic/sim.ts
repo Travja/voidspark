@@ -201,6 +201,12 @@ export class Sim {
         const link = sim.pathOut.get(`${id}.${port}`);
         return !!link && sim.room(link);
       },
+      backedUp: (port) => {
+        const link = sim.pathOut.get(`${id}.${port}`);
+        if (!link) return true;
+        const front = link.tokens[0];
+        return !!front && front.pos >= link.length - 1e-9 && !sim.room(link);
+      },
       observe: (port) => {
         const j = sim.observed.get(`${id}.${port}`);
         if (j === undefined) return null;
