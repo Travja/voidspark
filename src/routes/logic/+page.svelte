@@ -288,8 +288,24 @@
           {@attach (el) => el.focus()}
         />
       {:else}
-        <select aria-label="Saved circuits" value={store.currentId} onchange={(e) => store.select(e.currentTarget.value)}>
-          {#each store.saved as s (s.id)}<option value={s.id}>{s.circuit.name}</option>{/each}
+        <select
+          aria-label="Saved circuits"
+          value={store.currentId}
+          onchange={(e) => {
+            const v = e.currentTarget.value;
+            if (v.startsWith("example:")) {
+              // Opening an example adds a fresh copy; the menu shows it as the open circuit.
+              e.currentTarget.value = store.currentId;
+              openExample(v.slice(8));
+            } else store.select(v);
+          }}
+        >
+          <optgroup label="My circuits">
+            {#each store.saved as s (s.id)}<option value={s.id}>{s.circuit.name}</option>{/each}
+          </optgroup>
+          <optgroup label="Open an example">
+            {#each EXAMPLES as ex (ex.id)}<option value="example:{ex.id}">{ex.name}</option>{/each}
+          </optgroup>
         </select>
       {/if}
       <details class="menu" bind:open={menuOpen} bind:this={menuEl}>

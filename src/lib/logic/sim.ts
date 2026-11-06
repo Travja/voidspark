@@ -17,6 +17,9 @@ import { buildNets, cellKey, DIRS, joined, kindOf, PATH_SPEED, portCell, type Gr
 import { PARTS, stackSize, TICK } from "./parts";
 import type { Circuit, Part, PartStatus, PartType, PortDef, SparkView, StepCtx, StorageView, Token } from "./types";
 
+/** How far right of a path's middle sparks walk, in tiles. */
+export const SPARK_LANE = 0.18;
+
 /** Sparks that fit on one path tile at once. */
 export const TILE_CAPACITY = 2;
 
@@ -39,6 +42,8 @@ export interface Spark {
   y: number;
   /** Direction it's moving, or last moved. */
   dir: number;
+  /** Direction it walked onto its current tile (for drawing the turn it makes there). */
+  from: number;
   /** Heading for the next tile. */
   moving: boolean;
   /** Progress toward the next tile, 0..1. */
@@ -191,7 +196,7 @@ export class Sim {
       }
       if (!this.paths[home]) continue;
       for (let k = mine.length; k < count; k++) {
-        this.sparks.push({ id: this.sparkId++, owner: id, x, y, dir: rot, moving: false, p: 0, load: null, carry, wait: 0, stuck: "" });
+        this.sparks.push({ id: this.sparkId++, owner: id, x, y, dir: rot, from: rot, moving: false, p: 0, load: null, carry, wait: 0, stuck: "" });
       }
     }
   }
@@ -356,6 +361,7 @@ export class Sim {
           const own = this.addOnAt(cellKey(s.x, s.y));
           own?.type.path?.leave?.(own.ctx, this.view(s), s.dir, own.part.rot, d);
           const here = cellKey(s.x, s.y) + ">" + s.dir;
+          s.from = s.dir;
           s.dir = d;
           s.moving = true;
           s.p = 0;
@@ -454,10 +460,40 @@ export class Sim {
     return out;
   }
 
-  /** Where a spark is drawn: the middle of its tile, plus how far it is toward the next. */
+  /**
+   * Where a spark is drawn. Sparks keep to the right-hand side of a path, as in the game, so ones
+   * going opposite ways pass side by side, and a spark turning back at a dead end swings round in
+   * a loop rather than reversing on the spot. Turns are drawn as curves in the first half of the
+   * step off a tile (the half still on that tile); the second half runs straight into the next.
+   */
   sparkPosition(s: Spark): { x: number; y: number } {
-    const k = s.moving ? s.p : 0;
-    return { x: s.x + 0.5 + DIRS[s.dir].x * k, y: s.y + 0.5 + DIRS[s.dir].y * k };
+    const L = SPARK_LANE;
+    const cx = s.x + 0.5;
+    const cy = s.y + 0.5;
+    const d = DIRS[s.dir];
+    const right = (v: { x: number; y: number }) => ({ x: -v.y, y: v.x });
+    const rd = right(d);
+    if (!s.moving || s.p >= 0.5 || s.from === s.dir) {
+      const k = s.moving ? s.p : 0;
+      return { x: cx + d.x * k + rd.x * L, y: cy + d.y * k + rd.y * L };
+    }
+    // Turning on this tile: a cubic from the lane at the middle of the tile (heading the way it
+    // came in) to the lane at the edge it leaves by (heading the new way).
+    const e = DIRS[s.from];
+    const re = right(e);
+    const p0 = { x: cx + re.x * L, y: cy + re.y * L };
+    const p3 = { x: cx + d.x * 0.5 + rd.x * L, y: cy + d.y * 0.5 + rd.y * L };
+    // Turning back swings wide; turning left (the outer lane) sweeps round; turning right (the
+    // inner lane, whose corner is behind the tile's middle) cuts straight across.
+    const back = s.from === (s.dir + 2) % 4;
+    const rightTurn = s.dir === (s.from + 1) % 4;
+    const a = back ? 0.26 : rightTurn ? 0 : 0.22;
+    const p1 = { x: p0.x + e.x * a, y: p0.y + e.y * a };
+    const p2 = { x: p3.x - d.x * (rightTurn ? 0.12 : a), y: p3.y - d.y * (rightTurn ? 0.12 : a) };
+    const t = s.p / 0.5;
+    const u = 1 - t;
+    const b = (k0: number, k1: number, k2: number, k3: number) => u * u * u * k0 + 3 * u * u * t * k1 + 3 * u * t * t * k2 + t * t * t * k3;
+    return { x: b(p0.x, p1.x, p2.x, p3.x), y: b(p0.y, p1.y, p2.y, p3.y) };
   }
 
   state<S = any>(partId: string): S | undefined {

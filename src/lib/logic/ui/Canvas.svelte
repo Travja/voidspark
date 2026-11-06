@@ -126,15 +126,16 @@
     void frame;
     void store.version;
     const status = new Map(circuit.parts.map((p) => [p.id, sim.status(p.id)]));
-    // Two sparks sharing a tile sit side by side rather than on top of each other.
+    // Sparks keep right, so ones going opposite ways already sit apart. Two waiting in the same
+    // spot heading the same way queue one behind the other.
     const seen = new Map<string, number>();
     const sparks = sim.sparks.map((s) => {
       const pt = sim.sparkPosition(s);
-      const k = `${Math.round(pt.x * 4)},${Math.round(pt.y * 4)}`;
+      const k = `${Math.round(pt.x * 5)},${Math.round(pt.y * 5)},${s.dir}`;
       const n = seen.get(k) ?? 0;
       seen.set(k, n + 1);
-      const side = n ? 0.22 * (n % 2 ? 1 : -1) : 0;
-      return { id: s.id, item: s.load?.item ?? null, n: s.load?.n ?? 0, stuck: !!s.stuck, x: pt.x - DIRS[s.dir].y * side, y: pt.y + DIRS[s.dir].x * side };
+      const back = n * 0.3;
+      return { id: s.id, item: s.load?.item ?? null, n: s.load?.n ?? 0, stuck: !!s.stuck, x: pt.x - DIRS[s.dir].x * back, y: pt.y - DIRS[s.dir].y * back };
     });
     const cellOn = new Map<string, boolean[]>();
     for (const k of Object.keys(circuit.cells)) cellOn.set(k, sim.cellOn(k));
