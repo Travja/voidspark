@@ -169,6 +169,8 @@ export interface PartStatus {
   badge?: string;
   /** Problem worth flagging (no channel, blocked). */
   warn?: boolean;
+  /** Items to show on the part (what a storage holds, most first). */
+  items?: string[];
 }
 
 export type Category = "Inputs" | "Gates" | "Memory" | "Wiring" | "Wireless & display" | "Paths" | "Storage & machines" | "Notes";

@@ -964,7 +964,15 @@ const storage: PartType<StorageCfg, StorageState> = {
     return ctx.token(item, n);
   },
   view: (cfg, s) => ({ total: s.total, capacity: cfg.capacity, count: (item) => s.counts[item] ?? 0 }),
-  status: (cfg, s) => ({ fill: cfg.capacity ? s.total / cfg.capacity : 0, badge: String(s.total) }),
+  status: (cfg, s) => {
+    // What it holds, most first; empty, the item it's meant for (its "take" setting).
+    const held = Object.entries(s.counts)
+      .filter(([, n]) => n > 0)
+      .sort((a, b) => b[1] - a[1])
+      .map(([item]) => item);
+    const items = held.length ? held.slice(0, 3) : cfg.take ? [cfg.take] : [];
+    return { fill: cfg.capacity ? s.total / cfg.capacity : 0, badge: String(s.total), items };
+  },
   describe: (cfg, s) => {
     const items = Object.entries(s.counts)
       .filter(([, n]) => n > 0)

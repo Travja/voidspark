@@ -133,7 +133,7 @@
       const k = `${Math.round(pt.x * 4)},${Math.round(pt.y * 4)}`;
       const n = seen.get(k) ?? 0;
       seen.set(k, n + 1);
-      const side = n ? 0.16 * (n % 2 ? 1 : -1) : 0;
+      const side = n ? 0.22 * (n % 2 ? 1 : -1) : 0;
       return { id: s.id, item: s.load?.item ?? null, n: s.load?.n ?? 0, stuck: !!s.stuck, x: pt.x - DIRS[s.dir].y * side, y: pt.y + DIRS[s.dir].x * side };
     });
     const cellOn = new Map<string, boolean[]>();
@@ -597,8 +597,14 @@
         {#each live.sparks as s (s.id)}
           {@const url = s.item ? tokenIcon(s.item) : null}
           <g class="spark" class:loaded={!!s.item} class:stuck={s.stuck} transform="translate({s.x} {s.y})">
-            <circle class="spark-body" r=".17" />
-            {#if url}<image href={url} x="-.14" y="-.14" width=".28" height=".28" />{/if}
+            {#if s.item}
+              <!-- A loaded spark is drawn as what it carries, with the spark peeking out behind. -->
+              <circle class="spark-body" cx=".2" cy="-.2" r=".1" />
+              <circle class="spark-load" r=".3" />
+              {#if url}<image href={url} x="-.27" y="-.27" width=".54" height=".54" />{/if}
+            {:else}
+              <circle class="spark-body" r=".15" />
+            {/if}
           </g>
         {/each}
       </g>

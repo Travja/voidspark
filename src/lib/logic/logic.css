@@ -705,13 +705,14 @@ svg.canvas.placing {
   stroke-width: 0.035;
 }
 
-.spark.loaded .spark-body {
+.spark .spark-load {
   fill: var(--surface);
   stroke: var(--spark);
   stroke-width: 0.05;
 }
 
-.spark.stuck .spark-body {
+.spark.stuck .spark-body,
+.spark.stuck .spark-load {
   stroke-dasharray: 0.08 0.05;
 }
 
