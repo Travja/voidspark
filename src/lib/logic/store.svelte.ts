@@ -1,7 +1,7 @@
 // Reactive editor state for the logic sandbox: saved circuits (localStorage), the open circuit,
 // undo/redo, selection and share links.
 import { decodeCircuit, encodeCircuit, newId, validateCircuit } from "./circuit";
-import { EXAMPLES } from "./examples";
+import { EXAMPLES, legacyExample } from "./examples";
 import type { Circuit } from "./types";
 
 const STORAGE_KEY = "voidspark:logic:v1";
@@ -24,7 +24,7 @@ function load(): Stored {
     if (raw?.version === 1 && Array.isArray(raw.circuits)) {
       const circuits: SavedCircuit[] = [];
       for (const s of raw.circuits) {
-        const c = validateCircuit(s?.circuit);
+        const c = legacyExample(s?.circuit) ?? validateCircuit(s?.circuit);
         if (c) circuits.push({ id: typeof s.id === "string" ? s.id : newId("k"), circuit: c });
       }
       if (circuits.length) {

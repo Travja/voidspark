@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { connectPath, decodeCircuit, encodeCircuit, pathEndpoint, planWire, validateCircuit } from "./circuit";
-import { CircuitBuilder, EXAMPLES } from "./examples";
+import { CircuitBuilder, EXAMPLES, legacyExample } from "./examples";
 import { PART_TYPES, stackSize, TICK } from "./parts";
 import { Sim } from "./sim";
 import type { Rot } from "./types";
@@ -854,6 +854,72 @@ describe("machine output slot", () => {
     const { sim, m } = furnace({ slot: 5 });
     sim.run(60);
     expect(sim.state(m).out).toEqual({ quartz: 5 });
+  });
+});
+
+describe("saved circuits from before path tiles", () => {
+  // A copy of the Filter split example as saved before items moved on path tiles.
+  const oldFilterSplit = {"name": "Filter split", "parts": [{"id": "cmw4caaov3k", "type": "source", "x": 0, "y": 2, "rot": 0, "cfg": {"items": ["wooden-log", "stone"], "rate": 1, "stack": 1}}, {"id": "cmw4caaov3l", "type": "pressure-sensor", "x": 3, "y": 2, "rot": 0, "cfg": {"hold": 0.5}}, {"id": "cmw4caaov3m", "type": "pixel", "x": 3, "y": 4, "rot": 0, "cfg": {}}, {"id": "cmw4caaov3n", "type": "item-filter", "x": 6, "y": 2, "rot": 0, "cfg": {"item": "wooden-log", "invert": false, "overflow": true}}, {"id": "cmw4caaov3o", "type": "blocker", "x": 9, "y": 2, "rot": 0, "cfg": {"closed": false}}, {"id": "cmw4caaov3p", "type": "lever", "x": 9, "y": 0, "rot": 0, "cfg": {"on": false}}, {"id": "cmw4caaov3q", "type": "storage", "x": 12, "y": 1, "rot": 0, "cfg": {"label": "Logs", "capacity": 50, "take": "", "rate": 0, "stock": []}}, {"id": "cmw4caaov3r", "type": "storage", "x": 9, "y": 6, "rot": 0, "cfg": {"label": "Stone", "capacity": 50, "take": "", "rate": 0, "stock": []}}, {"id": "cmw4caaov3x", "type": "label", "x": 11, "y": -1, "rot": 0, "cfg": {"text": "Lever on = block logs"}}], "wires": [{"id": "wmw4caaov3s", "from": {"part": "cmw4caaov3k", "port": "out"}, "to": {"part": "cmw4caaov3l", "port": "in"}}, {"id": "wmw4caaov3t", "from": {"part": "cmw4caaov3l", "port": "out"}, "to": {"part": "cmw4caaov3n", "port": "in"}}, {"id": "wmw4caaov3u", "from": {"part": "cmw4caaov3n", "port": "pass"}, "to": {"part": "cmw4caaov3o", "port": "in"}}, {"id": "wmw4caaov3v", "from": {"part": "cmw4caaov3o", "port": "out"}, "to": {"part": "cmw4caaov3q", "port": "in"}}, {"id": "wmw4caaov3w", "from": {"part": "cmw4caaov3n", "port": "reject"}, "to": {"part": "cmw4caaov3r", "port": "in"}}], "cells": {"3,3": "w4", "2,3": "w3", "2,4": "w8", "10,0": "w2", "10,1": "w12", "9,1": "w1"}, "settings": {"walkSpeed": 2}};
+
+  it("old copies of an example are rebuilt from the current example, keeping their name", () => {
+    const c = legacyExample({ ...oldFilterSplit, name: "Filter split (2)" })!;
+    expect(c).not.toBeNull();
+    expect(c.name).toBe("Filter split (2)");
+    expect(c.paths).toEqual(EXAMPLES.find((e) => e.id === "filter")!.build().paths);
+  });
+
+  it("leaves everything else alone", () => {
+    expect(legacyExample({ ...oldFilterSplit, name: "My factory" })).toBeNull();
+    expect(legacyExample(EXAMPLES[0].build())).toBeNull(); // already on paths
+    expect(legacyExample(EXAMPLES[1].build())).toBeNull(); // logic only
+    expect(legacyExample(null)).toBeNull();
+  });
+});
+
+describe("drawing sparks", () => {
+  const one = (path: [number, number][], rot: Rot) => {
+    const c = new CircuitBuilder("t");
+    c.path("s", ...path);
+    c.sparks(path[0][0], path[0][1], 1, 1, rot);
+    return new Sim(c.c);
+  };
+
+  it("keeps to the right-hand side of the path", () => {
+    const sim = one([[0, 0], [6, 0]], 0);
+    sim.run(0.5);
+    const s = sim.sparks[0];
+    expect(s.dir).toBe(0);
+    expect(sim.sparkPosition(s).y).toBeCloseTo(0.5 + 0.18); // heading east, right is down the screen
+  });
+
+  it("swings round in a loop at a dead end instead of reversing on the spot", () => {
+    const sim = one([[0, 0], [3, 0]], 0);
+    const pts: { x: number; y: number }[] = [];
+    for (let i = 0; i < 200; i++) {
+      sim.step();
+      pts.push(sim.sparkPosition(sim.sparks[0]));
+    }
+    // It goes out on the lower lane and comes back on the upper one ...
+    expect(pts.some((p) => p.y > 0.6)).toBe(true);
+    expect(pts.some((p) => p.y < 0.4)).toBe(true);
+    // ... and never jumps: consecutive ticks stay close (a step is 0.1 tiles; the swing round is a
+    // little longer than the half tile it's drawn in, so it's a little quicker).
+    let jump = 0;
+    for (let i = 1; i < pts.length; i++) jump = Math.max(jump, Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y));
+    expect(jump).toBeLessThan(0.25);
+  });
+
+  it("turns corners smoothly", () => {
+    const sim = one([[0, 0], [3, 0], [3, 3]], 0);
+    let prev = sim.sparkPosition(sim.sparks[0]);
+    let jump = 0;
+    for (let i = 0; i < 55; i++) {
+      sim.step();
+      const p = sim.sparkPosition(sim.sparks[0]);
+      jump = Math.max(jump, Math.hypot(p.x - prev.x, p.y - prev.y));
+      prev = p;
+    }
+    expect(jump).toBeLessThan(0.15);
   });
 });
 

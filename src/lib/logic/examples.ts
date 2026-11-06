@@ -274,3 +274,21 @@ export const EXAMPLES: Example[] = [
   { id: "ribbon", name: "Ribbon bus", blurb: "Four signals on one ribbon: writers, a reader and a Four Pixel Display.", build: ribbonBus },
   { id: "filter", name: "Filter split", blurb: "Sparks on a loop: an Item Filter, a One Way, a Blocker and a Pressure Sensor.", build: filterSplit },
 ];
+
+/**
+ * A saved copy of an example from before items moved on path tiles (it still has item links).
+ * Converting the links keeps it running but not well, so it's rebuilt from the current example,
+ * keeping its name. Returns null for anything else.
+ */
+export function legacyExample(raw: any): Circuit | null {
+  if (!raw || typeof raw !== "object" || raw.paths || !Array.isArray(raw.wires) || !Array.isArray(raw.parts)) return null;
+  const types = new Map<string, string>(raw.parts.map((p: any) => [p?.id, p?.type]));
+  const itemLink = raw.wires.some((w: any) => PARTS.get(types.get(w?.from?.part) ?? "")?.ports.find((p) => p.id === w?.from?.port)?.kind === "item");
+  if (!itemLink) return null;
+  const name = typeof raw.name === "string" ? raw.name : "";
+  const ex = EXAMPLES.find((e) => e.name === name.replace(/ \(\d+\)$/, ""));
+  if (!ex) return null;
+  const c = ex.build();
+  c.name = name;
+  return c;
+}
