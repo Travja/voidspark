@@ -193,6 +193,11 @@ tiles.**
   A spark arriving on that tile drops its load into an entrance that will take it (all of it, or
   it keeps the load and walks on), then picks up from an exit if its hands are empty, or tops up
   the same item.
+- **Right-hand side only.** As in the game, a spark only deals with buildings on its right. So the
+  way sparks go round a loop decides which side of it buildings must sit: clockwise (on screen),
+  inside the loop; anticlockwise, outside. A building at the end of a path counts too, when the
+  spark has to turn back or turn left there, since it passes on the spark's right as it swings
+  round; so a path between two buildings, walked back and forth, works.
 - **Room:** sparks walk in single file: a tile holds one spark per heading. Sparks keep to the
   right-hand side of the path, so ones heading opposite ways pass each other, and a spark that has
   to wait can still turn to face its new way on its tile. *Assumption:* the game doesn't say how

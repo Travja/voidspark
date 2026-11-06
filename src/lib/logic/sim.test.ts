@@ -463,7 +463,7 @@ describe("items on paths", () => {
     c.path("s", [0, 0], [6, 0]);
     c.path("s", [3, 0], [3, 3]);
     c.add("splitter", 3, 0);
-    const south = c.add("storage", 4, 2, { capacity: 999 });
+    const south = c.add("storage", 3, 4, { capacity: 999 }, 1); // entrance faces up at the dead end (3, 3)
     const east = c.add("storage", 7, -1, { capacity: 999 });
     c.sparks(0, 0, 2, 1, 0);
     const sim = new Sim(c.c);
@@ -481,7 +481,7 @@ describe("items on paths", () => {
     c.path("s", [0, 0], [6, 0]);
     c.path("s", [3, 0], [3, 3]);
     c.add("crossing", 3, 0);
-    const south = c.add("storage", 4, 2, { capacity: 999 });
+    const south = c.add("storage", 3, 4, { capacity: 999 }, 1);
     const east = c.add("storage", 7, -1, { capacity: 999 });
     c.sparks(0, 0, 2, 1, 0);
     const sim = new Sim(c.c);
@@ -561,6 +561,39 @@ describe("items on paths", () => {
     }
     expect(on).toBeGreaterThan(10);
     expect(sim.state(pad).passed).toBeGreaterThan(3);
+  });
+
+  it("sparks only pick up and drop off on their right-hand side", () => {
+    // A loop with the source and a storage beside the top row, outside it. Clockwise (on screen),
+    // the top row is walked east with the outside (north) on the left: nothing happens.
+    // Anticlockwise, the top row is walked west with the outside on the right.
+    const run = (rot: Rot) => {
+      const c = new CircuitBuilder("t");
+      c.path("s", [0, 0], [8, 0], [8, 3], [0, 3], [0, 0]);
+      c.add("source", 2, -1, { items: ["stone"], rate: 5 }, 1); // exit faces down onto (2, 0)
+      const st = c.add("storage", 5, -2, { capacity: 999 }, 3); // entrance faces down onto (6, 0)
+      c.sparks(0, 3, 1, 1, rot);
+      const sim = new Sim(c.c);
+      sim.run(120);
+      return sim.storage(st)!.total;
+    };
+    expect(run(2)).toBe(0); // heading west along the bottom: round clockwise
+    expect(run(0)).toBeGreaterThan(5); // heading east along the bottom: round anticlockwise
+  });
+
+  it("a path laid between two ports runs straight into each building, so both ends work", () => {
+    // The storage's entrance faces a tile below and left of the source: a plain route would come
+    // down beside the storage, with it on the sparks' left.
+    const c = new CircuitBuilder("t");
+    const src = c.add("source", 0, 0, { items: ["stone"], rate: 5 });
+    const st = c.add("storage", 4, 3, { capacity: 999 }); // entrance faces (3, 4)
+    c.wire(src, "out", st, "in");
+    expect(c.c.paths["2,4"]).toBeDefined(); // the last step is (2, 4) → (3, 4), straight at it
+    const e = pathEndpoint(c.c, { part: src, port: "out" })!;
+    c.sparks(e.x, e.y, 1, 1, 0);
+    const sim = new Sim(c.c);
+    sim.run(60);
+    expect(sim.storage(st)!.total).toBeGreaterThan(5);
   });
 
   it("full storage refuses a load; the spark keeps it and walks on", () => {
@@ -912,6 +945,19 @@ describe("machine output slot", () => {
   });
 });
 
+describe("filter split example", () => {
+  it("sorts logs into Logs and stone into Stone, with every building on the sparks' right", () => {
+    const c = EXAMPLES.find((e) => e.id === "filter")!.build();
+    const sim = new Sim(c);
+    sim.run(240);
+    const st = (label: string) => sim.storage(c.parts.find((p) => p.cfg.label === label)!.id)!;
+    expect(st("Logs").count("wooden-log")).toBeGreaterThan(10);
+    expect(st("Logs").count("stone")).toBe(0);
+    expect(st("Stone").count("stone")).toBeGreaterThan(10);
+    expect(st("Stone").count("wooden-log")).toBe(0);
+  });
+});
+
 describe("saved circuits from before path tiles", () => {
   // A copy of the Filter split example as saved before items moved on path tiles.
   const oldFilterSplit = {"name": "Filter split", "parts": [{"id": "cmw4caaov3k", "type": "source", "x": 0, "y": 2, "rot": 0, "cfg": {"items": ["wooden-log", "stone"], "rate": 1, "stack": 1}}, {"id": "cmw4caaov3l", "type": "pressure-sensor", "x": 3, "y": 2, "rot": 0, "cfg": {"hold": 0.5}}, {"id": "cmw4caaov3m", "type": "pixel", "x": 3, "y": 4, "rot": 0, "cfg": {}}, {"id": "cmw4caaov3n", "type": "item-filter", "x": 6, "y": 2, "rot": 0, "cfg": {"item": "wooden-log", "invert": false, "overflow": true}}, {"id": "cmw4caaov3o", "type": "blocker", "x": 9, "y": 2, "rot": 0, "cfg": {"closed": false}}, {"id": "cmw4caaov3p", "type": "lever", "x": 9, "y": 0, "rot": 0, "cfg": {"on": false}}, {"id": "cmw4caaov3q", "type": "storage", "x": 12, "y": 1, "rot": 0, "cfg": {"label": "Logs", "capacity": 50, "take": "", "rate": 0, "stock": []}}, {"id": "cmw4caaov3r", "type": "storage", "x": 9, "y": 6, "rot": 0, "cfg": {"label": "Stone", "capacity": 50, "take": "", "rate": 0, "stock": []}}, {"id": "cmw4caaov3x", "type": "label", "x": 11, "y": -1, "rot": 0, "cfg": {"text": "Lever on = block logs"}}], "wires": [{"id": "wmw4caaov3s", "from": {"part": "cmw4caaov3k", "port": "out"}, "to": {"part": "cmw4caaov3l", "port": "in"}}, {"id": "wmw4caaov3t", "from": {"part": "cmw4caaov3l", "port": "out"}, "to": {"part": "cmw4caaov3n", "port": "in"}}, {"id": "wmw4caaov3u", "from": {"part": "cmw4caaov3n", "port": "pass"}, "to": {"part": "cmw4caaov3o", "port": "in"}}, {"id": "wmw4caaov3v", "from": {"part": "cmw4caaov3o", "port": "out"}, "to": {"part": "cmw4caaov3q", "port": "in"}}, {"id": "wmw4caaov3w", "from": {"part": "cmw4caaov3n", "port": "reject"}, "to": {"part": "cmw4caaov3r", "port": "in"}}], "cells": {"3,3": "w4", "2,3": "w3", "2,4": "w8", "10,0": "w2", "10,1": "w12", "9,1": "w1"}, "settings": {"walkSpeed": 2}};
@@ -1005,14 +1051,15 @@ describe("compressor", () => {
   });
 
   it("accepts items on both entrances", () => {
-    const c = new CircuitBuilder("t");
-    const a = c.add("source", 0, -3, { items: ["stone"], rate: 2 });
-    const b = c.add("source", 0, 4, { items: ["wooden-log"], rate: 2 });
-    const comp = c.add("compressor", 5, 0);
-    haul(c, a, "out", comp, "in", 1, 1);
-    haul(c, b, "out", comp, "in2", 1, 1);
-    const sim = new Sim(c.c);
-    sim.run(30);
-    expect(sim.state(comp).sent).toBeGreaterThan(6);
+    for (const port of ["in", "in2"]) {
+      const c = new CircuitBuilder("t");
+      const src = c.add("source", 0, port === "in" ? 0 : 1, { items: ["stone"], rate: 2 });
+      const comp = c.add("compressor", 5, 0);
+      haul(c, src, "out", comp, port, 1, 1);
+      const sim = new Sim(c.c);
+      sim.run(30);
+      expect(sim.state(comp).sent).toBeGreaterThan(6);
+    }
   });
+
 });

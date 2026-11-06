@@ -117,9 +117,11 @@ function distribution(): Circuit {
     b.wire(hubLow, "out", lamp, "in");
     b.add("label", bx + 6, 5, { text: `Hub ${line.name.toLowerCase()} low` });
 
-    // --- workshop loop: down from the hub storage's exit, past the workshop, back up. ---
+    // --- workshop loop, walked anticlockwise so both storages are on the sparks' right: they
+    // pick up at the hub storage's exit (straight ahead at the top, as they swing round), go down
+    // the far side, and come up past the workshop storage's entrance. ---
     b.path("s", [bx, 7], [bx, 13], [bx - 1, 13], [bx - 1, 7], [bx, 7]);
-    b.sparks(bx - 1, 10, 2, 10, 3);
+    b.sparks(bx - 1, 10, 2, 10, 1);
     const gate = b.add("spark-gate", bx, 9, {}, 3);
     const rx = b.add("wireless-receiver", bx - 2, 9, { channel: line.item });
     b.wire(rx, "out", gate, "en");
@@ -142,8 +144,10 @@ function distribution(): Circuit {
     const machine = b.add("machine", bx + 5, 11, { label: line.station, recipe: line.recipe, speed: 3 });
     b.path("s", [bx + 3, 12], [bx + 4, 12]);
     b.sparks(bx + 3, 12, 1, 0, 0);
+    // Products: heading down past the machine's exit (on their right) they pick up; heading back
+    // up past the Compressor's entrances (now on their right) they drop off.
     b.add("compressor", bx + 8, 11);
-    b.path("s", [bx + 7, 12], [bx + 7, 13]);
+    b.path("s", [bx + 7, 11], [bx + 7, 13]);
     b.sparks(bx + 7, 13, 1, 0, 3);
     void machine;
   });
@@ -209,23 +213,26 @@ function timerDemo(): Circuit {
  */
 function filterSplit(): Circuit {
   const b = new CircuitBuilder("Filter split");
-  const src = b.add("source", 0, 2, { items: ["wooden-log", "stone"], rate: 1 });
-  void src;
+  // A loop walked clockwise, so everything sparks deal with sits on their right: inside the loop.
   b.path("s", [1, 2], [9, 2], [9, 8], [1, 8], [1, 2]);
-  b.path("s", [5, 2], [5, 8]);
   b.sparks(2, 2, 3, 1, 0);
-  b.add("item-filter", 5, 3, { item: "wooden-log" });
-  b.add("one-way", 5, 7, {}, 1);
-  const block = b.add("blocker", 5, 4, {}, 3);
-  const lever = b.add("lever", 2, 4);
+  // Up the left side they pass the Stone storage's entrance, then the train's exit.
+  b.add("source", 2, 3, { items: ["wooden-log", "stone"], rate: 1 }, 2); // exit faces (1, 3)
+  b.add("storage", 2, 5, { label: "Stone", capacity: 30 }); // entrance faces (1, 6)
+  // Heading west along the bottom, the first right turn is the branch up the middle. Only logs
+  // may take it; they're dropped at the Logs storage and leave at the top through a One Way.
+  b.path("s", [5, 8], [5, 2]);
+  b.add("item-filter", 5, 7, { item: "wooden-log" });
+  const block = b.add("blocker", 5, 6, {}, 3);
+  b.add("storage", 6, 4, { label: "Logs", capacity: 30 }); // entrance faces (5, 5)
+  b.add("one-way", 5, 3, {}, 3);
+  const lever = b.add("lever", 8, 6, {}, 2);
   b.wire(lever, "out", block, "en");
-  b.add("storage", 6, 4, { label: "Logs", capacity: 30 });
-  b.add("storage", 10, 5, { label: "Stone", capacity: 30 });
-  const pad = b.add("pressure-sensor", 3, 2);
-  const lamp = b.add("pixel", 3, 0, {}, 3);
+  const pad = b.add("pressure-sensor", 7, 8);
+  const lamp = b.add("pixel", 7, 10);
   b.wire(pad, "sig", lamp, "in");
-  b.add("label", -1, 5, { text: "Lever: block the branch" });
-  b.add("label", 4, 0, { text: "Pressure Sensor lamp" });
+  b.add("label", 10, 6, { text: "Lever: block the branch" });
+  b.add("label", 8, 10, { text: "Pressure Sensor lamp" });
   return b.c;
 }
 
@@ -272,7 +279,7 @@ export const EXAMPLES: Example[] = [
   { id: "latch", name: "Latch (SR memory)", blurb: "Set/Reset buttons, plus the same latch built from gates.", build: latchDemo },
   { id: "timer", name: "Timer pulses", blurb: "A timer feeding buffer, filter and counter gates.", build: timerDemo },
   { id: "ribbon", name: "Ribbon bus", blurb: "Four signals on one ribbon: writers, a reader and a Four Pixel Display.", build: ribbonBus },
-  { id: "filter", name: "Filter split", blurb: "Sparks on a loop: an Item Filter, a One Way, a Blocker and a Pressure Sensor.", build: filterSplit },
+  { id: "filter", name: "Filter split", blurb: "Sparks on a loop: an Item Filter, a One Way, a Blocker and a Pressure Sensor. Buildings sit on the sparks' right.", build: filterSplit },
 ];
 
 /**
