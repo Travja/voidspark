@@ -290,7 +290,20 @@ export function connectPath(c: Pick<Circuit, "parts" | "paths">, a: PortRef, b: 
   const eb = pathEndpoint(c, b);
   if (!ea || !eb) return "Pick building entrances and exits (square ports), or parts on a path.";
   if (a.part === b.part && a.port === b.port) return "That's the same port.";
-  const route = routePath(c, ea, eb);
+  // Sparks only deal with buildings on their right, or straight ahead at the end of a path. So
+  // the path's last step into each end runs straight at the building: route between the tiles
+  // one further out, then add the ends. Falls back to a plain route if that doesn't fit.
+  const out = (e: { x: number; y: number; n?: { x: number; y: number } }) => (e.n ? { x: e.x + e.n.x, y: e.y + e.n.y } : e);
+  const oa = out(ea);
+  const ob = out(eb);
+  let route: [number, number][] | null = null;
+  if (oa !== ea || ob !== eb) {
+    const free = (t: { x: number; y: number }) => !c.parts.some((p) => !onPath(p.type) && partCells(p).includes(cellKey(t.x, t.y)));
+    const mid = free(oa) && free(ob) ? routePath(c, oa, ob) : null;
+    if (mid && !mid.some(([x, y]) => (x === ea.x && y === ea.y) || (x === eb.x && y === eb.y)))
+      route = [...(oa !== ea ? [[ea.x, ea.y] as [number, number]] : []), ...mid, ...(ob !== eb ? [[eb.x, eb.y] as [number, number]] : [])];
+  }
+  route ??= routePath(c, ea, eb);
   if (!route) return "No room for a path there. Move the parts apart, or draw it with the Path tool.";
   paint(c.paths, kind, route);
   return null;

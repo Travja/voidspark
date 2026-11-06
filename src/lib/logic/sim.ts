@@ -113,7 +113,8 @@ export class Sim {
   /** Path tile -> the add-on part sitting on it. */
   private addOn = new Map<string, number>();
   /** Path tile -> building entrances and exits facing it. */
-  private portsAt = new Map<string, { pi: number; port: PortDef }[]>();
+  /** Item ports facing each path tile, with the direction from the tile to the building. */
+  private portsAt = new Map<string, { pi: number; port: PortDef; side: number }[]>();
   /** "part.port" for item ports that face a path tile. */
   private itemOnPath = new Set<string>();
 
@@ -146,7 +147,8 @@ export class Sim {
         const k = cellKey(c.x, c.y);
         if (!this.paths[k]) continue;
         this.itemOnPath.add(`${part.id}.${port.id}`);
-        this.portsAt.set(k, [...(this.portsAt.get(k) ?? []), { pi: i, port }]);
+        const side = DIRS.findIndex((v) => v.x === -c.n.x && v.y === -c.n.y);
+        this.portsAt.set(k, [...(this.portsAt.get(k) ?? []), { pi: i, port, side }]);
       }
     });
 
@@ -311,8 +313,13 @@ export class Sim {
     const a = this.addOnAt(k);
     const wait = a?.type.path?.arrive?.(a.ctx, sv, s.dir, a.part.rot);
     if (wait) s.wait = Math.round(wait / TICK);
-    const ports = this.portsAt.get(k);
-    if (!ports) return;
+    // Sparks only deal with buildings on their right-hand side, as in the game. A building at the
+    // end of the path, straight ahead, counts too when the spark has to turn back or turn left
+    // there: it passes on the spark's right as it swings round.
+    const right = (s.dir + 1) % 4;
+    const canTurnRight = joined(this.paths, k, cellKey(s.x + DIRS[right].x, s.y + DIRS[right].y), right);
+    const ports = this.portsAt.get(k)?.filter((p) => p.side === right || (p.side === s.dir && !canTurnRight));
+    if (!ports?.length) return;
     // Drop off first (it may free the spark to pick something up at the next exit).
     for (const { pi, port } of ports) {
       if (port.dir !== "in" || !s.load) continue;
