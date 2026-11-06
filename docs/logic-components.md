@@ -193,17 +193,19 @@ tiles.**
   A spark arriving on that tile drops its load into an entrance that will take it (all of it, or
   it keeps the load and walks on), then picks up from an exit if its hands are empty, or tops up
   the same item.
-- **Room:** a tile holds at most 2 sparks heading the same way. Sparks heading opposite ways pass
-  each other. *Assumption:* the game doesn't say how many fit.
+- **Room:** sparks walk in single file: a tile holds one spark per heading. Sparks keep to the
+  right-hand side of the path, so ones heading opposite ways pass each other, and a spark that has
+  to wait can still turn to face its new way on its tile. *Assumption:* the game doesn't say how
+  closely sparks may follow each other.
 - Walking speed is 2 tiles/s at 100 % by default (*assumption*), set per circuit.
 
 Add-ons take the tile they sit on. Wired and unpowered, they're ignored (the Spark Gate excepted,
 as on the wiki).
 
 - **Item Filter / Amount Filter:** a wall to sparks whose load doesn't match. They turn away and
-  keep walking by the right-hand rule. *Assumption:* empty-handed sparks walk through a filter set
-  to an item, so a spark that has just delivered isn't shut in; a filter set to *Empty* only lets
-  empty-handed sparks through.
+  keep walking by the right-hand rule. As on the wiki, an empty-handed spark only passes an Item
+  Filter set to *Empty*, and counts as carrying 0 at an Amount Filter. So a branch behind a filter
+  needs another way out (a loop back, through a One Way), or sparks that deliver there are shut in.
 - **Blocker:** a wall while active. Wired, the signal activates it; unwired, tap it.
 - **Spark Gate:** sparks wait in front of it until it's powered. *Assumption:* unwired, it's open.
 - **Splitter:** sparks entering from its back leave by each exit in turn, right to left. Sparks
@@ -301,14 +303,13 @@ path tiles between the two ports, with a Sparks part on it.
 9. Pressure Sensor stays on for 0.5 s per spark (configurable).
 10. Storage capacity is set in items, with presets at 50 items per stack. Capacity Sensor may count
     a single item type (sandbox extra).
-11. Sparks walk 2 tiles/s on Stone Path by default (Dirt 60 %, wiki), and a tile holds 2 sparks
-    heading the same way. Sparks follow the right-hand rule: right, straight, left, back.
+11. Sparks walk 2 tiles/s on Stone Path by default (Dirt 60 %, wiki), in single file (one per
+    tile per heading). Sparks follow the right-hand rule: right, straight, left, back.
 12. Machines run while their enable input is on, or always if unwired. Recipe time is at 1× crew
     speed. A machine's output slot holds one stack (the wiki's stack size; 20 when unknown).
 13. A Wire Bridge's ends plug into the tiles beyond them, and its gap can hold exactly one other
     wire.
-14. Filters let empty-handed sparks through unless set to Empty. The Compressor sends items as
-    fast as they arrive unless a rate is set.
+14. The Compressor sends items as fast as they arrive unless a rate is set.
 15. Not modelled: Motion Sensor, Spark Filter, Signpost, Cannon, Train Stop, spark types, and
     building footprints beyond their rectangles.
 

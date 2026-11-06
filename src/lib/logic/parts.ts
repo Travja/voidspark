@@ -560,7 +560,7 @@ const itemFilter: PartType<FilterCfg, FilterState> = {
   id: "item-filter",
   name: "Item Filter",
   category: "Paths",
-  blurb: "Only sparks carrying its item may pass; the rest keep walking another way. Empty-handed sparks walk through.",
+  blurb: "Only sparks carrying its item may pass; the rest keep walking another way.",
   wiki: "Item Filter",
   w: 1,
   h: 1,
@@ -574,9 +574,6 @@ const itemFilter: PartType<FilterCfg, FilterState> = {
   path: {
     passable: (ctx, sp) => {
       if (!powered(ctx)) return true;
-      // A filter set to an item sorts loaded sparks; empty-handed ones walk through, so a spark
-      // that has just delivered isn't shut in. Set to Empty, it judges empty-handed sparks too.
-      if (!sp.item && ctx.cfg.item) return true;
       const ok = ((sp.item ?? "") === ctx.cfg.item) !== ctx.cfg.invert;
       if (!ok) ctx.state.turned++;
       return ok;
@@ -597,7 +594,7 @@ const amountFilter: PartType<AmountCfg, FilterState> = {
   id: "amount-filter",
   name: "Amount Filter",
   category: "Paths",
-  blurb: "Only sparks carrying a matching amount may pass; the rest keep walking. Empty-handed sparks walk through.",
+  blurb: "Only sparks carrying a matching amount may pass; the rest keep walking.",
   wiki: "Amount Filter",
   w: 1,
   h: 1,
@@ -620,9 +617,8 @@ const amountFilter: PartType<AmountCfg, FilterState> = {
   path: {
     passable: (ctx, sp) => {
       if (!powered(ctx)) return true;
-      if (!sp.item) return true; // empty-handed sparks walk through, as with the Item Filter
       const { cmp, amount } = ctx.cfg;
-      const n = sp.n;
+      const n = sp.item ? sp.n : 0; // empty-handed counts as carrying 0
       const ok = cmp === "eq" ? n === amount : cmp === "ge" ? n >= amount : n <= amount;
       if (!ok) ctx.state.turned++;
       return ok;

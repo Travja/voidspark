@@ -314,49 +314,81 @@ describe("items on paths", () => {
     expect(sim.sparks.length).toBe(2);
   });
 
-  it("sparks take the right turn when they can, and a filter turns them away", () => {
-    // Main row east from the source, with a branch to the south (right) and one to the north.
+  /**
+   * A main row east from a source at (0, 0). Heading east, the first right turn is a loop to the
+   * south: down at x = 3, along to x = 5 past the south storage's entrance, and back up at x = 5,
+   * where a One Way stops sparks on the main row from walking it backwards. Optionally a dead-end
+   * branch north at x = 3 to a north storage.
+   */
+  function sortingRow(items: string[], north = true) {
     const c = new CircuitBuilder("t");
-    const src = c.add("source", -1, 0, { items: ["wooden-log", "stone"], rate: 5 });
-    void src;
-    c.path("s", [0, 0], [6, 0]);
-    c.path("s", [3, 0], [3, 3]);
-    c.path("s", [3, 0], [3, -3]);
-    const south = c.add("storage", 4, 2, { capacity: 999 }); // entrance faces (3, 3)
-    const north = c.add("storage", 4, -4, { capacity: 999 }); // entrance faces (3, -3)
+    c.add("source", -1, 0, { items, rate: 5 });
+    c.path("s", [0, 0], [8, 0]);
+    c.path("s", [3, 0], [3, 3], [5, 3], [5, 0]);
+    c.add("one-way", 5, 1, {}, 3);
+    const south = c.add("storage", 6, 2, { capacity: 999 }); // entrance faces (5, 3)
+    let northSt = "";
+    if (north) {
+      c.path("s", [3, 0], [3, -3]);
+      northSt = c.add("storage", 4, -4, { capacity: 999 }); // entrance faces (3, -3)
+    }
     c.sparks(0, 0, 1, 1, 0);
+    return { c, south, north: northSt };
+  }
+
+  it("sparks take the right turn when they can, and a filter turns them away", () => {
+    const { c, south, north } = sortingRow(["wooden-log", "stone"]);
     let sim = new Sim(c.c);
-    sim.run(60);
-    // Heading east, right is south: everything goes south.
+    sim.run(90);
+    // Heading east, right is south: everything goes round the south loop.
     expect(sim.storage(south)!.total).toBeGreaterThan(3);
     expect(sim.storage(north)!.total).toBe(0);
 
-    // Only logs may enter the south branch. Stone carries on east, turns back at the dead end,
+    // Only logs may enter the south loop. Stone carries on east, turns back at the dead end,
     // and heading west the right turn is north.
     c.add("item-filter", 3, 1, { item: "wooden-log" });
     sim = new Sim(c.c);
     sim.run(150);
-    expect(sim.storage(south)!.count("wooden-log")).toBeGreaterThan(4);
+    expect(sim.storage(south)!.count("wooden-log")).toBeGreaterThan(3);
     expect(sim.storage(south)!.count("stone")).toBe(0);
-    expect(sim.storage(north)!.count("stone")).toBeGreaterThan(4);
+    expect(sim.storage(north)!.count("stone")).toBeGreaterThan(3);
     expect(sim.storage(north)!.count("wooden-log")).toBe(0);
+  });
+
+  it("an empty-handed spark may not pass a filter set to an item, only one set to Empty", () => {
+    // The source is switched off, so the spark never picks anything up.
+    const run = (item: string) => {
+      const { c, south } = sortingRow(["stone"], false);
+      const f = c.add("item-filter", 3, 1, { item });
+      void f;
+      const src = c.c.parts.find((p) => p.type === "source")!;
+      const l = c.add("lever", -1, -3, { on: false }, 1);
+      c.wire(l, "out", src.id, "en");
+      const sim = new Sim(c.c);
+      let south1 = 0;
+      for (let i = 0; i < 600; i++) {
+        sim.step();
+        const sp = sim.sparks[0];
+        if (sp.y > 0 && sp.x === 3) south1++;
+      }
+      void south;
+      return south1;
+    };
+    expect(run("wooden-log")).toBe(0);
+    expect(run("")).toBeGreaterThan(0);
   });
 
   it("a reversed filter blocks its item; a wired, unpowered filter is ignored", () => {
     const build = (filter: Record<string, unknown>, power?: boolean) => {
-      const c = new CircuitBuilder("t");
-      c.add("source", -1, 0, { items: ["wooden-log"], rate: 5 });
-      c.path("s", [0, 0], [3, 0], [3, 3]);
-      const st = c.add("storage", 4, 2, { capacity: 999 });
+      const { c, south } = sortingRow(["wooden-log"], false);
       const f = c.add("item-filter", 3, 1, { item: "wooden-log", ...filter });
       if (power !== undefined) {
-        const l = c.add("lever", 6, 0, { on: power });
+        const l = c.add("lever", 2, 3, { on: power });
         c.wire(l, "out", f, "en");
       }
-      c.sparks(0, 0, 1, 1, 0);
       const sim = new Sim(c.c);
-      sim.run(40);
-      return sim.storage(st)!.total;
+      sim.run(60);
+      return sim.storage(south)!.total;
     };
     expect(build({})).toBeGreaterThan(3);
     expect(build({ invert: true })).toBe(0);
@@ -386,7 +418,7 @@ describe("items on paths", () => {
     expect(run("spark-gate", true).total).toBeGreaterThan(3);
   });
 
-  it("sparks queue behind a closed gate, at most two to a tile", () => {
+  it("sparks queue behind a closed gate in single file", () => {
     const c = new CircuitBuilder("t");
     c.add("source", -1, 0, { items: ["stone"], rate: 5 });
     c.path("s", [0, 0], [8, 0]);
@@ -398,8 +430,31 @@ describe("items on paths", () => {
     sim.run(20);
     const perTile = new Map<number, number>();
     for (const s of sim.sparks) perTile.set(s.x, (perTile.get(s.x) ?? 0) + 1);
-    expect(Math.max(...perTile.values())).toBeLessThanOrEqual(2);
+    expect(Math.max(...perTile.values())).toBe(1);
     expect(Math.max(...sim.sparks.map((s) => s.x))).toBe(5); // nobody past the gate
+  });
+
+  it("a short, crowded dead-end path never locks up", () => {
+    // Six sparks on a three-tile line: more than fit in single file one way. They keep shuttling.
+    const c = new CircuitBuilder("t");
+    const src = c.add("source", 0, 0, { items: ["stone"], rate: 10 });
+    const st = c.add("storage", 4, -1, { capacity: 9999 });
+    haul(c, src, "out", st, "in", 6, 1);
+    const sim = new Sim(c.c);
+    sim.run(20);
+    const at20 = sim.storage(st)!.total;
+    sim.run(20);
+    expect(sim.storage(st)!.total - at20).toBeGreaterThan(5); // slowed by the crowd, but moving
+  });
+
+  it("sparks that set off together spread out into single file", () => {
+    const c = new CircuitBuilder("t");
+    c.path("s", [0, 0], [10, 0], [10, 4], [0, 4], [0, 0]);
+    c.sparks(0, 0, 4, 1, 0);
+    const sim = new Sim(c.c);
+    sim.run(10);
+    const spots = new Set(sim.sparks.map((s) => `${s.x},${s.y}`));
+    expect(spots.size).toBe(4);
   });
 
   it("a Splitter sends sparks from its back to its exits in turn", () => {

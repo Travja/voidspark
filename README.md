@@ -148,8 +148,8 @@ joins the tiles beyond its two ends into one network, and hops whatever runs thr
 tiles (a separate layer that joins the same way wire tiles do). On reaching a tile, a spark drops
 its load at any building entrance facing that tile and picks up at any exit, then turns right if it
 can, else goes straight, left, or back. Add-ons on a tile change that: filters and blockers are
-walls to some sparks, a Spark Gate holds them, a Splitter or One Way picks their exit. A tile holds
-two sparks heading the same way, so queues form behind a closed gate. The game's timings aren't documented, so the 0.05 s gate delay, walking speed, stack size
+walls to some sparks, a Spark Gate holds them, a Splitter or One Way picks their exit. Sparks walk in
+single file (one per tile per heading), so queues form behind a closed gate. The game's timings aren't documented, so the 0.05 s gate delay, walking speed, stack size
 and the other gaps are listed as assumptions in
 [docs/logic-components.md](docs/logic-components.md).
 
