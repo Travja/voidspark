@@ -108,6 +108,7 @@
   });
   const TOOLS: { id: Tool; label: string; icon: string; key: string; tip: string }[] = [
     { id: "select", label: "Select", icon: "✋", key: "v", tip: "Select, move, wire port-to-port, pan" },
+    { id: "path", label: "Path", icon: "▤", key: "p", tip: "Draw Stone Path tiles for sparks to walk" },
     { id: "wire", label: "Wire", icon: "╱", key: "w", tip: "Draw wire tiles: drag across the grid" },
     { id: "ribbon", label: "Ribbon", icon: "☰", key: "g", tip: "Draw ribbon tiles (4 bits)" },
     { id: "erase", label: "Erase", icon: "⌫", key: "x", tip: "Drag over tiles to remove them" },
@@ -134,6 +135,7 @@
     if (!sel) return;
     store.edit((c) => {
       if (sel.kind === "cell") erase(c.cells, sel.id);
+      else if (sel.kind === "path") erase(c.paths, sel.id);
       else if (sel.kind === "part") {
         c.parts = c.parts.filter((p) => p.id !== sel.id);
         c.wires = c.wires.filter((w) => w.from.part !== sel.id && w.to.part !== sel.id);
@@ -376,7 +378,7 @@
           {:else if wiringFrom}
             Tap another port: a wire is laid on the grid
           {:else if tool === "erase"}
-            Drag over tiles to erase · two fingers pan
+            Drag over tiles to erase {logicView ? "wires" : "paths, then wires"} · two fingers pan
           {:else}
             Drag to draw {tool} tiles · two fingers pan
           {/if}
@@ -445,7 +447,8 @@
   <div class="help">
     <h2>{store.circuit.name}</h2>
     <p class="muted small">
-      {store.circuit.parts.length} parts · {Object.keys(store.circuit.cells).length} wire tiles · {store.circuit.wires.length} paths and sensor links
+      {store.circuit.parts.length} parts · {Object.keys(store.circuit.paths).length} path tiles · {Object.keys(store.circuit.cells).length} wire tiles ·
+      {store.circuit.wires.length} sensor links
     </p>
     <ul class="small">
       <li><strong>Add:</strong> pick a part, then tap the grid.</li>
@@ -458,10 +461,15 @@
         <strong>Ribbon:</strong> one tile carrying four signals (bits 0–3). A plain wire joining a ribbon uses bit 0; Ribbon Writers and Readers use bits
         1–3; a Four Pixel Display shows all four.
       </li>
-      <li><strong>Paths:</strong> square ports carry items; tap an exit then an entrance. Diamonds link a Capacity Sensor to a storage.</li>
+      <li>
+        <strong>Paths:</strong> items ride with sparks along path tiles. Tap a building's exit (square port) then an entrance and a Stone Path is
+        laid between them, with a Sparks part to walk it; or draw paths with the Path tool. Sparks take the first of right, straight on, left or back
+        that's open, dropping items at entrances and picking them up at exits they pass. Filters, Blockers, One Ways, Splitters and Crossings sit on a
+        path tile and change where they go. Diamonds link a Capacity Sensor to a storage.
+      </li>
       <li><strong>Move:</strong> drag a part. <strong>Pan:</strong> drag the grid. <strong>Zoom:</strong> wheel or pinch.</li>
       <li><strong>Run:</strong> ▶ plays; tap levers, buttons and blockers to toggle them. Select a part to see its inputs, outputs and why it's on or off.</li>
-      <li>Keys: V select, W wire, G ribbon, X erase, L logic overlay, R rotate, Delete remove, Ctrl+Z / Ctrl+Y undo/redo, Space play/pause, Esc cancel.</li>
+      <li>Keys: V select, P path, W wire, G ribbon, X erase, L logic overlay, R rotate, Delete remove, Ctrl+Z / Ctrl+Y undo/redo, Space play/pause, Esc cancel.</li>
     </ul>
     <label>
       Spark walking speed <span class="muted">(tiles/s)</span>

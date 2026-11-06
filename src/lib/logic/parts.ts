@@ -1,7 +1,7 @@
 // The part registry: every component the sandbox can place, with its ports, settings and
 // behaviour. Behaviour follows docs/logic-components.md (wiki facts plus listed assumptions).
 import { GAME, type Recipe } from "../engine/data";
-import type { Config, FieldDef, PartStatus, PartType, PortDef, StepCtx, StorageView, Token } from "./types";
+import type { Config, FieldDef, PartStatus, PartType, PortDef, StepCtx, StorageView } from "./types";
 
 /** Simulation tick, in seconds. Game settings come in 0.1 s steps, so they land on whole ticks. */
 export const TICK = 0.05;
@@ -168,26 +168,26 @@ const pressureSensor: PartType<{ hold: number }, { left: number; passed: number 
   id: "pressure-sensor",
   name: "Pressure Sensor",
   category: "Inputs",
-  blurb: "On a path: signals while an item passes over it.",
+  blurb: "Place on a path: signals when a spark steps on it.",
   wiki: "Pressure Sensor",
   w: 1,
   h: 1,
-  ports: [itemIn("in", "l", 0.5), itemOut("out", "r", 0.5), logicOut("sig", "b", 0.5)],
-  fields: [seconds("hold", "On per item", 0.1, 5, "How long one passing item keeps it on (sandbox assumption).")],
+  ports: [logicOut("sig", "b", 0.5)],
+  fields: [seconds("hold", "On per spark", 0.1, 5, "How long one spark keeps it on (sandbox assumption).")],
   defaults: () => ({ hold: 0.5 }),
   init: () => ({ left: 0, passed: 0 }),
-  accept: (ctx, _p, t) => {
-    if (!ctx.emit("out", t)) return false;
-    ctx.state.left = ticks(ctx.cfg.hold);
-    ctx.state.passed += t.n;
-    return true;
+  path: {
+    arrive: (ctx) => {
+      ctx.state.left = ticks(ctx.cfg.hold);
+      ctx.state.passed++;
+    },
   },
   step: (ctx) => {
     ctx.set("sig", ctx.state.left > 0);
     if (ctx.state.left > 0) ctx.state.left--;
   },
   status: (_c, s) => ({ active: s.left > 0, badge: String(s.passed) }),
-  describe: (_c, s) => [`${s.passed} item(s) passed so far.`],
+  describe: (_c, s) => [`${s.passed} spark(s) have stepped on it.`, "Place it on a path tile."],
 };
 
 // --- gates -------------------------------------------------------------------------------------
@@ -545,81 +545,63 @@ const ribbonReader: PartType<{ bit: string }, { on: boolean }> = {
   describe: (c, s) => [`Bit ${c.bit} is ${s.on ? "on" : "off"}.`],
 };
 
-// --- paths -------------------------------------------------------------------------------------
+// --- paths ---------------------------------------------------------------------------------------
+// Path add-ons sit on a path tile and change how sparks walk (see sim.ts for the walking rule:
+// right, straight, left, back). Wired and unpowered, sparks ignore them, except the Spark Gate.
 
-/** Pass-through path add-on with a pass exit and a "keep walking" exit. */
-type FilterState = { passed: number; rejected: number; overflowed: number };
+const POWER = (label = "power") => logicIn("en", "t", 0.5, label);
+const ON_PATH = "Place it on a path tile.";
+const IGNORED = "Wired and unpowered: sparks ignore it.";
 
-const overflowField: FieldDef = {
-  key: "overflow",
-  label: "Pass exit full: send on down the line",
-  type: "bool",
-  help: "Matching items take the reject exit when the pass exit is backed up, instead of blocking the whole line (sandbox assumption).",
-};
+type FilterState = { passed: number; turned: number };
 
-/** Routes a token through a filter: matches to pass (or on down the line when that's full). */
-function filterRoute(ctx: StepCtx<{ overflow: boolean }, FilterState>, t: Token, match: boolean): boolean {
-  const s = ctx.state;
-  if (match) {
-    if (ctx.emit("pass", t)) {
-      s.passed += t.n;
-      return true;
-    }
-    // Only when the pass exit is really backed up, not for the gap between two items.
-    if (ctx.cfg.overflow && ctx.backedUp("pass") && ctx.emit("reject", t)) {
-      s.overflowed += t.n;
-      return true;
-    }
-    return false;
-  }
-  if (ctx.emit("reject", t)) {
-    s.rejected += t.n;
-    return true;
-  }
-  return false;
-}
-
-const filterLines = (s: FilterState) => [
-  `${s.passed} passed, ${s.rejected} sent on${s.overflowed ? `, ${s.overflowed} sent on because the pass exit was full` : ""}.`,
-];
-
-type FilterCfg = { item: string; invert: boolean; overflow: boolean };
+type FilterCfg = { item: string; invert: boolean };
 const itemFilter: PartType<FilterCfg, FilterState> = {
   id: "item-filter",
   name: "Item Filter",
   category: "Paths",
-  blurb: "Items matching its item take the pass exit; others keep walking (reject exit).",
+  blurb: "Only sparks carrying its item may pass; the rest keep walking another way. Empty-handed sparks walk through.",
   wiki: "Item Filter",
   w: 1,
   h: 1,
-  ports: [itemIn("in", "l", 0.5), itemOut("pass", "r", 0.5, "pass"), itemOut("reject", "b", 0.5, "reject"), logicIn("en", "t", 0.5, "power")],
+  ports: [POWER()],
   fields: [
     { key: "item", label: "Item", type: "item", allowEmpty: true, emptyLabel: "Empty (only empty-handed sparks)" },
     { key: "invert", label: "Reverse (block this item)", type: "bool" },
-    overflowField,
   ],
-  defaults: () => ({ item: "", invert: false, overflow: true }),
-  init: () => ({ passed: 0, rejected: 0, overflowed: 0 }),
-  // Wired and unpowered, sparks ignore it: everything counts as a match.
-  accept: (ctx, _p, t) => filterRoute(ctx, t, !powered(ctx) || (t.item === ctx.cfg.item) !== ctx.cfg.invert),
+  defaults: () => ({ item: "", invert: false }),
+  init: () => ({ passed: 0, turned: 0 }),
+  path: {
+    passable: (ctx, sp) => {
+      if (!powered(ctx)) return true;
+      // A filter set to an item sorts loaded sparks; empty-handed ones walk through, so a spark
+      // that has just delivered isn't shut in. Set to Empty, it judges empty-handed sparks too.
+      if (!sp.item && ctx.cfg.item) return true;
+      const ok = ((sp.item ?? "") === ctx.cfg.item) !== ctx.cfg.invert;
+      if (!ok) ctx.state.turned++;
+      return ok;
+    },
+    arrive: (ctx) => void ctx.state.passed++,
+  },
   status: (c) => ({ warn: !c.item }),
   describe: (c, s) => [
-    `${c.invert ? "Blocks" : "Passes"} ${c.item ? itemName(c.item) : "nothing (empty filter)"}.`,
-    ...filterLines(s),
-    "Wired and unpowered: sparks ignore it (everything takes the pass exit).",
+    `${c.invert ? "Blocks" : "Passes"} sparks carrying ${c.item ? itemName(c.item) : "nothing (empty filter)"}.`,
+    `${s.passed} spark(s) passed; others turned away ${s.turned} time(s).`,
+    ON_PATH,
+    IGNORED,
   ],
 };
 
-type AmountCfg = { cmp: "eq" | "ge" | "le"; amount: number; overflow: boolean };
+type AmountCfg = { cmp: "eq" | "ge" | "le"; amount: number };
 const amountFilter: PartType<AmountCfg, FilterState> = {
   id: "amount-filter",
   name: "Amount Filter",
   category: "Paths",
-  blurb: "Passes sparks carrying a matching amount; others keep walking.",
+  blurb: "Only sparks carrying a matching amount may pass; the rest keep walking. Empty-handed sparks walk through.",
   wiki: "Amount Filter",
   w: 1,
   h: 1,
-  ports: [itemIn("in", "l", 0.5), itemOut("pass", "r", 0.5, "pass"), itemOut("reject", "b", 0.5, "reject"), logicIn("en", "t", 0.5, "power")],
+  ports: [POWER()],
   fields: [
     {
       key: "cmp",
@@ -632,16 +614,27 @@ const amountFilter: PartType<AmountCfg, FilterState> = {
       ],
     },
     { key: "amount", label: "Amount", type: "number", min: 0, max: 999, step: 1 },
-    overflowField,
   ],
-  defaults: () => ({ cmp: "eq", amount: 1, overflow: true }),
-  init: () => ({ passed: 0, rejected: 0, overflowed: 0 }),
-  accept: (ctx, _p, t) => {
-    const { cmp, amount } = ctx.cfg;
-    const match = cmp === "eq" ? t.n === amount : cmp === "ge" ? t.n >= amount : t.n <= amount;
-    return filterRoute(ctx, t, !powered(ctx) || match);
+  defaults: () => ({ cmp: "eq", amount: 1 }),
+  init: () => ({ passed: 0, turned: 0 }),
+  path: {
+    passable: (ctx, sp) => {
+      if (!powered(ctx)) return true;
+      if (!sp.item) return true; // empty-handed sparks walk through, as with the Item Filter
+      const { cmp, amount } = ctx.cfg;
+      const n = sp.n;
+      const ok = cmp === "eq" ? n === amount : cmp === "ge" ? n >= amount : n <= amount;
+      if (!ok) ctx.state.turned++;
+      return ok;
+    },
+    arrive: (ctx) => void ctx.state.passed++,
   },
-  describe: (c, s) => [`Passes stacks ${c.cmp === "eq" ? "of exactly" : c.cmp === "ge" ? "of at least" : "of at most"} ${c.amount}.`, ...filterLines(s)],
+  describe: (c, s) => [
+    `Passes sparks carrying ${c.cmp === "eq" ? "exactly" : c.cmp === "ge" ? "at least" : "at most"} ${c.amount}.`,
+    `${s.passed} spark(s) passed; others turned away ${s.turned} time(s).`,
+    ON_PATH,
+    IGNORED,
+  ],
 };
 
 const blocker: PartType<{ closed: boolean }, { closed: boolean; shut: boolean }> = {
@@ -652,65 +645,91 @@ const blocker: PartType<{ closed: boolean }, { closed: boolean; shut: boolean }>
   wiki: "Blocker",
   w: 1,
   h: 1,
-  ports: [itemIn("in", "l", 0.5), itemOut("out", "r", 0.5), logicIn("en", "t", 0.5, "block")],
+  ports: [POWER("block")],
   fields: [{ key: "closed", label: "Closed (when unwired)", type: "bool", help: "Tap it while running to toggle." }],
   defaults: () => ({ closed: false }),
   init: (cfg) => ({ closed: cfg.closed, shut: cfg.closed }),
   step: (ctx) => void (ctx.state.shut = ctx.wired("en") ? ctx.in("en") : ctx.state.closed),
-  accept: (ctx, _p, t) => !ctx.state.shut && ctx.emit("out", t),
+  path: { passable: (ctx) => !ctx.state.shut },
   tap: (_c, s) => void (s.closed = !s.closed),
   tappable: () => true,
   status: (_c, s) => ({ active: !s.shut, badge: s.shut ? "✕" : undefined }),
-  describe: (_c, s) => [s.shut ? "Blocking the path." : "Open."],
+  describe: (_c, s) => [s.shut ? "Blocking: sparks turn back or take another way." : "Open.", ON_PATH],
 };
 
-const sparkGate: PartType<Config, { open: boolean }> = {
+const sparkGate: PartType<Config, { open: boolean; waiting: number }> = {
   id: "spark-gate",
   name: "Spark Gate",
   category: "Paths",
-  blurb: "Sparks wait here until it gets a signal.",
+  blurb: "Sparks wait at it until it gets a signal.",
   wiki: "Spark Gate",
   w: 1,
   h: 1,
-  ports: [itemIn("in", "l", 0.5), itemOut("out", "r", 0.5), logicIn("en", "t", 0.5, "open")],
+  ports: [POWER("open")],
   fields: [],
   defaults: () => ({}),
-  init: () => ({ open: true }),
-  step: (ctx) => void (ctx.state.open = powered(ctx)),
-  accept: (ctx, _p, t) => ctx.state.open && ctx.emit("out", t),
+  init: () => ({ open: true, waiting: 0 }),
+  step: (ctx) => {
+    ctx.state.open = powered(ctx);
+    ctx.state.waiting = 0;
+  },
+  path: {
+    holds: (ctx) => {
+      if (ctx.state.open) return false;
+      ctx.state.waiting++;
+      return true;
+    },
+  },
   status: (_c, s) => ({ active: s.open }),
-  describe: (_c, s) => [s.open ? "Open: sparks pass." : "Closed: sparks wait for a signal.", "Unwired it stays open (assumption)."],
+  describe: (_c, s) => [
+    s.open ? "Open: sparks pass." : "Closed: sparks wait in front of it for a signal.",
+    "Unwired it stays open (assumption).",
+    ON_PATH,
+  ],
 };
 
-const splitter: PartType<Config, { next: number }> = {
+const splitter: PartType<Config, { next: number; sent: number }> = {
   id: "splitter",
   name: "Splitter",
   category: "Paths",
-  blurb: "Sends items to its exits in turn.",
+  blurb: "On a junction: sparks entering from the back take its exits in turn.",
   wiki: "Splitter",
   w: 1,
   h: 1,
-  ports: [itemIn("in", "l", 0.5), itemOut("a", "t", 0.5, "1"), itemOut("b", "r", 0.5, "2"), itemOut("c", "b", 0.5, "3"), logicIn("en", "l", 0.15, "power")],
+  ports: [POWER()],
   fields: [],
   defaults: () => ({}),
-  init: () => ({ next: 0 }),
-  accept: (ctx, _p, t) => {
-    const exits = ["a", "b", "c"].filter((p) => ctx.wired(p));
-    if (!exits.length) return false;
-    if (!powered(ctx)) return ctx.emit(exits[0], t);
-    for (let k = 0; k < exits.length; k++) {
-      const i = (ctx.state.next + k) % exits.length;
-      if (ctx.emit(exits[i], t)) {
-        ctx.state.next = (i + 1) % exits.length;
-        return true;
+  init: () => ({ next: 0, sent: 0 }),
+  path: {
+    exits: (ctx, _sp, d, facing, open) => {
+      if (!powered(ctx)) return undefined;
+      // From the back (moving the way it faces): right, straight, left in turn.
+      if (d === facing) {
+        const order = [(d + 1) % 4, d, (d + 3) % 4].filter((x) => open.includes(x));
+        if (!order.length) return undefined;
+        const k = ctx.state.next % order.length;
+        return [...order.slice(k), ...order.slice(0, k)];
       }
-    }
-    return false;
+      // From any other side: out through the back.
+      return [(facing + 2) % 4];
+    },
+    leave: (ctx, _sp, d, facing) => {
+      if (powered(ctx) && d === facing) {
+        ctx.state.next++;
+        ctx.state.sent++;
+      }
+    },
   },
-  describe: () => ["Cycles through its connected exits, skipping full ones.", "Wired and unpowered: everything takes the first exit."],
+  describe: (_c, s) => [
+    "Sparks entering from its back are sent right, straight and left in turn (skipping exits with no path).",
+    "Sparks from the other sides leave through the back.",
+    `${s.sent} spark(s) split so far.`,
+    ON_PATH,
+    "Wired and unpowered: sparks ignore it.",
+  ],
 };
 
-const waitGate: PartType<{ wait: number }, { held: Token | null; left: number }> = {
+const waitGate: PartType<{ wait: number }, { held: number }> = {
   id: "wait-gate",
   name: "Wait Gate",
   category: "Paths",
@@ -718,43 +737,37 @@ const waitGate: PartType<{ wait: number }, { held: Token | null; left: number }>
   wiki: "Wait Gate",
   w: 1,
   h: 1,
-  ports: [itemIn("in", "l", 0.5), itemOut("out", "r", 0.5), logicIn("en", "t", 0.5, "power")],
+  ports: [POWER()],
   fields: [seconds("wait", "Wait", 0.5, 5)],
   defaults: () => ({ wait: 1 }),
-  init: () => ({ held: null, left: 0 }),
-  accept: (ctx, _p, t) => {
-    if (!powered(ctx)) return !ctx.state.held && ctx.emit("out", t);
-    if (ctx.state.held) return false;
-    ctx.state.held = t;
-    ctx.state.left = ticks(ctx.cfg.wait);
-    return true;
+  init: () => ({ held: 0 }),
+  path: {
+    arrive: (ctx) => {
+      if (!powered(ctx)) return 0;
+      ctx.state.held++;
+      return ctx.cfg.wait;
+    },
   },
-  step: (ctx) => {
-    const s = ctx.state;
-    if (!s.held) return;
-    if (s.left > 0) s.left--;
-    else if (ctx.emit("out", s.held)) s.held = null;
-  },
-  status: (_c, s) => ({ active: !!s.held, badge: s.held ? `${(s.left * TICK).toFixed(1)}s` : undefined }),
-  describe: (c, s) => [s.held ? `Holding ${itemName(s.held.item)}.` : "Empty.", `Each spark waits ${c.wait} s.`],
+  describe: (c, s) => [`Each spark waits ${c.wait} s.`, `${s.held} spark(s) held so far.`, ON_PATH, IGNORED],
 };
 
 const pathCounter: PartType<Config, { times: number[] }> = {
   id: "counter",
   name: "Counter",
   category: "Paths",
-  blurb: "Counts items that passed in the last minute.",
+  blurb: "Counts items carried past it (from its gate side) in the last minute.",
   wiki: "Counter",
   w: 1,
   h: 1,
-  ports: [itemIn("in", "l", 0.5), itemOut("out", "r", 0.5), logicIn("en", "t", 0.5, "power")],
+  ports: [POWER()],
   fields: [],
   defaults: () => ({}),
   init: () => ({ times: [] }),
-  accept: (ctx, _p, t) => {
-    if (!ctx.emit("out", t)) return false;
-    if (powered(ctx)) for (let i = 0; i < t.n; i++) ctx.state.times.push(ctx.tick);
-    return true;
+  path: {
+    arrive: (ctx, sp, d, facing) => {
+      if (!powered(ctx) || !sp.item || d !== facing) return;
+      for (let i = 0; i < sp.n; i++) ctx.state.times.push(ctx.tick);
+    },
   },
   step: (ctx) => {
     const cutoff = ctx.tick - ticks(60);
@@ -764,39 +777,123 @@ const pathCounter: PartType<Config, { times: number[] }> = {
     if (drop) times.splice(0, drop);
   },
   status: (_c, s) => ({ badge: String(s.times.length) }),
-  describe: (_c, s) => [`${s.times.length} item(s) in the last minute.`],
+  describe: (_c, s) => [`${s.times.length} item(s) in the last minute.`, "Counts sparks walking the way it faces.", ON_PATH],
+};
+
+const crossing: PartType<Config, Record<string, never>> = {
+  id: "crossing",
+  name: "Crossing",
+  category: "Paths",
+  blurb: "On a junction: sparks go straight across instead of turning.",
+  wiki: "Crossing",
+  w: 1,
+  h: 1,
+  ports: [POWER()],
+  fields: [],
+  defaults: () => ({}),
+  init: () => ({}),
+  path: {
+    // Wiki: forward only; a U-turn if there's no path ahead.
+    exits: (ctx, _sp, d) => (powered(ctx) ? [d, (d + 2) % 4] : undefined),
+  },
+  describe: () => ["Sparks go straight on, or turn back if there's no path ahead.", ON_PATH, IGNORED],
+};
+
+const oneWay: PartType<Config, { turned: number }> = {
+  id: "one-way",
+  name: "One Way",
+  category: "Paths",
+  blurb: "Sparks may only pass in the arrow's direction.",
+  wiki: "One Way",
+  w: 1,
+  h: 1,
+  ports: [POWER()],
+  fields: [],
+  defaults: () => ({}),
+  init: () => ({ turned: 0 }),
+  path: {
+    // Wiki: blocks sparks coming from the side the arrow points to, and sends the others out
+    // that way.
+    passable: (ctx, _sp, d, facing) => {
+      if (!powered(ctx) || d !== (facing + 2) % 4) return true;
+      ctx.state.turned++;
+      return false;
+    },
+    exits: (ctx, _sp, _d, facing) => (powered(ctx) ? [facing] : undefined),
+  },
+  describe: (_c, s) => [`Arrow direction only. ${s.turned} spark(s) turned away.`, "Rotate it to point the arrow.", ON_PATH, IGNORED],
+};
+
+const sparks: PartType<{ count: number; carry: number }, Record<string, never>> = {
+  id: "sparks",
+  name: "Sparks",
+  category: "Paths",
+  blurb: "Puts hauling sparks on the path tile it sits on. They walk the path carrying items.",
+  w: 1,
+  h: 1,
+  ports: [],
+  fields: [
+    { key: "count", label: "How many", type: "number", min: 1, max: 50, step: 1 },
+    {
+      key: "carry",
+      label: "Items per trip",
+      type: "number",
+      min: 0,
+      max: 100,
+      step: 1,
+      help: "0 = a whole stack, like a Hauling Spark. Other carry amounts aren't on the wiki.",
+    },
+  ],
+  defaults: () => ({ count: 2, carry: 1 }),
+  init: () => ({}),
+  status: (c) => ({ badge: `×${c.count}` }),
+  describe: (c) => [
+    `${c.count} spark(s), each carrying ${c.carry ? `up to ${c.carry}` : "a whole stack"}.`,
+    "They start facing the way this part faces. At each tile they turn right if they can, else go straight, else left, else back.",
+    "They pick up at building exits they pass (when empty-handed) and drop off at entrances that will take their load.",
+    "In the game you drop sparks onto a path; this part stands in for that. Place it on a path tile.",
+  ],
 };
 
 const source: PartType<{ items: string[]; rate: number; stack: number }, { credit: number; next: number; made: number }> = {
   id: "source",
   name: "Item source",
-  category: "Paths",
-  blurb: "Sandbox helper: items arriving (a train unloading, a harvester…).",
+  category: "Storage & machines",
+  blurb: "Sandbox helper: items arriving (a train unloading, a harvester…). Sparks pick them up at its exit.",
   w: 1,
   h: 1,
   ports: [itemOut("out", "r", 0.5), logicIn("en", "t", 0.5, "enable")],
   fields: [
-    { key: "items", label: "Items (sent in turn)", type: "items", max: 12 },
-    { key: "rate", label: "Sparks per second", type: "number", min: 0.1, max: 10, step: 0.1, unit: "/s" },
-    { key: "stack", label: "Items per spark", type: "number", min: 1, max: 100, step: 1 },
+    { key: "items", label: "Items (handed out in turn)", type: "items", max: 12 },
+    { key: "rate", label: "Loads per second", type: "number", min: 0.1, max: 10, step: 0.1, unit: "/s" },
+    { key: "stack", label: "Items per load", type: "number", min: 1, max: 100, step: 1 },
   ],
   defaults: () => ({ items: ["wooden-log"], rate: 1, stack: 1 }),
   init: () => ({ credit: 1, next: 0, made: 0 }),
   step: (ctx) => {
     const s = ctx.state;
-    const { items, rate, stack } = ctx.cfg;
+    const { items, rate } = ctx.cfg;
     if (!items.length || !powered(ctx)) return;
-    s.credit = Math.min(1, s.credit + rate * ctx.dt);
-    if (s.credit >= 1 - 1e-9 && ctx.emit("out", ctx.token(items[s.next % items.length], stack))) {
-      s.credit -= 1;
-      s.next = (s.next + 1) % items.length;
-      s.made += stack;
-    }
+    // A few loads can wait at the exit for the next spark.
+    s.credit = Math.min(3, s.credit + rate * ctx.dt);
+  },
+  give: (ctx, _p, max, item) => {
+    const s = ctx.state;
+    const { items, stack } = ctx.cfg;
+    if (!items.length || !powered(ctx) || s.credit < 1 - 1e-9) return null;
+    const next = items[s.next % items.length];
+    if (item && item !== next) return null;
+    s.credit -= 1;
+    s.next = (s.next + 1) % items.length;
+    const n = Math.min(stack, max > 0 ? max : stackSize(next));
+    s.made += n;
+    return ctx.token(next, n);
   },
   status: (c) => ({ warn: !c.items.length }),
   describe: (c, s) => [
-    c.items.length ? `Sends ${c.items.map(itemName).join(", ")} in turn.` : "No items set.",
-    `${s.made} item(s) sent.`,
+    c.items.length ? `Hands out ${c.items.map(itemName).join(", ")} in turn, ${c.rate} load(s)/s.` : "No items set.",
+    `${s.made} item(s) handed out.`,
+    "Sparks passing its exit empty-handed pick up a load.",
   ],
 };
 
@@ -810,28 +907,28 @@ export const STORAGE_PRESETS: { id: string; label: string; capacity: number }[] 
   { id: "big-barrel", label: "Big Barrel (40 stacks)", capacity: 40 * STACK },
 ];
 
-type StorageCfg = { label: string; capacity: number; take: string; rate: number; stock: [string, number][] };
-type StorageState = { counts: Record<string, number>; total: number; credit: number; rr: number };
+type StorageCfg = { label: string; capacity: number; take: string; stock: [string, number][] };
+type StorageState = { counts: Record<string, number>; total: number; rr: number };
 const storage: PartType<StorageCfg, StorageState> = {
   id: "storage",
   name: "Storage",
   category: "Storage & machines",
-  blurb: "Holds items up to a capacity. Sparks haul items out while the exit path has room.",
+  blurb: "Holds items up to a capacity. Sparks drop items at its entrance and pick them up at its exit.",
   w: 2,
   h: 2,
+  // Entrance and exit on the lower row's tiles, so each faces exactly one path tile.
   ports: [
-    itemIn("in", "l", 0.5),
-    itemOut("out", "r", 0.5),
+    itemIn("in", "l", 0.75),
+    itemOut("out", "r", 0.75),
     { id: "sense", kind: "observe", dir: "in", side: "t", at: 0.5, label: "sensor" },
   ],
   fields: [
     { key: "label", label: "Label", type: "text", maxLength: 24 },
     { key: "capacity", label: "Capacity (items)", type: "number", min: 1, max: 9999, step: 1, help: "Presets assume 50 items per stack." },
-    { key: "take", label: "Haul out", type: "item", allowEmpty: true, emptyLabel: "Any item" },
-    { key: "rate", label: "Haul rate", type: "number", min: 0, max: 20, step: 0.1, unit: "/s", help: "0 stops hauling out." },
+    { key: "take", label: "Sparks take out", type: "item", allowEmpty: true, emptyLabel: "Any item" },
     { key: "stock", label: "Starts with", type: "stock", max: 12 },
   ],
-  defaults: () => ({ label: "", capacity: 4 * STACK, take: "", rate: 1, stock: [] }),
+  defaults: () => ({ label: "", capacity: 4 * STACK, take: "", stock: [] }),
   init: (cfg) => {
     const counts: Record<string, number> = {};
     let total = 0;
@@ -841,7 +938,7 @@ const storage: PartType<StorageCfg, StorageState> = {
       counts[item] = (counts[item] ?? 0) + add;
       total += add;
     }
-    return { counts, total, credit: 1, rr: 0 };
+    return { counts, total, rr: 0 };
   },
   accept: (ctx, _p, t) => {
     const s = ctx.state;
@@ -850,22 +947,21 @@ const storage: PartType<StorageCfg, StorageState> = {
     s.total += t.n;
     return true;
   },
-  step: (ctx) => {
+  give: (ctx, _p, max, want) => {
     const { state: s, cfg } = ctx;
-    if (!cfg.rate || !ctx.wired("out")) return;
-    s.credit = Math.min(1, s.credit + cfg.rate * ctx.dt);
-    if (s.credit < 1 - 1e-9 || !ctx.hasRoom("out")) return;
-    let item = cfg.take && s.counts[cfg.take] ? cfg.take : "";
-    if (!cfg.take) {
+    let item = want ?? (cfg.take || "");
+    if (want && cfg.take && want !== cfg.take) return null;
+    if (!item) {
       const keys = Object.keys(s.counts).filter((k) => s.counts[k] > 0);
-      if (keys.length) item = keys[s.rr++ % keys.length];
+      if (!keys.length) return null;
+      item = keys[s.rr++ % keys.length];
     }
-    if (!item) return;
-    if (ctx.emit("out", ctx.token(item, 1))) {
-      s.credit -= 1;
-      s.total -= 1;
-      if (!--s.counts[item]) delete s.counts[item];
-    }
+    const n = Math.min(max > 0 ? max : stackSize(item), s.counts[item] ?? 0);
+    if (n <= 0) return null;
+    s.counts[item] -= n;
+    if (!s.counts[item]) delete s.counts[item];
+    s.total -= n;
+    return ctx.token(item, n);
   },
   view: (cfg, s) => ({ total: s.total, capacity: cfg.capacity, count: (item) => s.counts[item] ?? 0 }),
   status: (cfg, s) => ({ fill: cfg.capacity ? s.total / cfg.capacity : 0, badge: String(s.total) }),
@@ -877,29 +973,41 @@ const storage: PartType<StorageCfg, StorageState> = {
   },
 };
 
-const extractor: PartType<{ rate: number }, { credit: number; moved: number; on: boolean }> = {
+const extractor: PartType<{ rate: number }, { credit: number; moved: number; on: boolean; held: { item: string; n: number } | null }> = {
   id: "extractor",
   name: "Extractor",
   category: "Storage & machines",
-  blurb: "Sandbox stand-in for a hauling route: moves items while enabled.",
+  blurb: "Old sandbox stand-in for a hauling route; use a Spark Gate on a path instead.",
+  hidden: true,
   w: 1,
   h: 1,
   ports: [itemIn("in", "l", 0.5), itemOut("out", "r", 0.5), logicIn("en", "t", 0.5, "enable")],
   fields: [{ key: "rate", label: "Items per second", type: "number", min: 0.1, max: 20, step: 0.1, unit: "/s" }],
   defaults: () => ({ rate: 1 }),
-  init: () => ({ credit: 1, moved: 0, on: true }),
+  init: () => ({ credit: 1, moved: 0, on: true, held: null }),
   step: (ctx) => {
     ctx.state.on = powered(ctx);
     if (ctx.state.on) ctx.state.credit = Math.min(1, ctx.state.credit + ctx.cfg.rate * ctx.dt);
   },
   accept: (ctx, _p, t) => {
-    if (!ctx.state.on || ctx.state.credit < 1 - 1e-9 || !ctx.emit("out", t)) return false;
-    ctx.state.credit -= 1;
-    ctx.state.moved += t.n;
+    const s = ctx.state;
+    if (!s.on || s.held || s.credit < 1 - 1e-9) return false;
+    s.credit -= 1;
+    s.held = { item: t.item, n: t.n };
     return true;
   },
+  give: (ctx, _p, max, want) => {
+    const s = ctx.state;
+    if (!s.held || (want && want !== s.held.item)) return null;
+    const n = Math.min(max > 0 ? max : stackSize(s.held.item), s.held.n);
+    const t = ctx.token(s.held.item, n);
+    s.held.n -= n;
+    s.moved += n;
+    if (!s.held.n) s.held = null;
+    return t;
+  },
   status: (_c, s) => ({ active: s.on, badge: String(s.moved) }),
-  describe: (c, s) => [s.on ? `Moving up to ${c.rate} item(s)/s.` : "Disabled: no enable signal.", `${s.moved} moved so far.`, ENABLE_HELP],
+  describe: (c, s) => [s.on ? `Passing up to ${c.rate} load(s)/s.` : "Disabled: no enable signal.", `${s.moved} moved so far.`, ENABLE_HELP],
 };
 
 type MachineCfg = {
@@ -964,7 +1072,7 @@ const machine: PartType<MachineCfg, MachineState> = {
   blurb: "Any workstation: crafts while its enable signal is on, until its output slot is full.",
   w: 2,
   h: 2,
-  ports: [itemIn("in", "l", 0.5), itemOut("out", "r", 0.5), logicIn("en", "t", 0.5, "enable")],
+  ports: [itemIn("in", "l", 0.75), itemOut("out", "r", 0.75), logicIn("en", "t", 0.5, "enable")],
   fields: [
     { key: "label", label: "Label", type: "text", maxLength: 24 },
     { key: "recipe", label: "Recipe", type: "recipe", help: "Pick a game recipe, or leave custom to set what it uses and makes." },
@@ -992,7 +1100,10 @@ const machine: PartType<MachineCfg, MachineState> = {
     if (!need) return false;
     const key = need.material || "*";
     const have = ctx.state.buf[key] ?? 0;
-    if (have >= Math.max(10, need.amount * 2)) return false;
+    // Its input holds about a stack (or two crafts' worth, if more). A spark tops it up while it
+    // isn't full, even past that, so a leftover that's too small for a craft can't jam it.
+    const room = Math.max(need.material ? stackSize(need.material) : DEFAULT_STACK, need.amount * 2);
+    if (have >= room) return false;
     ctx.state.buf[key] = have + t.n;
     return true;
   },
@@ -1000,11 +1111,6 @@ const machine: PartType<MachineCfg, MachineState> = {
     const { state: s, cfg } = ctx;
     const r = machineRecipe(cfg);
     if (Array.isArray(s.out)) s.out = {}; // state from before output slots existed
-    // Sparks carry finished products off along the exit path, one at a time.
-    if (ctx.wired("out")) {
-      const item = Object.keys(s.out).find((k) => s.out[k] > 0);
-      if (item && ctx.emit("out", ctx.token(item, 1)) && !--s.out[item]) delete s.out[item];
-    }
     s.on = powered(ctx);
     if (!s.on) {
       s.why = "Disabled: no enable signal.";
@@ -1037,6 +1143,16 @@ const machine: PartType<MachineCfg, MachineState> = {
       s.made++;
       for (const t of r.to) s.out[t.material] = (s.out[t.material] ?? 0) + t.amount;
     }
+  },
+  // Sparks passing the exit empty-handed take products from the output slot.
+  give: (ctx, _p, max, want) => {
+    const s = ctx.state;
+    const item = want ?? Object.keys(s.out).find((k) => s.out[k] > 0);
+    const n = item ? Math.min(max > 0 ? max : stackSize(item), s.out[item] ?? 0) : 0;
+    if (!item || n <= 0) return null;
+    s.out[item] -= n;
+    if (!s.out[item]) delete s.out[item];
+    return ctx.token(item, n);
   },
   action: { label: "Take output", run: (_cfg, s) => void (s.out = {}) },
   status: (cfg, s) => {
@@ -1159,14 +1275,17 @@ export const PART_TYPES: PartType<any, any>[] = [
   wireBridge,
   ribbonWriter,
   ribbonReader,
-  source,
+  sparks,
   itemFilter,
   amountFilter,
   blocker,
   sparkGate,
   splitter,
+  crossing,
+  oneWay,
   waitGate,
   pathCounter,
+  source,
   storage,
   extractor,
   machine,

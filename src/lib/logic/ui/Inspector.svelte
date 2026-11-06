@@ -2,8 +2,8 @@
   // Properties of the selected part or wire: what it's doing right now and why (live inputs and
   // outputs), and its settings.
   import { GAME } from "$lib/engine/data";
-  import { bridgeCrossing, sanitizeConfig } from "../circuit";
-  import { connectedTiles, erase, kindOf } from "../grid";
+  import { bridgeCrossing, ensureSparks, pathNetwork, sanitizeConfig } from "../circuit";
+  import { connectedTiles, erase, kindOf, maskOf, PATH_SPEED, tile } from "../grid";
   import { itemName, PARTS, STORAGE_PRESETS } from "../parts";
   import type { Sim } from "../sim";
   import type { LogicStore } from "../store.svelte";
@@ -59,11 +59,14 @@
     return {
       lines: sim.describe(part.id),
       ports: type.ports.map((p) => {
-        // Logic ports connect through the wire tile they face; paths and sensor links are wires.
+        // Logic ports connect through the wire tile they face, item ports through the path tile
+        // they face; sensor links are drawn port to port.
         const wired =
           p.kind === "logic"
             ? sim.portWired(part.id, p.id)
-            : store.circuit.wires.some(
+            : p.kind === "item"
+              ? sim.portOnPath(part.id, p.id)
+              : store.circuit.wires.some(
                 (w) => (w.from.part === part.id && w.from.port === p.id) || (w.to.part === part.id && w.to.port === p.id),
               );
         return { ...p, wired, on: p.kind === "logic" ? sim.port(part.id, p.id) : false };
@@ -88,7 +91,6 @@
       from: name(a, wire.from.port),
       to: name(b, wire.to.port),
       on: pa.kind === "logic" && sim.port(a.id, wire.from.port),
-      items: pa.kind === "item" ? (sim.paths.find((l) => l.wireId === wire.id)?.tokens.length ?? 0) : 0,
     };
   });
 
@@ -116,6 +118,35 @@
       })),
     };
   });
+
+  const pathKey = $derived(sel?.kind === "path" && store.circuit.paths[sel.id] ? sel.id : undefined);
+  const pathInfo = $derived.by(() => {
+    void frame;
+    void store.version;
+    if (!pathKey) return null;
+    const kind: string = store.circuit.paths[pathKey][0];
+    const net = pathNetwork(store.circuit.paths, pathKey);
+    const crews = store.circuit.parts.filter((p) => p.type === "sparks" && net.has(`${p.x},${p.y}`));
+    const here = sim.sparksOn(pathKey);
+    const walking = sim.sparks.filter((s) => net.has(`${s.x},${s.y}`));
+    const addOn = store.circuit.parts.find((p) => p.x + "," + p.y === pathKey && PARTS.get(p.type)?.path);
+    return {
+      kind,
+      tiles: net.size,
+      crews: crews.length,
+      walking: walking.length,
+      loaded: walking.filter((s) => s.load).length,
+      here: here.map((s) => (s.load ? `${s.load.n} ${itemName(s.load.item)}` : "empty-handed") + (s.stuck ? ` (${s.stuck.replace(/\.$/, "").toLowerCase()})` : "")),
+      addOn: addOn ? PARTS.get(addOn.type)!.name : null,
+    };
+  });
+
+  /** Re-lays tiles as another kind, keeping how they join. */
+  function setPathKind(keys: Iterable<string>, kind: string) {
+    store.edit((c) => {
+      for (const k of keys) if (c.paths[k]) c.paths[k] = tile(kind, maskOf(c.paths[k]));
+    });
+  }
 
   let bridgeError = $state<string | null>(null);
   $effect(() => {
@@ -346,6 +377,56 @@
       >
     </div>
     {#if bridgeError}<p class="muted small">{bridgeError}</p>{/if}
+  {:else if pathKey && pathInfo}
+    <header class="insp-head">
+      <div>
+        <h2>{pathInfo.kind === "d" ? "Dirt Path" : "Stone Path"}</h2>
+        <div class="muted small">
+          Sparks walk paths at {Math.round(PATH_SPEED[pathInfo.kind] * 100)}% speed, taking the first of right, straight on, left, or back
+          that's open to them.
+          <a href="https://oddsparks.wiki.gg/wiki/{pathInfo.kind === 'd' ? 'Dirt_Path' : 'Stone_Path'}" target="_blank" rel="noopener">Wiki</a>
+        </div>
+      </div>
+      <button class="icon-btn close" aria-label="Close" onclick={onclose}>✕</button>
+    </header>
+    <section class="insp-live" aria-live="polite">
+      {#if pathInfo.addOn}<p>{pathInfo.addOn} on this tile.</p>{/if}
+      <p>
+        {pathInfo.here.length ? `On this tile: ${pathInfo.here.join(", ")}.` : "No spark on this tile right now."}
+      </p>
+      <p>
+        This path: {pathInfo.tiles} tile(s), {pathInfo.walking} spark(s) walking it{pathInfo.walking ? `, ${pathInfo.loaded} carrying something` : ""}.
+      </p>
+      {#if !pathInfo.crews}
+        <p class="muted small">No Sparks part on this path, so nothing walks it. Add some below.</p>
+      {/if}
+    </section>
+    <div class="insp-actions">
+      <button onclick={() => setPathKind([pathKey], pathInfo.kind === "d" ? "s" : "d")}>
+        {pathInfo.kind === "d" ? "Make Stone" : "Make Dirt"}
+      </button>
+      <button onclick={() => setPathKind(pathNetwork(store.circuit.paths, pathKey), pathInfo.kind === "d" ? "s" : "d")}>
+        Whole path {pathInfo.kind === "d" ? "Stone" : "Dirt"}
+      </button>
+      {#if !pathInfo.crews}
+        <button
+          class="primary"
+          onclick={() =>
+            store.edit((c) => {
+              const id = ensureSparks(c, pathKey);
+              if (id) store.selection = { kind: "part", id };
+            })}>✦ Add sparks</button
+        >
+      {/if}
+      <button class="danger" onclick={() => store.edit((c) => erase(c.paths, pathKey))}>🗑 Tile</button>
+      <button
+        class="danger"
+        onclick={() =>
+          store.edit((c) => {
+            for (const k of pathNetwork(c.paths, pathKey)) delete c.paths[k];
+          })}>🗑 Whole path</button
+      >
+    </div>
   {:else if wire && wireInfo}
     <header class="insp-head">
       <div>
@@ -357,8 +438,6 @@
     <section class="insp-live">
       {#if wireInfo.kind === "logic"}
         <p>Signal: <strong>{wireInfo.on ? "ON" : "off"}</strong></p>
-      {:else if wireInfo.kind === "item"}
-        <p>{wireInfo.items} item(s) on this path.</p>
       {:else}
         <p>The sensor reads this storage's fill level.</p>
       {/if}

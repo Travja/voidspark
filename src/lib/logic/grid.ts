@@ -13,6 +13,10 @@ import type { CellKind, Circuit, Part, PortDef, PortRef } from "./types";
 
 export type { CellKind };
 
+/** Path tile kinds and their walking speed (wiki: Dirt Path 60 %, Stone Path 100 %). */
+export const PATH_SPEED: Record<string, number> = { s: 1, d: 0.6 };
+export const VALID_PATH_TILE = /^[sd](?:[0-9]|1[0-5])$/;
+
 /** Directions: 0 right, 1 down, 2 left, 3 up. A tile's mask has bit (1 << d) to join that way. */
 export const DIRS: Point[] = [
   { x: 1, y: 0 },
@@ -31,7 +35,7 @@ export const parseKey = (k: string): [number, number] => {
 /** Tile values are the kind and its join mask, e.g. "w5" (wire joining right and left). */
 export const kindOf = (v: string | undefined) => v?.[0] as CellKind | undefined;
 export const maskOf = (v: string | undefined) => (!v ? 0 : +v.slice(1) || 0);
-export const tile = (kind: CellKind, mask: number) => `${kind}${mask & 15}`;
+export const tile = (kind: string, mask: number) => `${kind}${mask & 15}`;
 export const VALID_TILE = /^[wr](?:[0-9]|1[0-5])$/;
 
 export function dirBetween(a: [number, number], b: [number, number]): number {
@@ -192,7 +196,7 @@ export function link(cells: Record<string, string>, a: string, b: string) {
  * Paints a stroke of tiles (consecutive neighbours), joining each to the next. A tile already
  * there keeps its other joins; painting ribbon over wire (or back) converts it.
  */
-export function paint(cells: Record<string, string>, kind: CellKind, path: [number, number][]) {
+export function paint(cells: Record<string, string>, kind: string, path: [number, number][]) {
   let prev: string | null = null;
   for (const [x, y] of path) {
     const k = cellKey(x, y);

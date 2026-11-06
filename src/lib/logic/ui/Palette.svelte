@@ -6,14 +6,24 @@
 
   const icons = import.meta.glob<string>("../../assets/logic/*.png", { eager: true, import: "default" });
   const icon = (type: string) => icons[`../../assets/logic/${type}.png`];
-  const GLYPH: Record<string, string> = { button: "◉", source: "⇶", machine: "⚙", extractor: "⇥", label: "T", storage: "▦" };
+  const GLYPH: Record<string, string> = {
+    button: "◉",
+    source: "⇶",
+    machine: "⚙",
+    extractor: "⇥",
+    label: "T",
+    storage: "▦",
+    sparks: "✦",
+    crossing: "✚",
+    "one-way": "➜",
+  };
 </script>
 
 <div class="palette">
   {#each CATEGORIES as cat (cat)}
     <h3>{cat}</h3>
     <div class="palette-grid">
-      {#each PART_TYPES.filter((t) => t.category === cat) as t (t.id)}
+      {#each PART_TYPES.filter((t) => t.category === cat && !t.hidden) as t (t.id)}
         <button
           class="palette-item"
           class:armed={placing === t.id}

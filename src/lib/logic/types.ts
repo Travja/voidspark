@@ -84,6 +84,11 @@ export interface Circuit {
    * bridge is just "b".
    */
   cells: Record<string, string>;
+  /**
+   * Path tiles by "x,y": "s" (Stone Path, full speed) or "d" (Dirt Path, 60 %) plus the join
+   * mask, e.g. "s5". Sparks walk these, carrying items between buildings.
+   */
+  paths: Record<string, string>;
   settings: CircuitSettings;
 }
 
@@ -92,6 +97,33 @@ export interface Token {
   id: number;
   item: string;
   n: number;
+}
+
+/** What a path add-on can see of the spark it's dealing with. */
+export interface SparkView {
+  /** Item carried, or null when empty-handed. */
+  item: string | null;
+  n: number;
+}
+
+/**
+ * How an add-on that sits on a path tile treats sparks. Directions are 0 right, 1 down, 2 left,
+ * 3 up, in world terms; `facing` is the add-on's own direction (its rotation).
+ */
+export interface PathRule<C = Config, S = any> {
+  /** Whether a spark moving in direction `d` may step onto this tile. False makes it a wall. */
+  passable?(ctx: StepCtx<C, S>, spark: SparkView, d: number, facing: number): boolean;
+  /** Whether a spark that wants to step onto this tile must wait first (a closed Spark Gate). */
+  holds?(ctx: StepCtx<C, S>, spark: SparkView, d: number, facing: number): boolean;
+  /** A spark has arrived on the tile moving in direction `d`. Returns seconds it must wait. */
+  arrive?(ctx: StepCtx<C, S>, spark: SparkView, d: number, facing: number): number | void;
+  /**
+   * Exits to try, best first, for a spark on this tile that arrived moving in `d`. Return
+   * undefined to use the normal rule (right, straight, left, back).
+   */
+  exits?(ctx: StepCtx<C, S>, spark: SparkView, d: number, facing: number, open: number[]): number[] | undefined;
+  /** The spark actually left in direction `out` (lets a Splitter advance its arrow). */
+  leave?(ctx: StepCtx<C, S>, spark: SparkView, d: number, facing: number, out: number): void;
 }
 
 /** What a capacity sensor sees of a storage. */
@@ -113,19 +145,10 @@ export interface StepCtx<C = Config, S = Record<string, unknown>> {
   in(port: string): boolean;
   /** The four ribbon bits on a port that reads a whole ribbon (`bus: "all"`). */
   bits(port: string): boolean[];
-  /** Whether a logic port touches a wire tile (or an item port is linked to a path). */
+  /** Whether a logic port touches a wire tile, or an item port faces a path tile. */
   wired(port: string): boolean;
   /** Sets a logic output for the next tick. */
   set(port: string, on: boolean): void;
-  /** Pushes a token onto the path leaving an item output. False if there is no path or no room. */
-  emit(port: string, token: Token): boolean;
-  /** Whether the path leaving an item output could take a token now. */
-  hasRoom(port: string): boolean;
-  /**
-   * Whether the path leaving an item output is backed up: the item at its far end can't be
-   * delivered and the queue reaches back to the start. (A momentary gap between items isn't.)
-   */
-  backedUp(port: string): boolean;
   /** The storage an observe port is linked to. */
   observe(port: string): StorageView | null;
   /** Wireless channel value as of the previous tick. */
@@ -171,6 +194,15 @@ export interface PartType<C extends Config = Config, S = any> {
   step?(ctx: StepCtx<C, S>): void;
   /** Offered a token arriving on an item input. Return true to take it. */
   accept?(ctx: StepCtx<C, S>, port: string, token: Token): boolean;
+  /**
+   * A spark passing an item output asks for up to `max` items (of `item`, if it already carries
+   * some); `max` 0 means a whole stack. Return what it gets, or null.
+   */
+  give?(ctx: StepCtx<C, S>, port: string, max: number, item: string | null): Token | null;
+  /** Add-ons placed on a path tile: how they treat sparks. */
+  path?: PathRule<C, S>;
+  /** Kept for old circuits but not offered in the palette. */
+  hidden?: boolean;
   /** A one-off action offered in the inspector (e.g. a player emptying a machine's output). */
   action?: { label: string; run(cfg: C, state: S): void };
   /** Tapped while the simulation runs (levers, buttons, blockers). */

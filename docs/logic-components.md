@@ -58,9 +58,8 @@ sandbox makes it a setting.
 
 ### Pressure Sensor
 - **Wiki:** "Sends a signal when it's stepped on", by the player or a spark. It's placed on a path.
-- **Sandbox:** an inline path piece. Items pass through it, and it outputs a signal while one is on
-  it. *Assumption:* "on it" lasts a configurable 0.5 s per item, since the game's timing depends on
-  walking speed.
+- **Sandbox:** sits on a path tile and outputs a signal each time a spark steps onto it.
+  *Assumption:* "on" lasts a configurable 0.5 s per spark, since the game doesn't give a time.
 
 ### Motion Sensor
 - **Wiki:** detects motion in a cone in front of it. Length and angle can each be adjusted by -2
@@ -177,29 +176,48 @@ logic, it must be powered to work. Unpowered, it turns grey and sparks ignore it
 | **Crossing** | sparks go straight across a junction | — |
 | **Signpost** | map marker. Unpowered, it's hidden | 1 item |
 
-**Sandbox model.** A sandbox path is a directed link from one part's item output to another
-part's item input. Items move along it as tokens at a set walking speed (default 2 tiles/s,
-*assumption*). Tokens queue when the end is blocked, and a full path stops whatever feeds it.
+**Sandbox model.** Items move the way they do in the game: **sparks carry them along path
+tiles.**
 
-- **Item Filter:** an *in*, a *pass* exit and a *reject* exit ("keep walking"). Tokens that match
-  go to *pass*, and the others go to *reject*. If *reject* isn't connected, they wait. Settings:
-  item, reverse. Wired and unpowered, everything goes to *pass*.
-- **Overflow (both filters):** when a matching token's *pass* exit is backed up (the queue on
-  it reaches back to the filter and the front item can't be delivered), the token takes the
-  *reject* exit and carries on down the line instead of blocking it. *Assumption:* the wiki only
-  says non-matching sparks "continue walking". A setting turns this off.
-- **Amount Filter:** the same, comparing the token's stack size against the amount.
-- **Blocker:** wired, it blocks while the signal is on. Unwired, a manual *closed* setting decides,
-  and you can tap it.
-- **Spark Gate:** wired, it passes only while the signal is on. *Assumption:* unwired, it lets
-  everything through. The wiki only describes the wired case.
-- **Splitter:** one input and up to three exits. Tokens go round-robin to the exits that have room.
-  Wired and unpowered, everything takes the first exit (sparks ignore it).
-- **Wait Gate:** holds each token for its time (0.5 to 5 s).
-- **Counter:** shows items per last 60 s. *Assumption:* the wiki doesn't say it outputs a signal,
-  so it only displays the count.
-- **Spark Filter, One Way, Crossing, Signpost:** not modelled. Sandbox paths are already one-way
-  links that never cross or join by accident, and tokens don't carry a spark type.
+- **Path tiles** are their own layer, drawn with the Path tool or laid for you when you tap a
+  building's exit and then an entrance. Like wire tiles, two tiles join only where they were drawn
+  into each other. **Stone Path** is walked at 100 % speed and **Dirt Path** at 60 % (wiki); the
+  inspector switches a tile or a whole path between them.
+- **Sparks** are placed with a **Sparks** part on a path tile: how many, and how much each carries
+  (1 by default; 0 means a whole stack, like a Hauling Spark). The part faces the way they set off.
+  Laying a path between two ports adds a Sparks part with 2 sparks if that path has none yet.
+- **Right-hand rule.** Arriving at a tile, a spark takes the first of **right, straight on, left,
+  back** that it may step onto. That's what the wiki and players describe, and it's what makes
+  filters and one-ways sort: a spark turned away by a filter just takes the next way round.
+- **Pick-up and drop-off.** Square ports are a building's entrances and exits; each faces one tile.
+  A spark arriving on that tile drops its load into an entrance that will take it (all of it, or
+  it keeps the load and walks on), then picks up from an exit if its hands are empty, or tops up
+  the same item.
+- **Room:** a tile holds at most 2 sparks heading the same way. Sparks heading opposite ways pass
+  each other. *Assumption:* the game doesn't say how many fit.
+- Walking speed is 2 tiles/s at 100 % by default (*assumption*), set per circuit.
+
+Add-ons take the tile they sit on. Wired and unpowered, they're ignored (the Spark Gate excepted,
+as on the wiki).
+
+- **Item Filter / Amount Filter:** a wall to sparks whose load doesn't match. They turn away and
+  keep walking by the right-hand rule. *Assumption:* empty-handed sparks walk through a filter set
+  to an item, so a spark that has just delivered isn't shut in; a filter set to *Empty* only lets
+  empty-handed sparks through.
+- **Blocker:** a wall while active. Wired, the signal activates it; unwired, tap it.
+- **Spark Gate:** sparks wait in front of it until it's powered. *Assumption:* unwired, it's open.
+- **Splitter:** sparks entering from its back leave by each exit in turn, right to left. Sparks
+  arriving from another side leave by the back.
+- **Wait Gate:** each spark stops on it for its wait time.
+- **Counter:** counts items carried onto it from its back (heading the way it faces) in the last
+  60 s. *Assumption:* the wiki doesn't say it outputs a signal, so it only displays the count.
+- **One Way:** sparks coming at it against the arrow are turned away; sparks on it leave toward the
+  arrow.
+- **Crossing:** sparks go straight across, or turn back if there's no path ahead. They never turn.
+- **Spark Filter, Signpost:** not modelled. Sparks have no types in the sandbox.
+
+Old circuits whose item links were drawn port to port are converted when opened: each link becomes
+path tiles between the two ports, with a Sparks part on it.
 
 ## Storage
 
@@ -217,11 +235,11 @@ part's item input. Items move along it as tokens at a set walking speed (default
   the storage, controlled with a Spark Gate or Blocker on that route.
 - **Sandbox:** a **Storage** part holds counts per item up to a capacity in items. Presets size it
   as a crate, shed and so on, *assuming* 50 items per stack. It has an item input, an item output
-  (with an optional "take only this item" setting) and a *sensor* port for Capacity Sensors. Items
-  leave at a haul rate (items/s) whenever the output path has room.
-- **Extractor (sandbox stand-in):** the hauling route out of a storage, reduced to one part. It has
-  an item in, an item out, a rate and an enable input. Wired, it runs only while powered, like a
-  Spark Gate on the route. It's what the distribution example uses.
+  (with an optional "sparks take out only this item" setting) and a *sensor* port for Capacity
+  Sensors. Sparks drop items at the entrance (left, lower tile) and pick them up at the exit (right,
+  lower tile). To control what leaves, put a Spark Gate or Blocker on the path, as in the game.
+- **Extractor:** the old stand-in for a hauling route. It's hidden from the palette now that sparks
+  do the hauling, and kept only so older circuits still open.
 
 ## Machines
 
@@ -238,8 +256,8 @@ part's item input. Items move along it as tokens at a set walking speed (default
   size comes from the item's wiki infobox (`stacksize`). The importer's `STACK_SIZE_OVERRIDES`
   can correct any item where the game differs (none so far). Items with no wiki stack size use 20. A craft starts only if its products will fit. With no exit path
   and nothing taking the products, the machine stops when the slot is full, and **Take output** in
-  the inspector empties it, as a player would. With a path, sparks carry products away one at a
-  time. Each machine can override the slot size ("Output slot holds").
+  the inspector empties it, as a player would. With a path past the exit, sparks carry products
+  away. Each machine can override the slot size ("Output slot holds").
 
 ## Compressor
 
@@ -247,7 +265,7 @@ part's item input. Items move along it as tokens at a set walking speed (default
   Monument." 20 storage slots. Footprint 2 × 3, with two input tiles along one short side.
   Unlocked by the Divine Researcher's *Aetheric Dispatch* quest (tier 2). The Recycler turns
   points into Aether Residue.
-- **Sandbox:** a 3 × 2 part with two path inputs on the left. It accepts any item, so it's the
+- **Sandbox:** a 3 × 2 part with two entrances on the left. It accepts any item, so it's the
   place to send overflow and finished products that would otherwise back a line up.
   *Assumption:* the wiki gives no rate, so by default it sends items as fast as they arrive. Set
   "Sends per second" to model a slower one: it then holds up to 20 stacks and backs up when
@@ -280,19 +298,19 @@ part's item input. Items move along it as tokens at a set walking speed (default
 6. Wireless has no range limit.
 7. Unwired Spark Gate lets everything through.
 8. Path Counter only displays a count. It has no signal output.
-9. Pressure Sensor stays on for 0.5 s per item (configurable).
+9. Pressure Sensor stays on for 0.5 s per spark (configurable).
 10. Storage capacity is set in items, with presets at 50 items per stack. Capacity Sensor may count
     a single item type (sandbox extra).
-11. Items walk at 2 tiles/s by default, and a path holds about 2 items per tile.
+11. Sparks walk 2 tiles/s on Stone Path by default (Dirt 60 %, wiki), and a tile holds 2 sparks
+    heading the same way. Sparks follow the right-hand rule: right, straight, left, back.
 12. Machines run while their enable input is on, or always if unwired. Recipe time is at 1× crew
     speed. A machine's output slot holds one stack (the wiki's stack size; 20 when unknown).
 13. A Wire Bridge's ends plug into the tiles beyond them, and its gap can hold exactly one other
     wire.
-14. Item Filter and Amount Filter send matching items on down the line when their pass exit is
-    backed up (configurable). The Compressor sends items as fast as they arrive unless a rate is
-    set.
-15. Not modelled: Motion Sensor, Spark Filter, One Way, Crossing, Signpost, Cannon, Train Stop.
-    Item paths are still drawn as links between ports, not as path tiles.
+14. Filters let empty-handed sparks through unless set to Empty. The Compressor sends items as
+    fast as they arrive unless a rate is set.
+15. Not modelled: Motion Sensor, Spark Filter, Signpost, Cannon, Train Stop, spark types, and
+    building footprints beyond their rectangles.
 
 ## Icons
 

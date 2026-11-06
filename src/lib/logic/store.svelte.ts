@@ -39,9 +39,14 @@ function load(): Stored {
 }
 
 /** Canvas tool: select/move, or paint wire, ribbon or bridge tiles, or erase them. */
-export type Tool = "select" | "wire" | "ribbon" | "bridge" | "erase";
+export type Tool = "select" | "path" | "wire" | "ribbon" | "bridge" | "erase";
 
-export type Selection = { kind: "part"; id: string } | { kind: "wire"; id: string } | { kind: "cell"; id: string } | null;
+export type Selection =
+  | { kind: "part"; id: string }
+  | { kind: "wire"; id: string }
+  | { kind: "cell"; id: string }
+  | { kind: "path"; id: string }
+  | null;
 
 export class LogicStore {
   #store = $state<Stored>(load());
@@ -129,6 +134,7 @@ export class LogicStore {
 
   private exists(sel: NonNullable<Selection>) {
     if (sel.kind === "cell") return !!this.circuit.cells[sel.id];
+    if (sel.kind === "path") return !!this.circuit.paths[sel.id];
     return sel.kind === "part" ? this.circuit.parts.some((p) => p.id === sel.id) : this.circuit.wires.some((w) => w.id === sel.id);
   }
 

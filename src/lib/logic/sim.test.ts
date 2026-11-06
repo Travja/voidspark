@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { decodeCircuit, encodeCircuit, planWire, validateCircuit } from "./circuit";
+import { connectPath, decodeCircuit, encodeCircuit, pathEndpoint, planWire, validateCircuit } from "./circuit";
 import { CircuitBuilder, EXAMPLES } from "./examples";
 import { PART_TYPES, stackSize, TICK } from "./parts";
 import { Sim } from "./sim";
+import type { Rot } from "./types";
 
 /** Levers a/b → gate → lamp. Returns the lamp's value once settled. */
 function gate(type: string, a: boolean, b: boolean): boolean {
@@ -292,164 +293,296 @@ describe("wireless", () => {
   });
 });
 
-describe("items", () => {
-  function sorter(items: string[], filterCfg: Record<string, unknown>, power?: boolean) {
-    const c = new CircuitBuilder("t");
-    const src = c.add("source", 0, 0, { items, rate: 4 });
-    const f = c.add("item-filter", 3, 0, filterCfg);
-    const pass = c.add("storage", 6, 0, { rate: 0 });
-    const rej = c.add("storage", 3, 4, { rate: 0 });
-    c.wire(src, "out", f, "in").wire(f, "pass", pass, "in").wire(f, "reject", rej, "in");
-    if (power !== undefined) {
-      const l = c.add("lever", 3, -3, { on: power });
-      c.wire(l, "out", f, "en");
-    }
-    const sim = new Sim(c.c);
-    sim.run(10);
-    const count = (id: string, item: string) => sim.storage(id)!.count(item);
-    return { pass: (i: string) => count(pass, i), rej: (i: string) => count(rej, i) };
-  }
+/** Lays a path between two ports and puts sparks on it at the first end, facing the second. */
+function haul(b: CircuitBuilder, a: string, ap: string, z: string, zp: string, count = 1, carry = 1) {
+  b.wire(a, ap, z, zp);
+  const e = pathEndpoint(b.c, { part: a, port: ap })!;
+  const f = pathEndpoint(b.c, { part: z, port: zp })!;
+  const rot = (f.x > e.x ? 0 : f.x < e.x ? 2 : f.y > e.y ? 1 : 3) as Rot;
+  return b.add("sparks", e.x, e.y, { count, carry }, rot);
+}
 
-  it("Item Filter routes matching items to pass and the rest to reject", () => {
-    const r = sorter(["wooden-log", "stone"], { item: "wooden-log" });
-    expect(r.pass("wooden-log")).toBeGreaterThan(5);
-    expect(r.pass("stone")).toBe(0);
-    expect(r.rej("stone")).toBeGreaterThan(5);
-    expect(r.rej("wooden-log")).toBe(0);
-  });
-
-  it("a reversed Item Filter blocks its item instead", () => {
-    const r = sorter(["wooden-log", "stone"], { item: "wooden-log", invert: true });
-    expect(r.pass("wooden-log")).toBe(0);
-    expect(r.pass("stone")).toBeGreaterThan(5);
-    expect(r.rej("wooden-log")).toBeGreaterThan(5);
-  });
-
-  it("a wired, unpowered Item Filter is ignored (everything passes)", () => {
-    const r = sorter(["wooden-log", "stone"], { item: "wooden-log" }, false);
-    expect(r.pass("stone")).toBeGreaterThan(5);
-    expect(r.rej("stone")).toBe(0);
-    const on = sorter(["wooden-log", "stone"], { item: "wooden-log" }, true);
-    expect(on.pass("stone")).toBe(0);
-  });
-
-  it("items queue behind a filter with no reject path", () => {
-    const c = new CircuitBuilder("t");
-    const src = c.add("source", 0, 0, { items: ["stone"], rate: 4 });
-    const f = c.add("item-filter", 3, 0, { item: "wooden-log" });
-    const pass = c.add("storage", 6, 0, { rate: 0 });
-    c.wire(src, "out", f, "in").wire(f, "pass", pass, "in");
-    const sim = new Sim(c.c);
-    sim.run(10);
-    expect(sim.storage(pass)!.total).toBe(0);
-    const made = sim.state(src).made;
-    sim.run(10);
-    expect(sim.state(src).made).toBe(made); // path full, source stalled
-  });
-
-  it("Blocker and Spark Gate follow their signals", () => {
-    const run = (type: string, on: boolean) => {
-      const c = new CircuitBuilder("t");
-      const src = c.add("source", 0, 0, { items: ["stone"], rate: 2 });
-      const g = c.add(type, 3, 0);
-      const l = c.add("lever", 3, -3, { on });
-      const st = c.add("storage", 6, 0, { rate: 0 });
-      c.wire(src, "out", g, "in").wire(g, "out", st, "in").wire(l, "out", g, "en");
-      const sim = new Sim(c.c);
-      sim.run(5);
-      return sim.storage(st)!.total;
-    };
-    expect(run("blocker", true)).toBe(0);
-    expect(run("blocker", false)).toBeGreaterThan(3);
-    expect(run("spark-gate", false)).toBe(0);
-    expect(run("spark-gate", true)).toBeGreaterThan(3);
-  });
-
-  it("Splitter alternates between its exits", () => {
-    const c = new CircuitBuilder("t");
-    const src = c.add("source", 0, 0, { items: ["stone"], rate: 2 });
-    const sp = c.add("splitter", 3, 0);
-    const a = c.add("storage", 6, -4, { rate: 0 });
-    const b = c.add("storage", 6, 2, { rate: 0 });
-    c.wire(src, "out", sp, "in").wire(sp, "a", a, "in").wire(sp, "b", b, "in");
-    const sim = new Sim(c.c);
-    sim.run(20);
-    const na = sim.storage(a)!.total;
-    const nb = sim.storage(b)!.total;
-    expect(na + nb).toBeGreaterThan(30);
-    expect(Math.abs(na - nb)).toBeLessThanOrEqual(1);
-  });
-
-  it("Amount Filter compares the stack size", () => {
-    const c = new CircuitBuilder("t");
-    const src = c.add("source", 0, 0, { items: ["stone"], rate: 2, stack: 5 });
-    const f = c.add("amount-filter", 3, 0, { cmp: "ge", amount: 3 });
-    const pass = c.add("storage", 6, 0, { rate: 0 });
-    c.wire(src, "out", f, "in").wire(f, "pass", pass, "in");
-    const sim = new Sim(c.c);
-    sim.run(5);
-    expect(sim.storage(pass)!.total % 5).toBe(0);
-    expect(sim.storage(pass)!.total).toBeGreaterThan(10);
-  });
-
-  it("Wait Gate holds each item for its wait time", () => {
-    const c = new CircuitBuilder("t");
-    const src = c.add("source", 0, 0, { items: ["stone"], rate: 10 });
-    const w = c.add("wait-gate", 3, 0, { wait: 2 });
-    const st = c.add("storage", 6, 0, { rate: 0 });
-    c.wire(src, "out", w, "in").wire(w, "out", st, "in");
-    const sim = new Sim(c.c);
-    sim.run(20.5);
-    // One item per ~2 s regardless of the source rate.
-    expect(sim.storage(st)!.total).toBeGreaterThanOrEqual(8);
-    expect(sim.storage(st)!.total).toBeLessThanOrEqual(10);
-  });
-
-  it("storage respects capacity and stops accepting when full", () => {
+describe("items on paths", () => {
+  it("sparks carry items from a building's exit to another's entrance", () => {
     const c = new CircuitBuilder("t");
     const src = c.add("source", 0, 0, { items: ["stone"], rate: 5 });
-    const st = c.add("storage", 3, 0, { capacity: 7, rate: 0 });
-    c.wire(src, "out", st, "in");
+    const st = c.add("storage", 6, -1, { capacity: 999 });
+    haul(c, src, "out", st, "in", 2, 1);
     const sim = new Sim(c.c);
-    sim.run(10);
-    expect(sim.storage(st)!.total).toBe(7);
+    sim.run(30);
+    expect(sim.storage(st)!.count("stone")).toBeGreaterThan(10);
+    expect(sim.sparks.length).toBe(2);
   });
 
-  it("Extractor moves items only while enabled", () => {
+  it("sparks take the right turn when they can, and a filter turns them away", () => {
+    // Main row east from the source, with a branch to the south (right) and one to the north.
     const c = new CircuitBuilder("t");
-    const a = c.add("storage", 0, 0, { stock: [["stone", 50]], rate: 5 });
-    const ex = c.add("extractor", 3, 0, { rate: 2 });
-    const b = c.add("storage", 6, 0, { rate: 0 });
-    const l = c.add("lever", 3, -3, { on: false });
-    c.wire(a, "out", ex, "in").wire(ex, "out", b, "in").wire(l, "out", ex, "en");
+    const src = c.add("source", -1, 0, { items: ["wooden-log", "stone"], rate: 5 });
+    void src;
+    c.path("s", [0, 0], [6, 0]);
+    c.path("s", [3, 0], [3, 3]);
+    c.path("s", [3, 0], [3, -3]);
+    const south = c.add("storage", 4, 2, { capacity: 999 }); // entrance faces (3, 3)
+    const north = c.add("storage", 4, -4, { capacity: 999 }); // entrance faces (3, -3)
+    c.sparks(0, 0, 1, 1, 0);
+    let sim = new Sim(c.c);
+    sim.run(60);
+    // Heading east, right is south: everything goes south.
+    expect(sim.storage(south)!.total).toBeGreaterThan(3);
+    expect(sim.storage(north)!.total).toBe(0);
+
+    // Only logs may enter the south branch. Stone carries on east, turns back at the dead end,
+    // and heading west the right turn is north.
+    c.add("item-filter", 3, 1, { item: "wooden-log" });
+    sim = new Sim(c.c);
+    sim.run(150);
+    expect(sim.storage(south)!.count("wooden-log")).toBeGreaterThan(4);
+    expect(sim.storage(south)!.count("stone")).toBe(0);
+    expect(sim.storage(north)!.count("stone")).toBeGreaterThan(4);
+    expect(sim.storage(north)!.count("wooden-log")).toBe(0);
+  });
+
+  it("a reversed filter blocks its item; a wired, unpowered filter is ignored", () => {
+    const build = (filter: Record<string, unknown>, power?: boolean) => {
+      const c = new CircuitBuilder("t");
+      c.add("source", -1, 0, { items: ["wooden-log"], rate: 5 });
+      c.path("s", [0, 0], [3, 0], [3, 3]);
+      const st = c.add("storage", 4, 2, { capacity: 999 });
+      const f = c.add("item-filter", 3, 1, { item: "wooden-log", ...filter });
+      if (power !== undefined) {
+        const l = c.add("lever", 6, 0, { on: power });
+        c.wire(l, "out", f, "en");
+      }
+      c.sparks(0, 0, 1, 1, 0);
+      const sim = new Sim(c.c);
+      sim.run(40);
+      return sim.storage(st)!.total;
+    };
+    expect(build({})).toBeGreaterThan(3);
+    expect(build({ invert: true })).toBe(0);
+    expect(build({ invert: true }, false)).toBeGreaterThan(3); // unpowered: ignored
+    expect(build({ invert: true }, true)).toBe(0);
+  });
+
+  it("a Blocker is a wall while active; a Spark Gate makes sparks wait until it opens", () => {
+    const run = (type: string, on: boolean) => {
+      const c = new CircuitBuilder("t");
+      c.add("source", -1, 0, { items: ["stone"], rate: 5 });
+      c.path("s", [0, 0], [6, 0]);
+      const st = c.add("storage", 7, -1, { capacity: 999 }); // entrance faces (6, 0)
+      const g = c.add(type, 3, 0);
+      const l = c.add("lever", 3, -3, { on }, 1);
+      c.wire(l, "out", g, "en");
+      c.sparks(0, 0, 2, 1, 0);
+      const sim = new Sim(c.c);
+      sim.run(20);
+      return { total: sim.storage(st)!.total, sim, c: c.c };
+    };
+    expect(run("blocker", true).total).toBe(0);
+    expect(run("blocker", false).total).toBeGreaterThan(3);
+    const closed = run("spark-gate", false);
+    expect(closed.total).toBe(0);
+    expect(closed.sim.sparks.some((s) => s.stuck.includes("Spark Gate"))).toBe(true);
+    expect(run("spark-gate", true).total).toBeGreaterThan(3);
+  });
+
+  it("sparks queue behind a closed gate, at most two to a tile", () => {
+    const c = new CircuitBuilder("t");
+    c.add("source", -1, 0, { items: ["stone"], rate: 5 });
+    c.path("s", [0, 0], [8, 0]);
+    c.add("spark-gate", 6, 0);
+    const l = c.add("lever", 6, -3, { on: false }, 1);
+    c.wire(l, "out", c.c.parts.find((p) => p.type === "spark-gate")!.id, "en");
+    c.sparks(0, 0, 6, 1, 0);
     const sim = new Sim(c.c);
-    sim.run(5);
-    expect(sim.storage(b)!.total).toBe(0);
-    sim.tap(l);
-    sim.run(5);
-    expect(sim.storage(b)!.total).toBeGreaterThanOrEqual(8);
-    expect(sim.storage(b)!.total).toBeLessThanOrEqual(11);
-    sim.tap(l);
-    const before = sim.storage(b)!.total;
-    sim.run(5);
-    expect(sim.storage(b)!.total - before).toBeLessThanOrEqual(3); // only what was already on the path
+    sim.run(20);
+    const perTile = new Map<number, number>();
+    for (const s of sim.sparks) perTile.set(s.x, (perTile.get(s.x) ?? 0) + 1);
+    expect(Math.max(...perTile.values())).toBeLessThanOrEqual(2);
+    expect(Math.max(...sim.sparks.map((s) => s.x))).toBe(5); // nobody past the gate
+  });
+
+  it("a Splitter sends sparks from its back to its exits in turn", () => {
+    const c = new CircuitBuilder("t");
+    c.add("source", -1, 0, { items: ["stone"], rate: 5 });
+    c.path("s", [0, 0], [6, 0]);
+    c.path("s", [3, 0], [3, 3]);
+    c.add("splitter", 3, 0);
+    const south = c.add("storage", 4, 2, { capacity: 999 });
+    const east = c.add("storage", 7, -1, { capacity: 999 });
+    c.sparks(0, 0, 2, 1, 0);
+    const sim = new Sim(c.c);
+    sim.run(120);
+    const a = sim.storage(south)!.total;
+    const b = sim.storage(east)!.total;
+    expect(a).toBeGreaterThan(5);
+    expect(b).toBeGreaterThan(5);
+    expect(Math.abs(a - b)).toBeLessThanOrEqual(Math.max(3, (a + b) * 0.25));
+  });
+
+  it("a Crossing sends sparks straight across a junction", () => {
+    const c = new CircuitBuilder("t");
+    c.add("source", -1, 0, { items: ["stone"], rate: 5 });
+    c.path("s", [0, 0], [6, 0]);
+    c.path("s", [3, 0], [3, 3]);
+    c.add("crossing", 3, 0);
+    const south = c.add("storage", 4, 2, { capacity: 999 });
+    const east = c.add("storage", 7, -1, { capacity: 999 });
+    c.sparks(0, 0, 2, 1, 0);
+    const sim = new Sim(c.c);
+    sim.run(60);
+    expect(sim.storage(east)!.total).toBeGreaterThan(5);
+    expect(sim.storage(south)!.total).toBe(0);
+  });
+
+  it("a One Way turns sparks back when they come at it against the arrow", () => {
+    // A loop. The spark starts heading west along the top, so it goes round anticlockwise
+    // until it meets the One Way, which points east; from then on it goes round clockwise.
+    const westbound = (oneWay: boolean) => {
+      const c = new CircuitBuilder("t");
+      c.path("s", [0, 0], [6, 0], [6, 4], [0, 4], [0, 0]);
+      if (oneWay) c.add("one-way", 3, 0, {}, 0);
+      c.sparks(1, 0, 1, 1, 2);
+      const sim = new Sim(c.c);
+      sim.run(20);
+      let west = 0;
+      for (let i = 0; i < 600; i++) {
+        sim.step();
+        const sp = sim.sparks[0];
+        if (sp.y === 0 && sp.moving && sp.dir === 2) west++;
+      }
+      return west;
+    };
+    expect(westbound(false)).toBeGreaterThan(20);
+    expect(westbound(true)).toBe(0);
+  });
+
+  it("a Wait Gate holds each spark for its wait time", () => {
+    const trips = (wait?: number) => {
+      const c = new CircuitBuilder("t");
+      c.add("source", -1, 0, { items: ["stone"], rate: 10 });
+      c.path("s", [0, 0], [2, 0]);
+      const st = c.add("storage", 3, -1, { capacity: 999 });
+      if (wait) c.add("wait-gate", 1, 0, { wait });
+      c.sparks(0, 0, 1, 1, 0);
+      const sim = new Sim(c.c);
+      sim.run(60);
+      return sim.storage(st)!.total;
+    };
+    const free = trips();
+    const held = trips(5); // passed twice per round trip: about 10 s more each
+    expect(free).toBeGreaterThan(held * 3);
+    expect(held).toBeGreaterThanOrEqual(4);
+    expect(held).toBeLessThanOrEqual(6);
+  });
+
+  it("an Amount Filter compares what a spark carries", () => {
+    const run = (carry: number) => {
+      const c = new CircuitBuilder("t");
+      c.add("source", -1, 0, { items: ["stone"], rate: 5, stack: 5 });
+      c.path("s", [0, 0], [4, 0]);
+      const st = c.add("storage", 5, -1, { capacity: 999 });
+      c.add("amount-filter", 2, 0, { cmp: "le", amount: 2 });
+      c.sparks(0, 0, 1, carry, 0);
+      const sim = new Sim(c.c);
+      sim.run(30);
+      return sim.storage(st)!.total;
+    };
+    expect(run(1)).toBeGreaterThan(4);
+    expect(run(0)).toBe(0); // a whole load of 5 is turned away
+  });
+
+  it("a Pressure Sensor signals as sparks step on it", () => {
+    const c = new CircuitBuilder("t");
+    c.add("source", -1, 0, { items: ["stone"], rate: 5 });
+    c.path("s", [0, 0], [4, 0]);
+    const pad = c.add("pressure-sensor", 2, 0);
+    c.sparks(0, 0, 1, 1, 0);
+    const sim = new Sim(c.c);
+    let on = 0;
+    for (let i = 0; i < 400; i++) {
+      sim.step();
+      if (sim.port(pad, "sig")) on++;
+    }
+    expect(on).toBeGreaterThan(10);
+    expect(sim.state(pad).passed).toBeGreaterThan(3);
+  });
+
+  it("full storage refuses a load; the spark keeps it and walks on", () => {
+    const c = new CircuitBuilder("t");
+    const src = c.add("source", 0, 0, { items: ["stone"], rate: 5 });
+    const st = c.add("storage", 6, -1, { capacity: 7 });
+    haul(c, src, "out", st, "in", 2, 1);
+    const sim = new Sim(c.c);
+    sim.run(40);
+    expect(sim.storage(st)!.total).toBe(7);
+    expect(sim.sparks.every((s) => s.load?.item === "stone")).toBe(true);
+  });
+
+  it("sparks walk Dirt Paths at 60 % of their Stone Path speed", () => {
+    const lap = (kind: "s" | "d") => {
+      const c = new CircuitBuilder("t");
+      c.path(kind, [0, 0], [20, 0]);
+      c.sparks(0, 0, 1, 1, 0);
+      const sim = new Sim(c.c);
+      let t = 0;
+      while (sim.sparks[0].x < 20 && t < 4000) {
+        sim.step();
+        t++;
+      }
+      return t;
+    };
+    const stone = lap("s");
+    const dirt = lap("d");
+    expect(dirt / stone).toBeGreaterThan(1.55);
+    expect(dirt / stone).toBeLessThan(1.8);
   });
 
   it("Machine runs a game recipe only while enabled", () => {
     const c = new CircuitBuilder("t");
-    const st = c.add("storage", 0, 0, { stock: [["wooden-log", 40]], rate: 4 });
-    const m = c.add("machine", 3, 0, { recipe: "sawn-timber", speed: 4 }); // 16 s / 4 = 4 s per craft
-    const out = c.add("storage", 7, 0, { rate: 0 });
-    const l = c.add("lever", 3, -3, { on: true });
-    c.wire(st, "out", m, "in").wire(m, "out", out, "in").wire(l, "out", m, "en");
+    const st = c.add("storage", 0, 0, { stock: [["wooden-log", 40]] });
+    const m = c.add("machine", 5, 0, { recipe: "sawn-timber", speed: 4 }); // 16 s / 4 = 4 s per craft
+    const out = c.add("storage", 10, 0, {});
+    const l = c.add("lever", 5, -3, { on: true }, 1);
+    c.wire(l, "out", m, "en");
+    haul(c, st, "out", m, "in", 1, 0);
+    haul(c, m, "out", out, "in", 1, 0);
     const sim = new Sim(c.c);
-    sim.run(20);
+    sim.run(30);
     expect(sim.storage(out)!.count("sawn-timber")).toBeGreaterThanOrEqual(4);
     sim.tap(l);
-    sim.run(1);
-    const made = sim.storage(out)!.count("sawn-timber");
+    sim.run(5);
+    const made = sim.state(m).made;
     sim.run(20);
-    expect(sim.storage(out)!.count("sawn-timber")).toBe(made);
+    expect(sim.state(m).made).toBe(made);
+  });
+
+  it("share links keep path tiles and their kinds", async () => {
+    const c = new CircuitBuilder("t");
+    c.path("s", [0, 0], [4, 0]);
+    c.path("d", [4, 0], [4, 3]);
+    c.sparks(0, 0, 3, 0, 0);
+    const back = (await decodeCircuit(await encodeCircuit(c.c)))!;
+    expect(back.paths).toEqual(c.c.paths);
+    expect(back.parts.find((p) => p.type === "sparks")!.cfg).toMatchObject({ count: 3, carry: 0 });
+  });
+
+  it("old circuits with link paths are converted to path tiles with sparks", () => {
+    const raw = {
+      name: "old",
+      parts: [
+        { id: "s", type: "source", x: 0, y: 0, rot: 0, cfg: { items: ["stone"], rate: 5 } },
+        { id: "t", type: "storage", x: 6, y: -1, rot: 0, cfg: { capacity: 999 } },
+      ],
+      wires: [{ id: "w", from: { part: "s", port: "out" }, to: { part: "t", port: "in" } }],
+    };
+    const c = validateCircuit(raw)!;
+    expect(c.wires).toEqual([]);
+    expect(Object.keys(c.paths).length).toBeGreaterThan(3);
+    expect(c.parts.some((p) => p.type === "sparks")).toBe(true);
+    const sim = new Sim(c);
+    sim.run(30);
+    expect(sim.storage("t")!.total).toBeGreaterThan(5);
   });
 });
 
@@ -486,18 +619,19 @@ describe("capacity sensor", () => {
   });
 
   it("low/high sensors plus a latch give a refill band (hysteresis)", () => {
-    // Destination storage drained by a machine, refilled by an extractor gated by the latch.
+    // Destination storage drained by a machine, refilled by sparks behind a Spark Gate the latch opens.
     const c = new CircuitBuilder("t");
-    const hub = c.add("storage", 0, 0, { capacity: 999, stock: [["stone", 999]], rate: 10 });
-    const ex = c.add("extractor", 3, 0, { rate: 4 });
-    const dest = c.add("storage", 6, 0, { capacity: 40, stock: [["stone", 20]], rate: 2 });
-    const use = c.add("machine", 9, 0, { useAmount: 1, seconds: 0.5 }); // 2 items/s
-    const low = c.add("capacity-sensor", 6, -3, { cmp: "le", value: 25 });
-    const high = c.add("capacity-sensor", 7, -3, { cmp: "ge", value: 90 });
-    const latch = c.add("sr-latch", 9, -4);
-    c.wire(hub, "out", ex, "in").wire(ex, "out", dest, "in").wire(dest, "out", use, "in");
+    const hub = c.add("storage", 0, 0, { capacity: 999, stock: [["stone", 999]] });
+    const dest = c.add("storage", 8, 0, { capacity: 40, stock: [["stone", 20]] });
+    const use = c.add("machine", 13, 0, { useAmount: 1, seconds: 0.1 });
+    haul(c, hub, "out", dest, "in", 2, 10); // about 4 items/s in while the gate is open
+    haul(c, dest, "out", use, "in", 1, 2); // about 1 item/s out
+    const gate = c.add("spark-gate", 4, 1);
+    const low = c.add("capacity-sensor", 8, -3, { cmp: "le", value: 25 });
+    const high = c.add("capacity-sensor", 9, -3, { cmp: "ge", value: 90 });
+    const latch = c.add("sr-latch", 11, -4);
     c.wire(low, "eye", dest, "sense").wire(high, "eye", dest, "sense");
-    c.wire(low, "out", latch, "s").wire(high, "out", latch, "r").wire(latch, "q", ex, "en");
+    c.wire(low, "out", latch, "s").wire(high, "out", latch, "r").wire(latch, "q", gate, "en");
     const sim = new Sim(c.c);
     let minFill = 1;
     let maxFill = 0;
@@ -517,7 +651,7 @@ describe("capacity sensor", () => {
     // It cycles between the thresholds instead of chattering at one level.
     expect(switches).toBeGreaterThanOrEqual(4);
     expect(switches).toBeLessThan(60);
-    expect(minFill).toBeGreaterThan(0.1);
+    expect(minFill).toBeGreaterThan(0.05); // refilled before it runs dry
     expect(minFill).toBeLessThanOrEqual(0.25);
     expect(maxFill).toBeGreaterThanOrEqual(0.9);
   });
@@ -541,12 +675,8 @@ describe("distribution center example", () => {
     // Pebbles match no filter and end up in the overflow Compressor at the end of the line.
     const compressors = c.parts.filter((p) => p.type === "compressor");
     expect(Math.max(...compressors.map((p) => sim.state(p.id).sent))).toBeGreaterThan(0);
-    // The furnace (fastest consumer) kept running: it was refilled from the hub.
-    const furnace = c.parts.find((p) => p.cfg.label === "Furnace")!.id;
-    expect(sim.state(furnace).made).toBeGreaterThan(30);
-    // Requests went out over wireless at least once.
-    const ex = c.parts.filter((p) => p.type === "extractor").map((p) => sim.state(p.id).moved);
-    expect(Math.max(...ex)).toBeGreaterThan(10);
+    // Every workshop kept crafting: it was refilled from the hub when it asked over wireless.
+    for (const p of c.parts.filter((x) => x.type === "machine")) expect(sim.state(p.id).made).toBeGreaterThan(20);
   });
 
   it("keeps flowing for a long run: no jams at the hub or the workshops", () => {
@@ -558,7 +688,7 @@ describe("distribution center example", () => {
     const sentAt10 = sim.state(train).made;
     const madeAt10 = machines.map((m) => sim.state(m).made);
     sim.run(300);
-    // The train is still unloading at full rate (2/s) and every workshop is still crafting.
+    // The train is still being unloaded and every workshop is still crafting.
     expect(sim.state(train).made - sentAt10).toBeGreaterThan(550);
     machines.forEach((m, i) => expect(sim.state(m).made).toBeGreaterThan(madeAt10[i]));
   });
@@ -668,11 +798,10 @@ describe("circuits and share links", () => {
     const s = b.add("capacity-sensor", 3, 3);
     expect("error" in planWire(b.c, { part: l, port: "out" }, { part: st, port: "in" })).toBe(true);
     expect("error" in planWire(b.c, { part: st, port: "in" }, { part: st, port: "in" })).toBe(true);
-    // Path direction is fixed up when tapped in reverse.
-    const p = planWire(b.c, { part: st, port: "in" }, { part: src, port: "out" });
-    expect("wire" in p && p.wire.from).toEqual({ part: src, port: "out" });
-    b.wire(src, "out", st, "in");
+    // Items go on path tiles now, not links.
     expect("error" in planWire(b.c, { part: src, port: "out" }, { part: st, port: "in" })).toBe(true);
+    expect(connectPath(b.c, { part: src, port: "out" }, { part: st, port: "in" })).toBeNull();
+    expect(connectPath(b.c, { part: l, port: "out" }, { part: st, port: "in" })).not.toBeNull();
     expect("wire" in planWire(b.c, { part: st, port: "sense" }, { part: s, port: "eye" })).toBe(true);
   });
 });
@@ -681,13 +810,13 @@ describe("machine output slot", () => {
   /** Furnace making Quartz from plenty of Limestone, output not connected. */
   function furnace(cfg: Record<string, unknown> = {}, linked = false) {
     const c = new CircuitBuilder("t");
-    const st = c.add("storage", 0, 0, { capacity: 9999, stock: [["limestone", 9999]], rate: 10 });
-    const m = c.add("machine", 3, 0, { recipe: "quartz", speed: 8, ...cfg }); // 8 s / 8 = 1 s per Quartz
-    c.wire(st, "out", m, "in");
+    const st = c.add("storage", 0, 0, { capacity: 9999, stock: [["limestone", 9999]] });
+    const m = c.add("machine", 4, 0, { recipe: "quartz", speed: 8, ...cfg }); // 8 s / 8 = 1 s per Quartz
+    haul(c, st, "out", m, "in", 1, 0);
     let out: string | undefined;
     if (linked) {
-      out = c.add("storage", 7, 0, { capacity: 9999, rate: 0 });
-      c.wire(m, "out", out, "in");
+      out = c.add("storage", 9, 0, { capacity: 9999 });
+      haul(c, m, "out", out, "in", 1, 0);
     }
     return { sim: new Sim(c.c), m, out };
   }
@@ -728,67 +857,41 @@ describe("machine output slot", () => {
   });
 });
 
-describe("filter overflow and the compressor", () => {
-  function line(filterCfg: Record<string, unknown>, rate = 2) {
-    const c = new CircuitBuilder("t");
-    const src = c.add("source", 0, 0, { items: ["wooden-log"], rate });
-    const f = c.add("item-filter", 3, 0, { item: "wooden-log", ...filterCfg });
-    const pass = c.add("storage", 6, 0, { capacity: 5, rate: 0 });
-    const rest = c.add("storage", 3, 4, { capacity: 999, rate: 0 });
-    c.wire(src, "out", f, "in").wire(f, "pass", pass, "in").wire(f, "reject", rest, "in");
-    const sim = new Sim(c.c);
-    sim.run(20);
-    return { sim, pass, rest, src, f };
-  }
-
-  it("sends matching items on down the line when the pass exit is backed up", () => {
-    const { sim, pass, rest, f } = line({});
-    expect(sim.storage(pass)!.total).toBe(5);
-    expect(sim.storage(rest)!.count("wooden-log")).toBeGreaterThan(20);
-    expect(sim.state(f).overflowed).toBeGreaterThan(20);
-  });
-
-  it("can be set to wait instead (the line backs up)", () => {
-    const { sim, pass, rest, src } = line({ overflow: false });
-    expect(sim.storage(pass)!.total).toBe(5);
-    expect(sim.storage(rest)!.total).toBe(0);
-    const made = sim.state(src).made;
-    sim.run(10);
-    expect(sim.state(src).made).toBe(made);
-  });
-
-  it("Compressor takes everything when it has no rate set", () => {
+describe("compressor", () => {
+  it("takes everything when it has no rate set", () => {
     const c = new CircuitBuilder("t");
     const src = c.add("source", 0, 0, { items: ["stone", "quartz"], rate: 5 });
-    const comp = c.add("compressor", 3, 0);
-    c.wire(src, "out", comp, "in");
+    const comp = c.add("compressor", 5, 0);
+    haul(c, src, "out", comp, "in", 3, 1);
     const sim = new Sim(c.c);
     sim.run(30);
-    expect(sim.state(comp).sent).toBeGreaterThan(100); // a path carries up to 4 items/s at walking speed 2
-    expect(sim.state(src).made - sim.state(comp).sent).toBeLessThanOrEqual(6); // only what's on the path
+    expect(sim.state(comp).sent).toBeGreaterThan(15);
+    expect(sim.state(src).made - sim.state(comp).sent).toBeLessThanOrEqual(3); // only what's being carried
   });
 
-  it("Compressor with a rate holds up to 20 stacks, then backs up", () => {
+  it("with a rate it holds up to 20 stacks, then refuses loads", () => {
     const c = new CircuitBuilder("t");
-    const src = c.add("source", 0, 0, { items: ["stone"], rate: 10 });
-    const comp = c.add("compressor", 3, 0, { rate: 1 });
-    c.wire(src, "out", comp, "in");
+    const src = c.add("source", 0, 0, { items: ["stone"], rate: 10, stack: 20 });
+    const comp = c.add("compressor", 4, 0, { rate: 1 });
+    haul(c, src, "out", comp, "in", 4, 0);
     const sim = new Sim(c.c);
-    sim.run(300);
+    sim.run(200);
     const held = sim.state(comp).held.stone;
-    expect(held).toBe(20 * 20); // 20 slots of Stone (stack 20)
-    expect(sim.state(comp).sent).toBeGreaterThanOrEqual(295);
-    expect(sim.state(comp).sent).toBeLessThanOrEqual(301);
+    expect(held).toBeGreaterThan(19 * 20); // nearly 20 slots of Stone (stack 20), less what it's sending
+    expect(held).toBeLessThanOrEqual(20 * 20);
+    expect(sim.state(comp).sent).toBeGreaterThanOrEqual(150);
+    expect(sim.state(comp).sent).toBeLessThanOrEqual(201);
   });
 
-  it("Compressor accepts items on both inputs", () => {
+  it("accepts items on both entrances", () => {
     const c = new CircuitBuilder("t");
-    const a = c.add("source", 0, -2, { items: ["stone"], rate: 2 });
-    const b = c.add("source", 0, 3, { items: ["wooden-log"], rate: 2 });
-    const comp = c.add("compressor", 4, 0);
-    c.wire(a, "out", comp, "in").wire(b, "out", comp, "in2");
+    const a = c.add("source", 0, -3, { items: ["stone"], rate: 2 });
+    const b = c.add("source", 0, 4, { items: ["wooden-log"], rate: 2 });
+    const comp = c.add("compressor", 5, 0);
+    haul(c, a, "out", comp, "in", 1, 1);
+    haul(c, b, "out", comp, "in2", 1, 1);
     const sim = new Sim(c.c);
-    sim.run(10);
-    expect(sim.state(comp).sent).toBeGreaterThan(30);
+    sim.run(30);
+    expect(sim.state(comp).sent).toBeGreaterThan(6);
   });
 });
