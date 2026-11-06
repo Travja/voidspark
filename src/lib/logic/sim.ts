@@ -20,8 +20,9 @@ import type { Circuit, Part, PartStatus, PartType, PortDef, SparkView, StepCtx, 
 /** How far right of a path's middle sparks walk, in tiles. */
 export const SPARK_LANE = 0.18;
 
-/** Sparks that fit on one path tile at once. */
-export const TILE_CAPACITY = 2;
+/** Sparks heading the same way that fit on one path tile at once: they walk in single file. */
+export const TILE_CAPACITY = 1;
+const JAM_TICKS = 20;
 
 interface RuntimePart {
   part: Part;
@@ -44,6 +45,10 @@ export interface Spark {
   dir: number;
   /** Direction it walked onto its current tile (for drawing the turn it makes there). */
   from: number;
+  /** Ticks it has waited for room on the next tile. */
+  jam: number;
+  /** The lane it's waiting for room in ("tile>heading"), or "". */
+  want?: string;
   /** Heading for the next tile. */
   moving: boolean;
   /** Progress toward the next tile, 0..1. */
@@ -196,7 +201,7 @@ export class Sim {
       }
       if (!this.paths[home]) continue;
       for (let k = mine.length; k < count; k++) {
-        this.sparks.push({ id: this.sparkId++, owner: id, x, y, dir: rot, from: rot, moving: false, p: 0, load: null, carry, wait: 0, stuck: "" });
+        this.sparks.push({ id: this.sparkId++, owner: id, x, y, dir: rot, from: rot, jam: 0, moving: false, p: 0, load: null, carry, wait: 0, stuck: "" });
       }
     }
   }
@@ -337,10 +342,22 @@ export class Sim {
     // locking up head to head.
     const claim = (s: Spark) =>
       (s.moving ? cellKey(s.x + DIRS[s.dir].x, s.y + DIRS[s.dir].y) : cellKey(s.x, s.y)) + ">" + s.dir;
+    const holder = new Map<string, Spark>();
     for (const s of this.sparks) {
       const k = claim(s);
       occupied.set(k, (occupied.get(k) ?? 0) + 1);
+      holder.set(k, s);
     }
+    // Whether the sparks blocking s, each waiting on the next, lead back round to s: a deadlock
+    // no one can break by waiting. A queue behind a closed gate ends at the gate instead.
+    const deadlocked = (s: Spark, target: string) => {
+      let b = holder.get(target);
+      for (let n = 0; b && b.want && n < this.sparks.length; n++) {
+        if (b === s) return true;
+        b = holder.get(b.want);
+      }
+      return b === s;
+    };
     for (const s of this.sparks) {
       if (s.wait > 0) {
         s.wait--;
@@ -354,11 +371,29 @@ export class Sim {
           const d = this.choose(s);
           if (d < 0) break;
           const target = cellKey(s.x + DIRS[d].x, s.y + DIRS[d].y) + ">" + d;
-          if ((occupied.get(target) ?? 0) >= TILE_CAPACITY) {
+          // If the sparks in the way are themselves waiting, round in a circle back to this one,
+          // it squeezes past after a second, so a path crowded with more sparks than fit in
+          // single file never locks up for good.
+          if ((occupied.get(target) ?? 0) >= TILE_CAPACITY && !(s.jam >= JAM_TICKS && deadlocked(s, target))) {
+            s.jam++;
+            s.want = target;
+            // It can't go yet, but it can already turn to face the new way on its own tile (a
+            // tile has a lane for each heading), freeing the lane it came in on. Without this,
+            // sparks turning back at both ends of a short, busy path can block each other for good.
+            const lane = cellKey(s.x, s.y) + ">" + d;
+            if (d !== s.dir && (occupied.get(lane) ?? 0) < TILE_CAPACITY) {
+              const was = cellKey(s.x, s.y) + ">" + s.dir;
+              occupied.set(was, Math.max(0, (occupied.get(was) ?? 1) - 1));
+              occupied.set(lane, (occupied.get(lane) ?? 0) + 1);
+              s.from = s.dir;
+              s.dir = d;
+            }
             s.stuck = "Waiting: the next tile is full of sparks.";
             break;
           }
           const own = this.addOnAt(cellKey(s.x, s.y));
+          s.jam = 0;
+          s.want = "";
           own?.type.path?.leave?.(own.ctx, this.view(s), s.dir, own.part.rot, d);
           const here = cellKey(s.x, s.y) + ">" + s.dir;
           s.from = s.dir;
