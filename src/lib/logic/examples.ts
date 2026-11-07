@@ -477,6 +477,113 @@ function scanner(): Circuit {
   return b.c;
 }
 
+/**
+ * A central request hub sending one bit per item down ribbons, four items to a ribbon, with a
+ * second ribbon for items 5–8 running alongside the first.
+ *
+ * - Requesters (far away in a real build) send each item's request on its own wireless channel.
+ * - The hub ANDs each request with a short presence pulse when the train arrives (the train
+ *   signal XOR a 1 s-delayed copy of itself, then a 0.4 s Filter Gate to swallow the blip when it
+ *   leaves) and writes it to its item's bit on its ribbon.
+ * - Each fulfiller is just a Ribbon Reader on its bit into a Set-Reset Latch, reset when its chest
+ *   is emptied (here a button stands in for the Capacity Sensor). Ribbon A's fulfillers hang
+ *   above the pair of ribbons, ribbon B's below.
+ *
+ * Only the requests use wireless channels: the presence pulse stays in the hub, and results go by
+ * ribbon, so more items cost ribbon, not channels.
+ */
+function requestRibbons(): Circuit {
+  const b = new CircuitBuilder("Request ribbons");
+  const Y = 0; // ribbon A's row; ribbon B runs right below it
+  const items = [
+    { id: "stone", name: "Stone" },
+    { id: "pebble", name: "Pebble" },
+    { id: "wooden-log", name: "Log" },
+    { id: "coal", name: "Coal" },
+    { id: "limestone", name: "Limestone" },
+    { id: "quartz", name: "Quartz" },
+    { id: "sawn-timber", name: "Timber" },
+    { id: "stone-plate", name: "Plate" },
+  ];
+  b.add("label", -22, -16, { text: "Turn on requests, then the train: each one is" });
+  b.add("label", -22, -15, { text: "queued once per train; the button empties its chest." });
+
+  // The two ribbons, side by side from the hub, then down to the fulfillers: A turns down on the
+  // outside (x = XA), B on the inside (x = XA - 1), so they never cross.
+  const XA = 40;
+  const ROWS = 4 * 3; // four fulfillers a side, 3 tiles high each
+  draw(b, "r", [6, Y], [XA, Y], [XA, Y + 3 + ROWS]);
+  draw(b, "r", [6, Y + 1], [XA - 1, Y + 1], [XA - 1, Y + 3 + ROWS]);
+  b.add("pixel4", XA + 1, Y + 1);
+  b.add("pixel4", XA - 2, Y + 2);
+  b.add("label", XA + 2, Y + 1, { text: "ribbon A: items 1–4" });
+  b.add("label", XA - 6, Y + 3, { text: "ribbon B: items 5–8" });
+
+  // Remote requesters.
+  b.add("label", -22, -12, { text: "REQUESTERS (remote)" });
+  items.forEach((it, i) => {
+    const y = -10 + i * 3;
+    const lever = b.add("lever", -20, y);
+    const tx = b.add("wireless-sender", -18, y, { channel: it.id });
+    b.wire(lever, "out", tx, "in");
+    b.add("label", -24, y, { text: it.name });
+  });
+
+  // Presence pulse.
+  const train = b.add("lever", -10, -14);
+  b.add("label", -14, -14, { text: "train in" });
+  const late = b.add("filter", -8, -12, { time: 1 });
+  const edge = b.add("xor", -4, -14);
+  const pulse = b.add("filter", 0, -12, { time: 0.4 }, 1);
+  b.wire(train, "out", late, "in").wire(train, "out", edge, "b").wire(late, "out", edge, "a").wire(edge, "out", pulse, "in");
+  b.add("label", -6, -16, { text: "presence pulse" });
+
+  // Hub: A's cells above the ribbons write down onto A; B's below write up onto B. Parts first;
+  // then the presence pulse to every AND (round the ribbons' left end for B), then the rest.
+  b.add("label", 4, -16, { text: "HUB: request AND presence → bit" });
+  const cells = items.map((it, i) => {
+    const up = i >= 4;
+    const bit = i % 4;
+    const cx = 6 + bit * 5;
+    const rx = b.add("wireless-receiver", cx - 1, up ? Y + 10 : Y - 9, { channel: it.id });
+    const and = b.add("and", cx, up ? Y + 6 : Y - 6);
+    const w = up ? b.add("ribbon-writer", cx + 2, Y + 2, { bit: String(bit) }, 3) : b.add("ribbon-writer", cx + 2, Y - 2, { bit: String(bit) }, 1);
+    b.add("label", cx - 1, up ? Y + 11 : Y - 10, { text: `${it.name} b${bit}` });
+    return { rx, and, w };
+  });
+  for (const i of [4, 5, 6, 7, 0, 1, 2, 3]) b.wire(pulse, "out", cells[i].and, "b");
+  for (const c of cells) b.wire(c.and, "out", c.w, "in").wire(c.rx, "out", c.and, "a");
+
+  // Fulfillers, 3 tiles high: reader → latch → lamp, with the chest's "emptied" signal (a button
+  // standing in for the Capacity Sensor) on the latch's reset. A's on the right of the ribbons, B's
+  // mirrored on the left.
+  b.add("label", XA + 3, Y + 3, { text: "FULFILLERS: reader → latch, 3 tiles high" });
+  items.forEach((it, i) => {
+    const left = i >= 4;
+    const bit = i % 4;
+    const fy = Y + 5 + bit * 3;
+    if (!left) {
+      // reader (2) | latch (2×2) | lamp, the button under the reader. Neighbouring ports face the
+      // same tile, so one wire tile joins each pair.
+      b.add("ribbon-reader", XA + 1, fy, { bit: String(bit) });
+      b.add("sr-latch", XA + 4, fy);
+      b.add("pixel", XA + 7, fy);
+      b.add("button", XA + 2, fy + 1);
+      for (const [x, y] of [[XA + 3, fy], [XA + 3, fy + 1], [XA + 6, fy]]) draw(b, "w", [x, y], [x, y]);
+      b.add("label", XA + 8, fy, { text: `deliver ${it.name}` });
+    } else {
+      // The mirror image. A latch turned round has Set below Reset, so the reader sits a row down.
+      b.add("ribbon-reader", XA - 3, fy + 1, { bit: String(bit) }, 2);
+      b.add("sr-latch", XA - 6, fy, {}, 2);
+      b.add("pixel", XA - 8, fy + 1, {}, 2);
+      b.add("button", XA - 3, fy, {}, 2);
+      for (const [x, y] of [[XA - 4, fy + 1], [XA - 4, fy], [XA - 7, fy + 1]]) draw(b, "w", [x, y], [x, y]);
+      b.add("label", XA - 12, fy + 1, { text: `deliver ${it.name}` });
+    }
+  });
+  return b.c;
+}
+
 export const EXAMPLES: Example[] = [
   {
     id: "distribution",
@@ -490,6 +597,7 @@ export const EXAMPLES: Example[] = [
   { id: "adder", name: "Binary adder", blurb: "Add two 2-bit numbers with XOR, AND and OR gates: a half adder and a full adder.", build: adder },
   { id: "encoder", name: "Switch encoder", blurb: "Switches valued 1–7 sent as a binary number on a ribbon, and a cell that recognises its code.", build: encoder },
   { id: "scanner", name: "Request scanner", blurb: "Persistent requests on one ribbon: a slot counter polls each item in turn and the hub latches what's asked for.", build: scanner },
+  { id: "ribbons", name: "Request ribbons", blurb: "A central hub sends one bit per item down two ribbons (4 items each); each fulfiller is a reader and a latch.", build: requestRibbons },
   { id: "filter", name: "Filter split", blurb: "Sparks on a loop: an Item Filter, a One Way, a Blocker and a Pressure Sensor. Buildings sit on the sparks' right.", build: filterSplit },
 ];
 

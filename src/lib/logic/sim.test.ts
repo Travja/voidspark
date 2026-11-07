@@ -1000,6 +1000,32 @@ describe("binary examples", () => {
     }
   });
 
+  it("the request ribbons queue each request once per train, on its own fulfiller", () => {
+    const c = EXAMPLES.find((e) => e.id === "ribbons")!.build();
+    const levers = c.parts.filter((p) => p.type === "lever");
+    const train = levers.find((p) => p.cfg.on === false && c.parts.some((q) => q.type === "label" && q.cfg.text === "train in" && q.y === p.y))!;
+    const requests = levers.filter((p) => p !== train); // items 1–8
+    const queued = c.parts.filter((p) => p.type === "pixel"); // fulfillers, same order
+    const emptied = c.parts.filter((p) => p.type === "button");
+    const lit = (sim: Sim) => queued.map((l) => sim.port(l.id, "in"));
+    for (const on of [[0], [3], [4], [7], [0, 1, 5, 6], [0, 1, 2, 3, 4, 5, 6, 7]]) {
+      requests.forEach((r, i) => (r.cfg.on = on.includes(i)));
+      const sim = new Sim(c);
+      sim.run(1);
+      expect(lit(sim).some(Boolean)).toBe(false); // nothing until the train comes in
+      sim.tap(train.id);
+      sim.run(3);
+      const want = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => on.includes(i));
+      expect(lit(sim)).toEqual(want);
+      sim.tap(emptied[on[0]].id); // the first item's chest is emptied: fulfilled once
+      sim.run(2);
+      expect(lit(sim)).toEqual(want.map((w, i) => w && i !== on[0]));
+      sim.tap(train.id); // the train leaves: nothing is queued again
+      sim.run(3);
+      expect(lit(sim)).toEqual(want.map((w, i) => w && i !== on[0]));
+    }
+  });
+
   it("the scanner queues every request that's on, and nothing while the train is out", () => {
     const c = EXAMPLES.find((e) => e.id === "scanner")!.build();
     const station = c.parts.find((p) => p.type === "lever" && p.x === 0)!;
