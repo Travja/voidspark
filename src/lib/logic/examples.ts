@@ -345,8 +345,7 @@ function encoder(): Circuit {
 
   // Read the three bits back off the ribbon.
   draw(b, "r", [20, 22], [20, 23]);
-  draw(b, "w", [20, 23], [20, 24]); // a plain wire joined to a ribbon carries bit 0
-  const r0 = b.add("buffer", 20, 25, { hold: 0 }, 1);
+  const r0 = b.add("ribbon-reader", 20, 24, { bit: "0" }, 1);
   draw(b, "r", [24, 22], [24, 23]);
   const r1 = b.add("ribbon-reader", 24, 24, { bit: "1" }, 1);
   draw(b, "r", [28, 22], [28, 23]);
@@ -370,19 +369,15 @@ function encoder(): Circuit {
 }
 
 /**
- * Taps bits 0–2 (and optionally 3) off a horizontal ribbon at row `y`, at x, x+2, x+4 (x+6),
- * hanging down. Returns the output ports to read each bit from.
+ * Taps bits 0–2 (and optionally 3) off a horizontal ribbon at row `y` with Ribbon Readers at x,
+ * x+2, x+4 (x+6), hanging down. Returns the output ports to read each bit from.
  */
 function tapBits(b: CircuitBuilder, x: number, y: number, bits: number): { part: string; port: string }[] {
   const out: { part: string; port: string }[] = [];
   for (let i = 0; i < bits; i++) {
     const tx = x + i * 2;
     draw(b, "r", [tx, y], [tx, y + 1]);
-    if (i === 0) {
-      // Bit 0: a plain wire joined to the ribbon, into a Buffer Gate to give it a port.
-      draw(b, "w", [tx, y + 1], [tx, y + 2]);
-      out.push({ part: b.add("buffer", tx, y + 3, { hold: 0 }, 1), port: "out" });
-    } else out.push({ part: b.add("ribbon-reader", tx, y + 2, { bit: String(i) }, 1), port: "out" });
+    out.push({ part: b.add("ribbon-reader", tx, y + 2, { bit: String(i) }, 1), port: "out" });
   }
   return out;
 }

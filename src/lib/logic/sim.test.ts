@@ -947,7 +947,7 @@ describe("machine output slot", () => {
 });
 
 describe("ribbon bits", () => {
-  it("a Ribbon Writer can write bit 0, and the Four Pixel Display shows each bit on its own", () => {
+  it("Ribbon Writers and Readers work with bit 0, and the Four Pixel Display shows each bit on its own", () => {
     const c = new CircuitBuilder("t");
     const on0 = c.add("lever", 0, 0, { on: true });
     const on2 = c.add("lever", 0, 2, { on: true });
@@ -956,8 +956,14 @@ describe("ribbon bits", () => {
     c.wire(on0, "out", w0, "in").wire(on2, "out", w2, "in");
     paint(c.c.cells, "r", [[4, 0], [4, 1], [4, 2], [5, 2]]);
     const show = c.add("pixel4", 6, 2);
+    // Three readers hanging off a spur of the same ribbon.
+    paint(c.c.cells, "r", [[4, 2], [4, 3], [5, 3], [6, 3]]);
+    const read0 = c.add("ribbon-reader", 4, 4, { bit: "0" }, 1);
+    const read1 = c.add("ribbon-reader", 5, 4, { bit: "1" }, 1);
+    const read2 = c.add("ribbon-reader", 6, 4, { bit: "2" }, 1);
     const sim = new Sim(c.c);
     sim.run(0.5);
+    expect([read0, read1, read2].map((r) => sim.port(r, "out"))).toEqual([true, false, true]);
     expect(sim.state(show).on).toEqual([true, false, true, false]);
     expect(PART_TYPES.find((p) => p.id === "pixel4")!.status!({}, sim.state(show)).badge).toBe("●○●○");
   });

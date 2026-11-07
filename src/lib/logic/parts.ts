@@ -476,8 +476,8 @@ const pixel4: PartType<Config, { on: boolean[] }> = {
   ],
 };
 
-/** The Ribbon Writer can put its signal on any bit, 0 included. */
-const writerBitField: FieldDef = {
+/** Which ribbon bit a Ribbon Writer writes or a Ribbon Reader reads: any of 0–3. */
+const bitField: FieldDef = {
   key: "bit",
   label: "Ribbon bit",
   type: "select",
@@ -488,18 +488,6 @@ const writerBitField: FieldDef = {
     { value: "3", label: "Bit 3" },
   ],
   help: "A plain wire meeting a ribbon also uses bit 0.",
-};
-
-const bitField: FieldDef = {
-  key: "bit",
-  label: "Ribbon bit",
-  type: "select",
-  options: [
-    { value: "1", label: "Bit 1" },
-    { value: "2", label: "Bit 2" },
-    { value: "3", label: "Bit 3" },
-  ],
-  help: "A plain wire meeting a ribbon always uses bit 0.",
 };
 
 const wireBridge: PartType<Config, { on: boolean }> = {
@@ -532,7 +520,7 @@ const ribbonWriter: PartType<{ bit: string }, { on: boolean }> = {
   w: 2,
   h: 1,
   ports: [logicIn("in", "l", 0.5, "wire"), { ...logicOut("out", "r", 0.5, "ribbon"), bus: "bit" }],
-  fields: [writerBitField],
+  fields: [bitField],
   defaults: () => ({ bit: "1" }),
   init: () => ({ on: false }),
   step: (ctx) => {
@@ -547,7 +535,7 @@ const ribbonReader: PartType<{ bit: string }, { on: boolean }> = {
   id: "ribbon-reader",
   name: "Ribbon Reader",
   category: "Wiring",
-  blurb: "Reads bit 1–3 of the ribbon at its input onto a plain wire.",
+  blurb: "Reads bit 0–3 of the ribbon at its input onto a plain wire.",
   wiki: "Ribbon Reader",
   w: 2,
   h: 1,
