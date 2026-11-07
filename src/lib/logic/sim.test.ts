@@ -945,6 +945,54 @@ describe("machine output slot", () => {
   });
 });
 
+describe("binary examples", () => {
+  it("the adder adds every pair of 2-bit numbers", () => {
+    const c = EXAMPLES.find((e) => e.id === "adder")!.build();
+    const levers = c.parts.filter((p) => p.type === "lever"); // A 1s, B 1s, A 2s, B 2s
+    const lamps = c.parts.filter((p) => p.type === "pixel"); // 1s, 2s, 4s
+    for (let A = 0; A < 4; A++)
+      for (let B = 0; B < 4; B++) {
+        [A & 1, B & 1, A >> 1, B >> 1].forEach((v, i) => (levers[i].cfg.on = !!v));
+        const sim = new Sim(c);
+        sim.run(1);
+        expect(lamps.reduce((n, l, i) => n + (sim.port(l.id, "in") ? 1 << i : 0), 0)).toBe(A + B);
+      }
+  });
+
+  it("the encoder puts each switch's number on the ribbon, and only code 5 fires the cell", () => {
+    const c = EXAMPLES.find((e) => e.id === "encoder")!.build();
+    const levers = c.parts.filter((p) => p.type === "lever"); // values 1–7
+    const [now, held] = c.parts.filter((p) => p.type === "pixel");
+    const trunk = Object.keys(c.cells).find((k) => k === "34,22")!;
+    for (const on of [[1], [2], [3], [4], [5], [6], [7], [1, 4], [2, 3]]) {
+      levers.forEach((l, i) => (l.cfg.on = on.includes(i + 1)));
+      const sim = new Sim(c);
+      sim.run(1);
+      const bits = sim.cellOn(trunk);
+      const value = on.reduce((m, v) => m | v, 0); // switches on together combine bit by bit
+      expect((bits[0] ? 1 : 0) + (bits[1] ? 2 : 0) + (bits[2] ? 4 : 0)).toBe(value);
+      expect(sim.port(now.id, "in")).toBe(value === 5);
+      expect(sim.port(held.id, "in")).toBe(value === 5);
+    }
+  });
+
+  it("the scanner queues every request that's on, and nothing while the train is out", () => {
+    const c = EXAMPLES.find((e) => e.id === "scanner")!.build();
+    const station = c.parts.find((p) => p.type === "lever" && p.x === 0)!;
+    const requests = c.parts.filter((p) => p.type === "lever" && p !== station); // Logs, Stone, Limestone
+    const queued = c.parts.filter((p) => p.type === "pixel"); // hub lamps, same order
+    const run = (train: boolean, on: number[]) => {
+      station.cfg.on = train;
+      requests.forEach((r, i) => (r.cfg.on = on.includes(i)));
+      const sim = new Sim(c);
+      sim.run(20); // two sweeps of the eight 1 s slots
+      return queued.map((l) => sim.port(l.id, "in"));
+    };
+    expect(run(false, [0, 1, 2])).toEqual([false, false, false]);
+    for (const on of [[], [0], [1], [2], [0, 2], [1, 2], [0, 1, 2]]) expect(run(true, on)).toEqual([0, 1, 2].map((i) => on.includes(i)));
+  });
+});
+
 describe("filter split example", () => {
   it("sorts logs into Logs and stone into Stone, with every building on the sparks' right", () => {
     const c = EXAMPLES.find((e) => e.id === "filter")!.build();
