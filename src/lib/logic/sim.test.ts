@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { connectPath, decodeCircuit, encodeCircuit, pathEndpoint, planWire, validateCircuit } from "./circuit";
 import { CircuitBuilder, EXAMPLES, legacyExample } from "./examples";
 import { PART_TYPES, stackSize, TICK } from "./parts";
+import { paint } from "./grid";
 import { Sim } from "./sim";
 import type { Rot } from "./types";
 
@@ -942,6 +943,103 @@ describe("machine output slot", () => {
     const { sim, m } = furnace({ slot: 5 });
     sim.run(60);
     expect(sim.state(m).out).toEqual({ quartz: 5 });
+  });
+});
+
+describe("ribbon bits", () => {
+  it("Ribbon Writers and Readers work with bit 0, and the Four Pixel Display shows each bit on its own", () => {
+    const c = new CircuitBuilder("t");
+    const on0 = c.add("lever", 0, 0, { on: true });
+    const on2 = c.add("lever", 0, 2, { on: true });
+    const w0 = c.add("ribbon-writer", 2, 0, { bit: "0" });
+    const w2 = c.add("ribbon-writer", 2, 2, { bit: "2" });
+    c.wire(on0, "out", w0, "in").wire(on2, "out", w2, "in");
+    paint(c.c.cells, "r", [[4, 0], [4, 1], [4, 2], [5, 2]]);
+    const show = c.add("pixel4", 6, 2);
+    // Three readers hanging off a spur of the same ribbon.
+    paint(c.c.cells, "r", [[4, 2], [4, 3], [5, 3], [6, 3]]);
+    const read0 = c.add("ribbon-reader", 4, 4, { bit: "0" }, 1);
+    const read1 = c.add("ribbon-reader", 5, 4, { bit: "1" }, 1);
+    const read2 = c.add("ribbon-reader", 6, 4, { bit: "2" }, 1);
+    const sim = new Sim(c.c);
+    sim.run(0.5);
+    expect([read0, read1, read2].map((r) => sim.port(r, "out"))).toEqual([true, false, true]);
+    expect(sim.state(show).on).toEqual([true, false, true, false]);
+    expect(PART_TYPES.find((p) => p.id === "pixel4")!.status!({}, sim.state(show)).badge).toBe("●○●○");
+  });
+});
+
+describe("binary examples", () => {
+  it("the adder adds every pair of 2-bit numbers", () => {
+    const c = EXAMPLES.find((e) => e.id === "adder")!.build();
+    const levers = c.parts.filter((p) => p.type === "lever"); // A 1s, B 1s, A 2s, B 2s
+    const lamps = c.parts.filter((p) => p.type === "pixel"); // 1s, 2s, 4s
+    for (let A = 0; A < 4; A++)
+      for (let B = 0; B < 4; B++) {
+        [A & 1, B & 1, A >> 1, B >> 1].forEach((v, i) => (levers[i].cfg.on = !!v));
+        const sim = new Sim(c);
+        sim.run(1);
+        expect(lamps.reduce((n, l, i) => n + (sim.port(l.id, "in") ? 1 << i : 0), 0)).toBe(A + B);
+      }
+  });
+
+  it("the encoder puts each switch's number on the ribbon, and only code 5 fires the cell", () => {
+    const c = EXAMPLES.find((e) => e.id === "encoder")!.build();
+    const levers = c.parts.filter((p) => p.type === "lever"); // values 1–7
+    const [now, held] = c.parts.filter((p) => p.type === "pixel");
+    const trunk = Object.keys(c.cells).find((k) => k === "34,22")!;
+    for (const on of [[1], [2], [3], [4], [5], [6], [7], [1, 4], [2, 3]]) {
+      levers.forEach((l, i) => (l.cfg.on = on.includes(i + 1)));
+      const sim = new Sim(c);
+      sim.run(1);
+      const bits = sim.cellOn(trunk);
+      const value = on.reduce((m, v) => m | v, 0); // switches on together combine bit by bit
+      expect((bits[0] ? 1 : 0) + (bits[1] ? 2 : 0) + (bits[2] ? 4 : 0)).toBe(value);
+      expect(sim.port(now.id, "in")).toBe(value === 5);
+      expect(sim.port(held.id, "in")).toBe(value === 5);
+    }
+  });
+
+  it("the request ribbons queue each request once per train, on its own fulfiller", () => {
+    const c = EXAMPLES.find((e) => e.id === "ribbons")!.build();
+    const levers = c.parts.filter((p) => p.type === "lever");
+    const train = levers.find((p) => p.cfg.on === false && c.parts.some((q) => q.type === "label" && q.cfg.text === "train in" && q.y === p.y))!;
+    const requests = levers.filter((p) => p !== train); // items 1–8
+    const queued = c.parts.filter((p) => p.type === "pixel"); // fulfillers, same order
+    const emptied = c.parts.filter((p) => p.type === "button");
+    const lit = (sim: Sim) => queued.map((l) => sim.port(l.id, "in"));
+    for (const on of [[0], [3], [4], [7], [0, 1, 5, 6], [0, 1, 2, 3, 4, 5, 6, 7]]) {
+      requests.forEach((r, i) => (r.cfg.on = on.includes(i)));
+      const sim = new Sim(c);
+      sim.run(1);
+      expect(lit(sim).some(Boolean)).toBe(false); // nothing until the train comes in
+      sim.tap(train.id);
+      sim.run(3);
+      const want = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => on.includes(i));
+      expect(lit(sim)).toEqual(want);
+      sim.tap(emptied[on[0]].id); // the first item's chest is emptied: fulfilled once
+      sim.run(2);
+      expect(lit(sim)).toEqual(want.map((w, i) => w && i !== on[0]));
+      sim.tap(train.id); // the train leaves: nothing is queued again
+      sim.run(3);
+      expect(lit(sim)).toEqual(want.map((w, i) => w && i !== on[0]));
+    }
+  });
+
+  it("the scanner queues every request that's on, and nothing while the train is out", () => {
+    const c = EXAMPLES.find((e) => e.id === "scanner")!.build();
+    const station = c.parts.find((p) => p.type === "lever" && p.x === 0)!;
+    const requests = c.parts.filter((p) => p.type === "lever" && p !== station); // Logs, Stone, Limestone
+    const queued = c.parts.filter((p) => p.type === "pixel"); // hub lamps, same order
+    const run = (train: boolean, on: number[]) => {
+      station.cfg.on = train;
+      requests.forEach((r, i) => (r.cfg.on = on.includes(i)));
+      const sim = new Sim(c);
+      sim.run(20); // two sweeps of the eight 1 s slots
+      return queued.map((l) => sim.port(l.id, "in"));
+    };
+    expect(run(false, [0, 1, 2])).toEqual([false, false, false]);
+    for (const on of [[], [0], [1], [2], [0, 2], [1, 2], [0, 1, 2]]) expect(run(true, on)).toEqual([0, 1, 2].map((i) => on.includes(i)));
   });
 });
 

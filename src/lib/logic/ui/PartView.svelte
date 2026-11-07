@@ -129,9 +129,10 @@
     {#if part.type === "pixel"}
       <circle class="lamp" cx={size.w / 2} cy={size.h / 2} r=".3" />
     {:else if part.type === "pixel4"}
+      <!-- One lamp per bit, each lit only by its own bit: 0 1 on top, 2 3 below. -->
       {#each [0, 1, 2, 3] as i (i)}
         <circle
-          class="lamp"
+          class="lamp bit"
           class:on={status.badge?.[i] === "●"}
           cx={size.w / 2 + (i % 2 ? 0.2 : -0.2)}
           cy={size.h / 2 + (i < 2 ? -0.2 : 0.2)}

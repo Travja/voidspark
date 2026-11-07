@@ -474,8 +474,8 @@
         by side.
       </li>
       <li>
-        <strong>Ribbon:</strong> one tile carrying four signals (bits 0–3). A plain wire joining a ribbon uses bit 0; Ribbon Writers and Readers use bits
-        1–3; a Four Pixel Display shows all four.
+        <strong>Ribbon:</strong> one tile carrying four signals (bits 0–3). Ribbon Writers and Readers pick any bit; a plain wire joining a ribbon
+        uses bit 0; a Four Pixel Display shows all four, one lamp per bit.
       </li>
       <li>
         <strong>Paths:</strong> items ride with sparks along path tiles. Tap a building's exit (square port) then an entrance and a Stone Path is

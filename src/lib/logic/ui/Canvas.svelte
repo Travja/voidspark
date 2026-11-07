@@ -53,6 +53,8 @@
 
   // --- view ---------------------------------------------------------------------------------
 
+  /** Screen pixels per tile when zoomed right out. */
+  const MIN_ZOOM = 5;
   const toWorld = (sx: number, sy: number): Point => ({ x: (sx - tx) / zoom, y: (sy - ty) / zoom });
   function local(e: { clientX: number; clientY: number }) {
     const r = svg.getBoundingClientRect();
@@ -78,13 +80,20 @@
       y1 = Math.max(y1, p.y + s.h + 0.5);
     }
     const pad = 1;
-    zoom = Math.max(10, Math.min(56, Math.min(width / (x1 - x0 + 2 * pad), height / (y1 - y0 + 2 * pad))));
-    tx = (width - (x1 + x0) * zoom) / 2;
-    ty = (height - (y1 + y0) * zoom) / 2;
+    // The tool strip floats over the left edge: keep parts clear of it, so they can be tapped.
+    const inset = Math.min(width / 3, (svg?.closest(".canvas-wrap")?.parentElement?.querySelector(".tools")?.getBoundingClientRect().width ?? 0) + 16);
+    const w = width - inset;
+    zoom = Math.max(MIN_ZOOM, Math.min(56, Math.min(w / (x1 - x0 + 2 * pad), height / (y1 - y0 + 2 * pad))));
+    // Centred when it fits; when it's too big even zoomed right out, start at its top left, where
+    // circuits begin (inputs, counters), rather than cutting off both ends.
+    const fitsW = (x1 - x0 + 2 * pad) * zoom <= w;
+    const fitsH = (y1 - y0 + 2 * pad) * zoom <= height;
+    tx = fitsW ? inset + (w - (x1 + x0) * zoom) / 2 : inset - (x0 - pad) * zoom;
+    ty = fitsH ? (height - (y1 + y0) * zoom) / 2 : -(y0 - pad) * zoom;
   }
 
   export function zoomBy(factor: number, cx = width / 2, cy = height / 2) {
-    const z = Math.max(8, Math.min(140, zoom * factor));
+    const z = Math.max(MIN_ZOOM, Math.min(140, zoom * factor));
     const w = toWorld(cx, cy);
     zoom = z;
     tx = cx - w.x * z;
@@ -289,7 +298,7 @@
       const [a, b] = [...pointers.values()];
       const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
       const dist = Math.hypot(a.x - b.x, a.y - b.y) || 1;
-      zoom = Math.max(8, Math.min(140, pinch.zoom * (dist / pinch.dist)));
+      zoom = Math.max(MIN_ZOOM, Math.min(140, pinch.zoom * (dist / pinch.dist)));
       tx = mid.x - pinch.world.x * zoom;
       ty = mid.y - pinch.world.y * zoom;
       return;

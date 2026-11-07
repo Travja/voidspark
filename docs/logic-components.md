@@ -140,16 +140,19 @@ sandbox keeps those footprints, so parts take the same number of tiles as in the
 ### Logic Ribbon, Ribbon Writer, Ribbon Reader, Four Pixel Display
 - **Wiki:** a Logic Ribbon is "a buried ribbon of wires that can store up to four separate
   signals", on bits 0 to 3. "If a Ribbon is receiving a signal (without the use of a Ribbon
-  Writer), it will be held on Bit 0." A Ribbon Writer puts a wire's signal on bit 1 to 3, and a
-  Ribbon Reader reads bit 1 to 3 back onto a wire. Each is two tiles, input and output. The Four
+  Writer), it will be held on Bit 0." The wiki says a Ribbon Writer puts a wire's signal on bit 1
+  to 3, and a Ribbon Reader reads bit 1 to 3 back onto a wire; in the game both also work with bit
+  0, and the sandbox follows the game. Each is two tiles, input and output. The Four
   Pixel Display is one tile with one logic input, and lights four elements individually.
 - **Sandbox:**
   - **Ribbon tiles** carry four networks, one per bit. Joined ribbon tiles join bit for bit.
   - A plain wire tile joined to a ribbon, or a plain port plugged into one, uses **bit 0**.
-  - **Ribbon Writer:** a wire in, a ribbon out on its chosen bit (1–3).
-  - **Ribbon Reader:** a ribbon in on its chosen bit (1–3), a wire out.
-  - **Four Pixel Display:** one input that shows all four bits of the ribbon it plugs into. On a
-    plain wire, only the first lamp (bit 0) can light.
+  - **Ribbon Writer:** a wire in, a ribbon out on its chosen bit (0–3). Several writers on the
+    same bit combine: the bit is on while any of them is.
+  - **Ribbon Reader:** a ribbon in on its chosen bit (0–3), a wire out.
+  - **Four Pixel Display:** one input that shows all four bits of the ribbon it plugs into, each
+    lamp lit only by its own bit: bit 0 top left, bit 1 top right, bit 2 bottom left, bit 3 bottom
+    right. On a plain wire, only the first lamp (bit 0) can light.
   - The writer and reader are two tiles long (input tile, output tile), as on the wiki.
 
 ## Outputs

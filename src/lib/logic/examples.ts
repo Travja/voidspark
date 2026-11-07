@@ -91,7 +91,8 @@ function distribution(): Circuit {
   const end = first + SPACING * (lines.length - 1) + 4;
 
   // --- hub loop ---
-  b.add("label", 0, -7, { text: "HUB: sparks sort the train's cargo by turning right into filtered branches" });
+  b.add("label", 0, -8, { text: "HUB: sparks sort the train's cargo by turning right" });
+  b.add("label", 0, -7, { text: "into filtered branches." });
   const train = b.add("source", -1, 0, { items: ["wooden-log", "stone", "limestone", "pebble"], rate: 2, stack: 20 });
   const unload = b.add("lever", -1, -3, { on: true }, 1);
   b.add("label", -4, -4, { text: "Train unloading" });
@@ -168,7 +169,8 @@ function latchDemo(): Circuit {
 
   // The same memory from two NOT gates and two OR gates (cross-coupled NOR latch).
   b.add("label", 0, 5, { text: "Same memory from gates (NOR latch)." });
-  b.add("label", 0, 12, { text: "It flickers until the first tap: a latch from gates powers up undecided." });
+  b.add("label", 0, 12, { text: "It flickers until the first tap: a latch made from gates" });
+  b.add("label", 0, 13, { text: "powers up undecided." });
   const or1 = b.add("or", 3, 6);
   const or2 = b.add("or", 3, 9);
   const not1 = b.add("not", 7, 6);
@@ -269,6 +271,319 @@ function ribbonBus(): Circuit {
   return b.c;
 }
 
+/**
+ * Adds two 2-bit numbers, A (A1 A0) and B (B1 B0), into a 3-bit sum. Bit 0 is a half adder (XOR
+ * for the sum, AND for the carry); bit 1 is a full adder that also takes bit 0's carry. The same
+ * full adder, copied once per bit, adds numbers of any width.
+ */
+function adder(): Circuit {
+  const b = new CircuitBuilder("Binary adder");
+  b.add("label", 0, -3, { text: "Flip the levers: A + B, in binary (1s, 2s, 4s)" });
+  const a0 = b.add("lever", 0, 0);
+  const b0 = b.add("lever", 0, 3);
+  const a1 = b.add("lever", 0, 8);
+  const b1 = b.add("lever", 0, 11);
+  b.add("label", -3, 0, { text: "A 1s" });
+  b.add("label", -3, 3, { text: "B 1s" });
+  b.add("label", -3, 8, { text: "A 2s" });
+  b.add("label", -3, 11, { text: "B 2s" });
+
+  // Bit 0: half adder.
+  const x0 = b.add("xor", 5, 0);
+  const c0 = b.add("and", 5, 4);
+  b.wire(a0, "out", x0, "a").wire(b0, "out", x0, "b").wire(a0, "out", c0, "a").wire(b0, "out", c0, "b");
+
+  // Bit 1: full adder. X1 = A1 xor B1; sum = X1 xor carry-in; carry-out = (A1 and B1) or (X1 and carry-in).
+  const x1 = b.add("xor", 5, 8);
+  const c1 = b.add("and", 5, 12);
+  b.wire(a1, "out", x1, "a").wire(b1, "out", x1, "b").wire(a1, "out", c1, "a").wire(b1, "out", c1, "b");
+  const s1 = b.add("xor", 12, 6);
+  const c2 = b.add("and", 12, 10);
+  const carry = b.add("or", 18, 14);
+  const l0 = b.add("pixel", 22, 1);
+  const l1 = b.add("pixel", 22, 7);
+  const l2 = b.add("pixel", 23, 15);
+  // Outputs first, so the inputs' wires are routed around them rather than across them.
+  b.wire(c2, "out", carry, "a").wire(c1, "out", carry, "b");
+  b.wire(x0, "out", l0, "in").wire(s1, "out", l1, "in").wire(carry, "out", l2, "in");
+  b.wire(x1, "out", s1, "a").wire(c0, "out", s1, "b").wire(x1, "out", c2, "a").wire(c0, "out", c2, "b");
+  b.add("label", 23, 1, { text: "Sum 1s" });
+  b.add("label", 23, 7, { text: "Sum 2s" });
+  b.add("label", 24, 15, { text: "Sum 4s (carry)" });
+  b.add("label", 7, 3, { text: "half adder" });
+  b.add("label", 14, 4, { text: "full adder" });
+  return b.c;
+}
+
+/**
+ * Seven switches, valued 1 to 7, encoded as a 3-bit number on a ribbon (bits 0–2). The ribbon is
+ * the bus: each switch has a row of its own, with a Ribbon Writer for each bit in its value.
+ * Writers on the same bit combine (either one turns it on), and the switch's own wire never
+ * touches the ribbon, so switches stay apart. At the far end, a cell recognises code 5 (bits 0 and 2 on, bit 1
+ * off) and latches it until reset.
+ */
+function encoder(): Circuit {
+  const b = new CircuitBuilder("Switch encoder");
+  b.add("label", 0, -4, { text: "Each switch sends its number in binary." });
+  b.add("label", 0, -3, { text: "Turn on 1 and 4 together: the cell for 5 fires too." });
+  b.add("label", 9, -1, { text: "one Ribbon Writer per bit" });
+  for (let k = 1; k <= 7; k++) {
+    const y = (k - 1) * 3;
+    const lever = b.add("lever", 0, y);
+    b.add("label", -3, y, { text: String(k) });
+    [0, 1, 2]
+      .filter((i) => k & (1 << i))
+      .forEach((bit, j) => {
+        const feed = b.add("ribbon-writer", 10, y + j, { bit: String(bit) });
+        b.wire(lever, "out", feed, "in");
+      });
+  }
+  // The ribbon: down past every feed, then along to the far end.
+  draw(b, "r", [12, 0], [12, 22], [34, 22]);
+  b.add("pixel4", 35, 22);
+  b.add("label", 36, 22, { text: "bits 0–3" });
+
+  // Read the three bits back off the ribbon.
+  draw(b, "r", [20, 22], [20, 23]);
+  const r0 = b.add("ribbon-reader", 20, 24, { bit: "0" }, 1);
+  draw(b, "r", [24, 22], [24, 23]);
+  const r1 = b.add("ribbon-reader", 24, 24, { bit: "1" }, 1);
+  draw(b, "r", [28, 22], [28, 23]);
+  const r2 = b.add("ribbon-reader", 28, 24, { bit: "2" }, 1);
+
+  // The cell for item 5: bit 0 AND bit 2 AND NOT bit 1, held by a latch.
+  const both = b.add("and", 21, 30);
+  const not1 = b.add("not", 25, 29);
+  const five = b.add("and", 27, 33);
+  const latch = b.add("sr-latch", 32, 33);
+  const now = b.add("pixel", 32, 37);
+  const held = b.add("pixel", 37, 33);
+  const done = b.add("button", 28, 38);
+  b.wire(five, "out", latch, "s").wire(five, "out", now, "in").wire(latch, "q", held, "in").wire(done, "out", latch, "r");
+  b.wire(r0, "out", both, "a").wire(r2, "out", both, "b").wire(r1, "out", not1, "in");
+  b.wire(both, "out", five, "a").wire(not1, "out", five, "b");
+  b.add("label", 33, 37, { text: "code 5 on the ribbon" });
+  b.add("label", 38, 33, { text: "item 5 requested (latched)" });
+  b.add("label", 30, 38, { text: "fulfilled: reset" });
+  return b.c;
+}
+
+/**
+ * Taps bits 0–2 (and optionally 3) off a horizontal ribbon at row `y` with Ribbon Readers at x,
+ * x+2, x+4 (x+6), hanging down. Returns the output ports to read each bit from.
+ */
+function tapBits(b: CircuitBuilder, x: number, y: number, bits: number): { part: string; port: string }[] {
+  const out: { part: string; port: string }[] = [];
+  for (let i = 0; i < bits; i++) {
+    const tx = x + i * 2;
+    draw(b, "r", [tx, y], [tx, y + 1]);
+    out.push({ part: b.add("ribbon-reader", tx, y + 2, { bit: String(i) }, 1), port: "out" });
+  }
+  return out;
+}
+
+/**
+ * Recognises slot number `k` (bits 0–2) from tapped bits, AND-ed with one more signal. Places its
+ * gates in the column band starting at x, below row y. Returns the final AND gate.
+ */
+function slotMatch(b: CircuitBuilder, x: number, y: number, k: number, bits: { part: string; port: string }[], extra: { part: string; port: string }) {
+  // Each bit as it should read for k: the bit itself, or through a NOT gate when k has a 0 there.
+  const lit = bits.slice(0, 3).map((bt, i) => {
+    if (k & (1 << i)) return bt;
+    const n = b.add("not", x + i * 2, y + 6, {}, 1);
+    b.wire(bt.part, bt.port, n, "in");
+    return { part: n, port: "out" };
+  });
+  const a1 = b.add("and", x, y + 10);
+  const a2 = b.add("and", x + 3, y + 13);
+  const a3 = b.add("and", x + 6, y + 16);
+  b.wire(a1, "out", a2, "a").wire(a2, "out", a3, "a");
+  b.wire(lit[0].part, lit[0].port, a1, "a").wire(lit[1].part, lit[1].port, a1, "b");
+  b.wire(lit[2].part, lit[2].port, a2, "b");
+  b.wire(extra.part, extra.port, a3, "b");
+  return a3;
+}
+
+/**
+ * Persistent requests over one ribbon, without codes colliding: the hub's counter steps through
+ * slots 1–7 on bits 0–2 while the train is in, and a requester whose request is on answers on
+ * bit 3 during its own slot. The hub's cell for that item sees its slot number and the answer
+ * together and sets a latch: the queued request, held until it's fulfilled. Seven items per ribbon,
+ * any number of them requested at once, all queued within one sweep.
+ */
+function scanner(): Circuit {
+  const b = new CircuitBuilder("Request scanner");
+  const Y = 14; // the ribbon's row
+  b.add("label", 0, -4, { text: "Turn on \"train in\", then any requests (bottom right)." });
+  b.add("label", 0, -3, { text: "The hub queues each one when its slot comes round." });
+
+  // --- Slot counter: three Counter Gates set to 2, with the turn-off signal counting. Each one
+  // flips its output on every pulse it gets, so each runs at half the speed of the one before:
+  // together they step through all eight 3-bit numbers (counting down, which is fine for taking
+  // turns), one step per clock pulse. ---
+  const timer = b.add("timer", 0, 0, { on: 0.5, off: 0.5 });
+  const station = b.add("lever", 0, 4);
+  b.add("label", -5, 4, { text: "train in" });
+  const clock = b.add("and", 3, 0);
+  b.wire(timer, "out", clock, "a").wire(station, "out", clock, "b");
+  const cg = [b.add("counter-gate", 7, 1, { count: 2, edgeCounts: true }), b.add("counter-gate", 7, 6, { count: 2, edgeCounts: true }), b.add("counter-gate", 7, 11, { count: 2, edgeCounts: true })];
+  // Each bit goes onto the ribbon only while the train is in: otherwise the ribbon reads slot 0,
+  // which is nobody's, so no one answers and nothing is queued.
+  const gate = [b.add("and", 15, 0), b.add("and", 15, 5), b.add("and", 15, 10)];
+  const feeds = [0, 1, 2].map((bit) => b.add("ribbon-writer", 19, 1 + bit * 5, { bit: String(bit) }));
+  // The ribbon goes down first, so wires are routed around it.
+  draw(b, "r", [21, 1], [21, Y], [104, Y]);
+  b.wire(clock, "out", cg[0], "in").wire(cg[0], "out", cg[1], "in").wire(cg[1], "out", cg[2], "in");
+  cg.forEach((g, i) => b.wire(g, "out", gate[i], "a").wire(gate[i], "out", feeds[i], "in"));
+  gate.forEach((g) => b.wire(station, "out", g, "b"));
+  b.add("label", 7, -1, { text: "slot counter" });
+  b.add("pixel4", 105, Y);
+  b.add("label", 106, Y, { text: "slot (bits 0–2), answer (bit 3)" });
+
+  const items = [
+    { k: 2, name: "Logs" },
+    { k: 5, name: "Stone" },
+    { k: 7, name: "Limestone" },
+  ];
+  // --- Hub cells: slot k AND an answer on bit 3, held for 0.4 s (the Filter Gate), sets the
+  // item's latch. The wait matters: while the counter's bits ripple from one number to the next,
+  // gates can see a wrong number for a tick, and an answer trails a few ticks into the next slot.
+  // Both are far shorter than 0.4 s; a real answer lasts most of its 1 s slot. ---
+  b.add("label", 24, Y + 30, { text: "HUB: one cell per item" });
+  items.forEach(({ k, name }, n) => {
+    const x = 24 + n * 13;
+    const bits = tapBits(b, x, Y, 4);
+    const hit = slotMatch(b, x, Y, k, bits, bits[3]);
+    const settle = b.add("filter", x + 6, Y + 21, { time: 0.4 }, 1);
+    const latch = b.add("sr-latch", x + 5, Y + 25);
+    const lamp = b.add("pixel", x + 9, Y + 25);
+    const done = b.add("button", x + 1, Y + 26);
+    b.wire(hit, "out", settle, "in").wire(settle, "out", latch, "s").wire(latch, "q", lamp, "in").wire(done, "out", latch, "r");
+    b.add("label", x + 10, Y + 25, { text: `${name} (${k}) queued` });
+    b.add("label", x - 2, Y + 26, { text: "done" });
+  });
+  // --- Requesters: in their own slot, a request that's on answers on bit 3. ---
+  b.add("label", 66, Y + 30, { text: "REQUESTERS: one per workshop" });
+  items.forEach(({ k, name }, n) => {
+    const x = 66 + n * 13;
+    const bits = tapBits(b, x, Y, 3);
+    const want = b.add("lever", x + 1, Y + 24);
+    b.add("label", x - 3, Y + 24, { text: `${name} (${k})` });
+    const hit = slotMatch(b, x, Y, k, bits, { part: want, port: "out" });
+    draw(b, "r", [x + 6, Y], [x + 6, Y + 1]);
+    const answer = b.add("ribbon-writer", x + 6, Y + 2, { bit: "3" }, 3);
+    b.wire(hit, "out", answer, "in");
+  });
+  return b.c;
+}
+
+/**
+ * A central request hub sending one bit per item down ribbons, four items to a ribbon, with a
+ * second ribbon for items 5–8 running alongside the first.
+ *
+ * - Requesters (far away in a real build) send each item's request on its own wireless channel.
+ * - The hub ANDs each request with a short presence pulse when the train arrives (the train
+ *   signal XOR a 1 s-delayed copy of itself, then a 0.4 s Filter Gate to swallow the blip when it
+ *   leaves) and writes it to its item's bit on its ribbon.
+ * - Each fulfiller is just a Ribbon Reader on its bit into a Set-Reset Latch, reset when its chest
+ *   is emptied (here a button stands in for the Capacity Sensor). Ribbon A's fulfillers hang
+ *   above the pair of ribbons, ribbon B's below.
+ *
+ * Only the requests use wireless channels: the presence pulse stays in the hub, and results go by
+ * ribbon, so more items cost ribbon, not channels.
+ */
+function requestRibbons(): Circuit {
+  const b = new CircuitBuilder("Request ribbons");
+  const Y = 0; // ribbon A's row; ribbon B runs right below it
+  const items = [
+    { id: "stone", name: "Stone" },
+    { id: "pebble", name: "Pebble" },
+    { id: "wooden-log", name: "Log" },
+    { id: "coal", name: "Coal" },
+    { id: "limestone", name: "Limestone" },
+    { id: "quartz", name: "Quartz" },
+    { id: "sawn-timber", name: "Timber" },
+    { id: "stone-plate", name: "Plate" },
+  ];
+  b.add("label", -22, -16, { text: "Turn on requests, then the train: each one is" });
+  b.add("label", -22, -15, { text: "queued once per train; the button empties its chest." });
+
+  // The two ribbons, side by side from the hub, then down to the fulfillers: A turns down on the
+  // outside (x = XA), B on the inside (x = XA - 1), so they never cross.
+  const XA = 40;
+  const ROWS = 4 * 3; // four fulfillers a side, 3 tiles high each
+  draw(b, "r", [6, Y], [XA, Y], [XA, Y + 3 + ROWS]);
+  draw(b, "r", [6, Y + 1], [XA - 1, Y + 1], [XA - 1, Y + 3 + ROWS]);
+  b.add("pixel4", XA + 1, Y + 1);
+  b.add("pixel4", XA - 2, Y + 2);
+  b.add("label", XA + 2, Y + 1, { text: "ribbon A: items 1–4" });
+  b.add("label", XA - 6, Y + 3, { text: "ribbon B: items 5–8" });
+
+  // Remote requesters.
+  b.add("label", -22, -12, { text: "REQUESTERS (remote)" });
+  items.forEach((it, i) => {
+    const y = -10 + i * 3;
+    const lever = b.add("lever", -20, y);
+    const tx = b.add("wireless-sender", -18, y, { channel: it.id });
+    b.wire(lever, "out", tx, "in");
+    b.add("label", -24, y, { text: it.name });
+  });
+
+  // Presence pulse.
+  const train = b.add("lever", -10, -14);
+  b.add("label", -14, -14, { text: "train in" });
+  const late = b.add("filter", -8, -12, { time: 1 });
+  const edge = b.add("xor", -4, -14);
+  const pulse = b.add("filter", 0, -12, { time: 0.4 }, 1);
+  b.wire(train, "out", late, "in").wire(train, "out", edge, "b").wire(late, "out", edge, "a").wire(edge, "out", pulse, "in");
+  b.add("label", -6, -16, { text: "presence pulse" });
+
+  // Hub: A's cells above the ribbons write down onto A; B's below write up onto B. Parts first;
+  // then the presence pulse to every AND (round the ribbons' left end for B), then the rest.
+  b.add("label", 4, -16, { text: "HUB: request AND presence → bit" });
+  const cells = items.map((it, i) => {
+    const up = i >= 4;
+    const bit = i % 4;
+    const cx = 6 + bit * 5;
+    const rx = b.add("wireless-receiver", cx - 1, up ? Y + 10 : Y - 9, { channel: it.id });
+    const and = b.add("and", cx, up ? Y + 6 : Y - 6);
+    const w = up ? b.add("ribbon-writer", cx + 2, Y + 2, { bit: String(bit) }, 3) : b.add("ribbon-writer", cx + 2, Y - 2, { bit: String(bit) }, 1);
+    b.add("label", cx - 1, up ? Y + 11 : Y - 10, { text: `${it.name} b${bit}` });
+    return { rx, and, w };
+  });
+  for (const i of [4, 5, 6, 7, 0, 1, 2, 3]) b.wire(pulse, "out", cells[i].and, "b");
+  for (const c of cells) b.wire(c.and, "out", c.w, "in").wire(c.rx, "out", c.and, "a");
+
+  // Fulfillers, 3 tiles high: reader → latch → lamp, with the chest's "emptied" signal (a button
+  // standing in for the Capacity Sensor) on the latch's reset. A's on the right of the ribbons, B's
+  // mirrored on the left.
+  b.add("label", XA + 3, Y + 3, { text: "FULFILLERS: reader → latch, 3 tiles high" });
+  items.forEach((it, i) => {
+    const left = i >= 4;
+    const bit = i % 4;
+    const fy = Y + 5 + bit * 3;
+    if (!left) {
+      // reader (2) | latch (2×2) | lamp, the button under the reader. Neighbouring ports face the
+      // same tile, so one wire tile joins each pair.
+      b.add("ribbon-reader", XA + 1, fy, { bit: String(bit) });
+      b.add("sr-latch", XA + 4, fy);
+      b.add("pixel", XA + 7, fy);
+      b.add("button", XA + 2, fy + 1);
+      for (const [x, y] of [[XA + 3, fy], [XA + 3, fy + 1], [XA + 6, fy]]) draw(b, "w", [x, y], [x, y]);
+      b.add("label", XA + 8, fy, { text: `deliver ${it.name}` });
+    } else {
+      // The mirror image. A latch turned round has Set below Reset, so the reader sits a row down.
+      b.add("ribbon-reader", XA - 3, fy + 1, { bit: String(bit) }, 2);
+      b.add("sr-latch", XA - 6, fy, {}, 2);
+      b.add("pixel", XA - 8, fy + 1, {}, 2);
+      b.add("button", XA - 3, fy, {}, 2);
+      for (const [x, y] of [[XA - 4, fy + 1], [XA - 4, fy], [XA - 7, fy + 1]]) draw(b, "w", [x, y], [x, y]);
+      b.add("label", XA - 12, fy + 1, { text: `deliver ${it.name}` });
+    }
+  });
+  return b.c;
+}
+
 export const EXAMPLES: Example[] = [
   {
     id: "distribution",
@@ -279,6 +594,10 @@ export const EXAMPLES: Example[] = [
   { id: "latch", name: "Latch (SR memory)", blurb: "Set/Reset buttons, plus the same latch built from gates.", build: latchDemo },
   { id: "timer", name: "Timer pulses", blurb: "A timer feeding buffer, filter and counter gates.", build: timerDemo },
   { id: "ribbon", name: "Ribbon bus", blurb: "Four signals on one ribbon: writers, a reader and a Four Pixel Display.", build: ribbonBus },
+  { id: "adder", name: "Binary adder", blurb: "Add two 2-bit numbers with XOR, AND and OR gates: a half adder and a full adder.", build: adder },
+  { id: "encoder", name: "Switch encoder", blurb: "Switches valued 1–7 sent as a binary number on a ribbon, and a cell that recognises its code.", build: encoder },
+  { id: "scanner", name: "Request scanner", blurb: "Persistent requests on one ribbon: a slot counter polls each item in turn and the hub latches what's asked for.", build: scanner },
+  { id: "ribbons", name: "Request ribbons", blurb: "A central hub sends one bit per item down two ribbons (4 items each); each fulfiller is a reader and a latch.", build: requestRibbons },
   { id: "filter", name: "Filter split", blurb: "Sparks on a loop: an Item Filter, a One Way, a Blocker and a Pressure Sensor. Buildings sit on the sparks' right.", build: filterSplit },
 ];
 

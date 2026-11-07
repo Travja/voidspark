@@ -60,7 +60,11 @@ greenhouses, the Arboretum, and the metal sparks. It started from the PirateSpar
   and redo, several named circuits, and share links (`#circuit=…`, compressed and validated) are
   all there. It ships with examples: a **distribution center** (filters sort a train's cargo into
   per-item storage, and each workshop's low/high sensors and latch request a refill over wireless),
-  an SR latch, timer pulses, a ribbon bus and a filter split. What each part does, what the wiki confirms and
+  an SR latch, timer pulses, a ribbon bus, a filter split, a 2-bit **binary adder**, a **switch
+  encoder** (switches valued 1–7 sent in binary on a ribbon, and a cell that recognises its code),
+  **request ribbons** (a central hub sends one bit per item down two side-by-side ribbons, and each
+  fulfiller is just a reader and a latch), and a **request scanner** (persistent requests from many workshops on one ribbon: a counter
+  built from Counter Gates polls each item's slot in turn, and the hub latches what's asked for). What each part does, what the wiki confirms and
   what is assumed are in [docs/logic-components.md](docs/logic-components.md).
 - **Installable and offline.** Add it to your home screen. A service worker
   (`src/service-worker.ts`) caches the app so it opens without a connection.

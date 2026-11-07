@@ -469,19 +469,25 @@ const pixel4: PartType<Config, { on: boolean[] }> = {
   init: () => ({ on: [false, false, false, false] }),
   step: (ctx) => void (ctx.state.on = ctx.bits("in")),
   status: (_c, s) => ({ active: s.on.some(Boolean), badge: s.on.map((b) => (b ? "●" : "○")).join("") }),
-  describe: (_c, s) => [`Bits 0–3: ${s.on.map((b) => (b ? "1" : "0")).join(" ")}.`, "On a plain wire only bit 0 (the first lamp) can light."],
+  describe: (_c, s) => [
+    `Bits 0–3: ${s.on.map((b) => (b ? "1" : "0")).join(" ")}.`,
+    "Lamps: bit 0 top left, bit 1 top right, bit 2 bottom left, bit 3 bottom right.",
+    "On a plain wire only bit 0 (the first lamp) can light.",
+  ],
 };
 
+/** Which ribbon bit a Ribbon Writer writes or a Ribbon Reader reads: any of 0–3. */
 const bitField: FieldDef = {
   key: "bit",
   label: "Ribbon bit",
   type: "select",
   options: [
+    { value: "0", label: "Bit 0" },
     { value: "1", label: "Bit 1" },
     { value: "2", label: "Bit 2" },
     { value: "3", label: "Bit 3" },
   ],
-  help: "A plain wire meeting a ribbon always uses bit 0.",
+  help: "A plain wire meeting a ribbon also uses bit 0.",
 };
 
 const wireBridge: PartType<Config, { on: boolean }> = {
@@ -509,7 +515,7 @@ const ribbonWriter: PartType<{ bit: string }, { on: boolean }> = {
   id: "ribbon-writer",
   name: "Ribbon Writer",
   category: "Wiring",
-  blurb: "Puts a wire's signal onto bit 1–3 of the ribbon at its output.",
+  blurb: "Puts a wire's signal onto bit 0–3 of the ribbon at its output.",
   wiki: "Ribbon Writer",
   w: 2,
   h: 1,
@@ -529,7 +535,7 @@ const ribbonReader: PartType<{ bit: string }, { on: boolean }> = {
   id: "ribbon-reader",
   name: "Ribbon Reader",
   category: "Wiring",
-  blurb: "Reads bit 1–3 of the ribbon at its input onto a plain wire.",
+  blurb: "Reads bit 0–3 of the ribbon at its input onto a plain wire.",
   wiki: "Ribbon Reader",
   w: 2,
   h: 1,
