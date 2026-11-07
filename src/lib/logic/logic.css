@@ -437,7 +437,7 @@ svg.canvas.placing {
   stroke-width: 0.05;
 }
 
-.part.active .lamp:not(.small),
+.part.active .lamp:not(.small):not(.bit),
 .part .lamp.on {
   fill: var(--signal);
   stroke: var(--signal);

@@ -317,17 +317,16 @@ function adder(): Circuit {
 
 /**
  * Seven switches, valued 1 to 7, encoded as a 3-bit number on a ribbon (bits 0–2). The ribbon is
- * the bus: each switch has a row of its own, with a Ribbon Writer for each of bits 1 and 2 in its
- * value, and a Buffer Gate for bit 0 (a plain signal plugged into a ribbon is bit 0). Writers on
- * the same bit combine (either one turns it on), and the switch's own wire never touches the
- * ribbon, so switches stay apart. At the far end, a cell recognises code 5 (bits 0 and 2 on, bit 1
+ * the bus: each switch has a row of its own, with a Ribbon Writer for each bit in its value.
+ * Writers on the same bit combine (either one turns it on), and the switch's own wire never
+ * touches the ribbon, so switches stay apart. At the far end, a cell recognises code 5 (bits 0 and 2 on, bit 1
  * off) and latches it until reset.
  */
 function encoder(): Circuit {
   const b = new CircuitBuilder("Switch encoder");
   b.add("label", 0, -4, { text: "Each switch sends its number in binary." });
   b.add("label", 0, -3, { text: "Turn on 1 and 4 together: the cell for 5 fires too." });
-  b.add("label", 9, -1, { text: "bit 0 = Buffer, bits 1–2 = Ribbon Writers" });
+  b.add("label", 9, -1, { text: "one Ribbon Writer per bit" });
   for (let k = 1; k <= 7; k++) {
     const y = (k - 1) * 3;
     const lever = b.add("lever", 0, y);
@@ -335,7 +334,7 @@ function encoder(): Circuit {
     [0, 1, 2]
       .filter((i) => k & (1 << i))
       .forEach((bit, j) => {
-        const feed = bit === 0 ? b.add("buffer", 10, y + j, { hold: 0 }) : b.add("ribbon-writer", 10, y + j, { bit: String(bit) });
+        const feed = b.add("ribbon-writer", 10, y + j, { bit: String(bit) });
         b.wire(lever, "out", feed, "in");
       });
   }
@@ -436,7 +435,7 @@ function scanner(): Circuit {
   // Each bit goes onto the ribbon only while the train is in: otherwise the ribbon reads slot 0,
   // which is nobody's, so no one answers and nothing is queued.
   const gate = [b.add("and", 15, 0), b.add("and", 15, 5), b.add("and", 15, 10)];
-  const feeds = [b.add("buffer", 19, 1, { hold: 0 }), b.add("ribbon-writer", 19, 6, { bit: "1" }), b.add("ribbon-writer", 19, 11, { bit: "2" })];
+  const feeds = [0, 1, 2].map((bit) => b.add("ribbon-writer", 19, 1 + bit * 5, { bit: String(bit) }));
   // The ribbon goes down first, so wires are routed around it.
   draw(b, "r", [21, 1], [21, Y], [104, Y]);
   b.wire(clock, "out", cg[0], "in").wire(cg[0], "out", cg[1], "in").wire(cg[1], "out", cg[2], "in");

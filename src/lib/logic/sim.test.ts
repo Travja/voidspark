@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { connectPath, decodeCircuit, encodeCircuit, pathEndpoint, planWire, validateCircuit } from "./circuit";
 import { CircuitBuilder, EXAMPLES, legacyExample } from "./examples";
 import { PART_TYPES, stackSize, TICK } from "./parts";
+import { paint } from "./grid";
 import { Sim } from "./sim";
 import type { Rot } from "./types";
 
@@ -942,6 +943,23 @@ describe("machine output slot", () => {
     const { sim, m } = furnace({ slot: 5 });
     sim.run(60);
     expect(sim.state(m).out).toEqual({ quartz: 5 });
+  });
+});
+
+describe("ribbon bits", () => {
+  it("a Ribbon Writer can write bit 0, and the Four Pixel Display shows each bit on its own", () => {
+    const c = new CircuitBuilder("t");
+    const on0 = c.add("lever", 0, 0, { on: true });
+    const on2 = c.add("lever", 0, 2, { on: true });
+    const w0 = c.add("ribbon-writer", 2, 0, { bit: "0" });
+    const w2 = c.add("ribbon-writer", 2, 2, { bit: "2" });
+    c.wire(on0, "out", w0, "in").wire(on2, "out", w2, "in");
+    paint(c.c.cells, "r", [[4, 0], [4, 1], [4, 2], [5, 2]]);
+    const show = c.add("pixel4", 6, 2);
+    const sim = new Sim(c.c);
+    sim.run(0.5);
+    expect(sim.state(show).on).toEqual([true, false, true, false]);
+    expect(PART_TYPES.find((p) => p.id === "pixel4")!.status!({}, sim.state(show)).badge).toBe("●○●○");
   });
 });
 

@@ -469,7 +469,25 @@ const pixel4: PartType<Config, { on: boolean[] }> = {
   init: () => ({ on: [false, false, false, false] }),
   step: (ctx) => void (ctx.state.on = ctx.bits("in")),
   status: (_c, s) => ({ active: s.on.some(Boolean), badge: s.on.map((b) => (b ? "●" : "○")).join("") }),
-  describe: (_c, s) => [`Bits 0–3: ${s.on.map((b) => (b ? "1" : "0")).join(" ")}.`, "On a plain wire only bit 0 (the first lamp) can light."],
+  describe: (_c, s) => [
+    `Bits 0–3: ${s.on.map((b) => (b ? "1" : "0")).join(" ")}.`,
+    "Lamps: bit 0 top left, bit 1 top right, bit 2 bottom left, bit 3 bottom right.",
+    "On a plain wire only bit 0 (the first lamp) can light.",
+  ],
+};
+
+/** The Ribbon Writer can put its signal on any bit, 0 included. */
+const writerBitField: FieldDef = {
+  key: "bit",
+  label: "Ribbon bit",
+  type: "select",
+  options: [
+    { value: "0", label: "Bit 0" },
+    { value: "1", label: "Bit 1" },
+    { value: "2", label: "Bit 2" },
+    { value: "3", label: "Bit 3" },
+  ],
+  help: "A plain wire meeting a ribbon also uses bit 0.",
 };
 
 const bitField: FieldDef = {
@@ -509,12 +527,12 @@ const ribbonWriter: PartType<{ bit: string }, { on: boolean }> = {
   id: "ribbon-writer",
   name: "Ribbon Writer",
   category: "Wiring",
-  blurb: "Puts a wire's signal onto bit 1–3 of the ribbon at its output.",
+  blurb: "Puts a wire's signal onto bit 0–3 of the ribbon at its output.",
   wiki: "Ribbon Writer",
   w: 2,
   h: 1,
   ports: [logicIn("in", "l", 0.5, "wire"), { ...logicOut("out", "r", 0.5, "ribbon"), bus: "bit" }],
-  fields: [bitField],
+  fields: [writerBitField],
   defaults: () => ({ bit: "1" }),
   init: () => ({ on: false }),
   step: (ctx) => {
