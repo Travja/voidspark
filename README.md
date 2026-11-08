@@ -102,7 +102,9 @@ BASE_PATH=/voidspark npm run build   # then publish build/ (it includes .nojekyl
   seconds per craft with one Stumpy. PirateSpark's `120 × speed / buildTime` is the same
   formula with two identical sparks per machine. See
   [docs/wiki-recipe-audit.md](docs/wiki-recipe-audit.md).
-- Supply-limited stations are capped. The Miasma Collector runs at most 4 crafts/min (8 miasma/min from its coral, 2 per craft).
+- A machine that uses a site resource can't craft faster than its site supplies it. A Miasma Collector
+  gets 8 miasma/min from its coral and uses 2 per craft, so it tops out at 4 crafts/min however fast
+  its crew is (its 20-miasma buffer only covers bursts).
 - A fuelled machine burns the chosen fuel's per-minute amount from the game data.
 - Each target expands into its own tree. Every node is sized for exactly what its parent
   pulls, and the Build plan sums the branches into one group per recipe. Extra outputs are surplus and are never

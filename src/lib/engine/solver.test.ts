@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { loadGameData } from "./data";
+import { GAME, loadGameData } from "./data";
 import { EXTERNAL, makePlan, Solver, type Plan, type PlanConfig, type TreeNode } from "./solver";
 
 const base = (over: Partial<PlanConfig> = {}): PlanConfig => ({
@@ -89,6 +89,14 @@ describe("rates and spark crews", () => {
     expect(new Solver(base()).outputPerMachine("miasma-vial")).toBeCloseTo(3.75 * 2);
     const s = new Solver(base({ defaultCrew: ["spark-crafty", "spark-crafty"] }));
     expect(s.outputPerMachine("miasma-vial")).toBeCloseTo(4 * 2);
+  });
+
+  it("says whether the crew or the coral holds the collector back", () => {
+    const recipe = GAME.recipesById.get("miasma-vial")!;
+    // One Stumpy: 60 / 16 = 3.75 crafts/min, under the coral's 8 / 2 = 4.
+    expect(new Solver(base()).craftRate(recipe)).toEqual({ rate: 3.75, limitedBy: "crew" });
+    const fast = new Solver(base({ defaultCrew: ["spark-handy", "spark-handy"] })).craftRate(recipe);
+    expect(fast).toEqual({ rate: 4, limitedBy: "miasma" });
   });
 
   it("matches PirateSpark's rates with a crew of two identical sparks", () => {

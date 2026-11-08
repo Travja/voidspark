@@ -54,10 +54,11 @@ const SITE_RESOURCES = {
   },
 };
 
-/** Supply caps in crafts/min. */
-const CRAFT_CAP = {
-  "Miasma Collector": [4, "Miasma arrives at 8/min (measured in game) and a craft uses 2"],
-};
+/**
+ * Hard caps in crafts/min that don't come from a site's supply. (A Miasma Collector is limited by
+ * its coral's miasma, which the solver works out from SITE_RESOURCES, so it isn't listed here.)
+ */
+const CRAFT_CAP = {};
 
 /**
  * Stack sizes the wiki gets wrong for the current game, by item name: [size, why]. The logic
