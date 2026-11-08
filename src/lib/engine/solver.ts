@@ -25,6 +25,7 @@ import {
   type Recipe,
   type SparkType,
 } from "./data";
+import type { Limit } from "./limits";
 
 export const EXTERNAL = "external";
 
@@ -45,6 +46,8 @@ export interface PlanConfig {
   /** workstation id -> spark ids working it. */
   stationCrew: Record<string, string[]>;
   fuel: { material: string; perMinute: number };
+  /** What the player has (sites, items/min, machines). The solver ignores them; see limits.ts. */
+  limits?: Limit[];
 }
 
 export interface Edge {

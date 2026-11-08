@@ -12,6 +12,11 @@ describe("share links", () => {
     cfg.defaultCrew = ["spark-stumpy", "spark-crafty"];
     cfg.stationCrew = { logger: ["spark-handy"] };
     cfg.fuel = { material: "coal", perMinute: 2 };
+    cfg.limits = [
+      { id: "x", kind: "site", key: "Noxious Coral", amount: 2 },
+      { id: "y", kind: "item", key: "aether-shard", amount: 12.5 },
+      { id: "z", kind: "workstation", key: "alchemy-lab", amount: 4 },
+    ];
     const back = decodePlan(encodePlan("Copper line ✓", cfg))!;
     expect(back.name).toBe("Copper line ✓");
     expect(back.config.targets.map(({ material, mode, value }) => [material, mode, value])).toEqual([
@@ -22,6 +27,11 @@ describe("share links", () => {
     expect(back.config.defaultCrew).toEqual(cfg.defaultCrew);
     expect(back.config.stationCrew).toEqual(cfg.stationCrew);
     expect(back.config.fuel).toEqual({ material: "coal", perMinute: 2 });
+    expect(back.config.limits!.map(({ kind, key, amount }) => [kind, key, amount])).toEqual([
+      ["site", "Noxious Coral", 2],
+      ["item", "aether-shard", 12.5],
+      ["workstation", "alchemy-lab", 4],
+    ]);
   });
 
   it("produces a URL-safe, reasonably short link", () => {

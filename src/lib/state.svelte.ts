@@ -1,6 +1,8 @@
 import { GAME } from "./engine/data";
 import { fromBase64Url, toBase64Url } from "./base64url";
+import { allSites, type Limit } from "./engine/limits";
 import { EXTERNAL, type PlanConfig, type Target } from "./engine/solver";
+import { History } from "./history";
 
 export type RateUnit = "sec" | "min" | "hr";
 export const UNIT_FACTOR: Record<RateUnit, number> = { sec: 1 / 60, min: 1, hr: 60 };
@@ -8,7 +10,7 @@ export const UNIT_FACTOR: Record<RateUnit, number> = { sec: 1 / 60, min: 1, hr: 
 export type View = "tree" | "machines" | "inputs";
 
 /** The current plan's config plus app-wide settings: what the components read and write. */
-export interface AppConfig extends PlanConfig {
+export interface AppConfig extends Required<PlanConfig> {
   unit: RateUnit;
   view: View;
 }
@@ -43,6 +45,7 @@ export const defaultPlanConfig = (): PlanConfig => ({
   defaultCrew: ["spark-crafty", "spark-crafty"],
   stationCrew: {},
   fuel: { material: "wooden-log", perMinute: GAME.fuels.find((f) => f.id === "wooden-log")!.perMinute },
+  limits: [],
 });
 
 /**
@@ -122,6 +125,8 @@ interface SharePayload {
   s?: Record<string, string[]>;
   /** fuel: [material, perMinute] */
   f?: [string, number];
+  /** limits: [kind ("s" site | "i" item | "w" workstation), key, amount] */
+  l?: [string, string, number][];
 }
 
 export function encodePlan(name: string, cfg: PlanConfig): string {
@@ -134,6 +139,9 @@ export function encodePlan(name: string, cfg: PlanConfig): string {
   payload.c = cfg.defaultCrew;
   if (Object.keys(cfg.stationCrew).length) payload.s = cfg.stationCrew;
   payload.f = [cfg.fuel.material, cfg.fuel.perMinute];
+  if (cfg.limits?.length) {
+    payload.l = cfg.limits.map((l) => [l.kind[0], l.key, +l.amount.toPrecision(6)]);
+  }
   return toBase64Url(JSON.stringify(payload));
 }
 
@@ -168,6 +176,19 @@ export function decodePlan(data: string): { name: string; config: PlanConfig } |
   }
   const fuel = p.f && GAME.fuels.find((f) => f.id === p.f![0]);
   if (fuel) config.fuel = { material: fuel.id, perMinute: fuel.perMinute };
+  const kinds = { s: "site", i: "item", w: "workstation" } as const;
+  const sites = new Set(allSites());
+  config.limits = (Array.isArray(p.l) ? p.l : [])
+    .filter(
+      (l): l is [keyof typeof kinds, string, number] =>
+        Array.isArray(l) &&
+        l[0] in kinds &&
+        Number.isFinite(l[2]) &&
+        l[2] >= 0 &&
+        (l[0] === "s" ? sites.has(l[1]) : l[0] === "i" ? GAME.materials.has(l[1]) : GAME.workstations.has(l[1])),
+    )
+    .slice(0, 50)
+    .map(([k, key, amount]) => ({ id: newId("l"), kind: kinds[k], key, amount }));
   const name = typeof p.n === "string" && p.n.trim() ? p.n.trim().slice(0, 60) : "Shared plan";
   return { name, config };
 }
@@ -177,6 +198,10 @@ export function decodePlan(data: string): { name: string; config: PlanConfig } |
 /** Reactive app state. Components read and write `cfg`; plans are managed with the helpers. */
 export class AppState {
   #store = $state<Stored>(load());
+  /** Undo covers the plans (targets, choices, limits, checklist), not tabs or units. */
+  #history = new History(this.#doc());
+  #undoSteps = $state(0);
+  #redoSteps = $state(0);
 
   constructor() {
     $effect.root(() => {
@@ -187,8 +212,45 @@ export class AppState {
         } catch {
           /* storage unavailable */
         }
+        this.#history.record(this.#doc());
+        this.#syncSteps();
       });
     });
+  }
+
+  #doc(): string {
+    return JSON.stringify({ plans: this.#store.plans, current: this.#store.current });
+  }
+
+  #syncSteps() {
+    this.#undoSteps = this.#history.past.length;
+    this.#redoSteps = this.#history.future.length;
+  }
+
+  #restore(doc: string | null): boolean {
+    if (doc === null) return false;
+    const { plans, current } = JSON.parse(doc) as Pick<Stored, "plans" | "current">;
+    this.#store.plans = plans;
+    this.#store.current = current;
+    this.#syncSteps();
+    return true;
+  }
+
+  get canUndo(): boolean {
+    return this.#undoSteps > 0;
+  }
+
+  get canRedo(): boolean {
+    return this.#redoSteps > 0;
+  }
+
+  /** Takes back the last change. Returns false if there was nothing to undo. */
+  undo(): boolean {
+    return this.#restore(this.#history.undo());
+  }
+
+  redo(): boolean {
+    return this.#restore(this.#history.redo());
   }
 
   get plans(): SavedPlan[] {
@@ -206,7 +268,7 @@ export class AppState {
    */
   readonly cfg: AppConfig = (() => {
     const self = this;
-    const planKeys = ["targets", "recipeChoice", "defaultCrew", "stationCrew", "fuel"] as const;
+    const planKeys = ["targets", "recipeChoice", "defaultCrew", "stationCrew", "fuel", "limits"] as const;
     const view = {} as AppConfig;
     for (const key of planKeys) {
       Object.defineProperty(view, key, {
@@ -250,6 +312,30 @@ export class AppState {
   setStationCrew(workstation: string, crew: string[] | null) {
     if (crew === null) delete this.cfg.stationCrew[workstation];
     else this.cfg.stationCrew[workstation] = crew;
+  }
+
+  // --- what I have --------------------------------------------------------------------------
+
+  addLimit(kind: Limit["kind"], key: string, amount: number) {
+    const existing = this.cfg.limits.find((l) => l.kind === kind && l.key === key);
+    if (existing) return existing.id;
+    const id = newId("l");
+    this.cfg.limits.push({ id, kind, key, amount });
+    return id;
+  }
+
+  updateLimit(id: string, amount: number) {
+    const l = this.cfg.limits.find((x) => x.id === id);
+    if (l) l.amount = Math.max(0, amount);
+  }
+
+  removeLimit(id: string) {
+    this.cfg.limits = this.cfg.limits.filter((l) => l.id !== id);
+  }
+
+  /** Multiplies every target by `factor` (rounded down, so it stays within the limits). */
+  scaleTargets(factor: number, round: (x: number) => number) {
+    for (const t of this.cfg.targets) t.value = round(t.value * factor);
   }
 
   clearOverrides() {
