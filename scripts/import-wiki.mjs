@@ -50,14 +50,15 @@ const SITE_RESOURCES = {
   Miasma: {
     site: "Noxious Coral",
     perMinute: 15,
-    why: "Wiki (Miasma, Miasma Collector): a Noxious Coral generates 1 miasma every 4 s (15/min), held by the collector built on it",
+    why: "Wiki (Miasma, Miasma Collector): a Noxious Coral generates 1 miasma every 4 s (15/min), held by the collector built on it. A craft uses 2, so a collector crafts at most every 8 s",
   },
 };
 
-/** Supply caps in crafts/min. */
-const CRAFT_CAP = {
-  "Miasma Collector": [7.5, "Miasma arrives at 15/min and a craft uses 2 (wiki: capped to 8 s)"],
-};
+/**
+ * Hard caps in crafts/min that don't come from a site's supply. (A Miasma Collector is limited by
+ * its coral's miasma, which the solver works out from SITE_RESOURCES, so it isn't listed here.)
+ */
+const CRAFT_CAP = {};
 
 /**
  * Stack sizes the wiki gets wrong for the current game, by item name: [size, why]. The logic

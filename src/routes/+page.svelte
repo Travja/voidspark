@@ -4,6 +4,8 @@
   import { crewLabel } from "$lib/components/crews";
   import Icon from "$lib/components/Icon.svelte";
   import InputsView from "$lib/components/InputsView.svelte";
+  import Limits from "$lib/components/Limits.svelte";
+  import { checkLimits, limitName } from "$lib/engine/limits";
   import FlowDiagram from "$lib/components/FlowDiagram.svelte";
   import MaterialPicker from "$lib/components/MaterialPicker.svelte";
   import PlanBar from "$lib/components/PlanBar.svelte";
@@ -70,6 +72,31 @@
       return { error: e instanceof Error ? e.message : String(e) };
     }
   });
+  const limits = $derived("plan" in result ? checkLimits(result.plan, solver, app.cfg.limits) : null);
+  const short = $derived(limits?.uses.filter((x) => x.used > x.limit.amount + 1e-9) ?? []);
+
+  function undo() {
+    if (app.undo()) notify("Undone");
+  }
+  function redo() {
+    if (app.redo()) notify("Redone");
+  }
+  // Ctrl/⌘+Z and Ctrl/⌘+Shift+Z (or Ctrl+Y). Text fields keep their own undo.
+  $effect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      const el = e.target as HTMLElement | null;
+      if (el?.closest("input, textarea, select, [contenteditable]")) return;
+      const key = e.key.toLowerCase();
+      if (key === "z" && !e.shiftKey) undo();
+      else if ((key === "z" && e.shiftKey) || key === "y") redo();
+      else return;
+      e.preventDefault();
+    };
+    addEventListener("keydown", onKey);
+    return () => removeEventListener("keydown", onKey);
+  });
+
   const u = $derived(UNIT_FACTOR[app.cfg.unit]);
   const hasOverrides = $derived(
     Object.keys(app.cfg.stationCrew).length + Object.keys(app.cfg.recipeChoice).length > 0,
@@ -154,6 +181,10 @@
         <button onclick={() => app.addTarget("sawn-timber")}>+ Add target</button>
       </section>
 
+      {#if "plan" in result && limits}
+        <Limits plan={result.plan} report={limits} {app} />
+      {/if}
+
       <details class="card settings" bind:open={settingsOpen}>
         <summary>
           <h2>Settings</h2>
@@ -196,10 +227,22 @@
         {#each tabs as tab (tab.id)}
           <button class:active={app.cfg.view === tab.id} onclick={() => (app.cfg.view = tab.id)}>{tab.label}</button>
         {/each}
+        <span class="history-btns">
+          <button class="icon-btn" title="Undo (Ctrl+Z)" aria-label="Undo" disabled={!app.canUndo} onclick={undo}>↶</button>
+          <button class="icon-btn" title="Redo (Ctrl+Shift+Z)" aria-label="Redo" disabled={!app.canRedo} onclick={redo}>↷</button>
+        </span>
       </nav>
       {#if "error" in result}
         <div class="error">{result.error}</div>
       {:else}
+        {#each short as s (s.limit.id)}
+          <div class="warning">
+            Needs {s.limit.kind === "item" ? `${+(s.used * u).toPrecision(3)}/${app.cfg.unit}` : Math.ceil(s.used - 1e-9)}
+            {limitName(s.limit)}{s.limit.kind === "workstation" ? " machines" : s.limit.kind === "site" ? " sites" : ""}, you
+            have {s.limit.kind === "item" ? `${+(s.limit.amount * u).toPrecision(3)}/${app.cfg.unit}` : s.limit.amount}. See
+            What I have.
+          </div>
+        {/each}
         {#each result.plan.warnings as w (w)}
           <div class="warning">{w}</div>
         {/each}

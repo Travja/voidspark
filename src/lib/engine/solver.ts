@@ -2,7 +2,8 @@
  * VoidSpark production solver.
  *
  * Model (checked against oddsparks.wiki.gg Template:Recipe):
- *   crafts/min per machine = 60 * crewSpeed / buildTime, capped by the station's craftCap.
+ *   crafts/min per machine = 60 * crewSpeed / buildTime, capped by the station's craftCap and by
+ *   the supply of any site resource it uses (a Miasma Collector can't outpace its coral).
  *   crewSpeed is the sum of the sparks working the station (Stumpy 1, Crafty 1.5, Handy 2.5).
  *   A fuelled station burns `fuel.perMinute` items of the chosen fuel per minute while running.
  *   Randomised outputs count at their expected value (amount * chance).
@@ -24,6 +25,7 @@ import {
   type Recipe,
   type SparkType,
 } from "./data";
+import type { Limit } from "./limits";
 
 export const EXTERNAL = "external";
 
@@ -44,6 +46,8 @@ export interface PlanConfig {
   /** workstation id -> spark ids working it. */
   stationCrew: Record<string, string[]>;
   fuel: { material: string; perMinute: number };
+  /** What the player has (sites, items/min, machines). The solver ignores them; see limits.ts. */
+  limits?: Limit[];
 }
 
 export interface Edge {
@@ -254,9 +258,31 @@ export class Solver {
   }
 
   craftsPerMinute(recipe: Recipe): number {
-    const rate = (SECONDS_PER_MINUTE * this.crewSpeed(recipe.workstation)) / recipe.buildTime;
-    const cap = this.data.workstations.get(recipe.workstation)?.craftCap;
-    return cap !== undefined ? Math.min(rate, cap) : rate;
+    return this.craftRate(recipe).rate;
+  }
+
+  /**
+   * Crafts/min of one machine, and what holds it back: its crew, a fixed cap, or the site
+   * resource it draws from (each machine has its own site, so it gets one site's supply).
+   */
+  craftRate(recipe: Recipe): { rate: number; limitedBy: "crew" | "cap" | string } {
+    let rate = (SECONDS_PER_MINUTE * this.crewSpeed(recipe.workstation)) / recipe.buildTime;
+    let limitedBy = "crew";
+    const ws = this.data.workstations.get(recipe.workstation);
+    if (ws?.craftCap !== undefined && ws.craftCap < rate) {
+      rate = ws.craftCap;
+      limitedBy = "cap";
+    }
+    for (const f of recipe.from) {
+      const res = this.data.materials.get(f.material)?.siteResource;
+      if (!res || res.site !== ws?.site) continue;
+      const supply = res.perMinute / f.amount;
+      if (supply < rate) {
+        rate = supply;
+        limitedBy = f.material;
+      }
+    }
+    return { rate, limitedBy };
   }
 
   /** Expected units of `material` per minute from one machine running its chosen recipe. */

@@ -32,6 +32,13 @@ greenhouses, the Arboretum, and the metal sparks. It started from the PirateSpar
   Workbench and Workstation on an Ancient Base and Support, Arboretum on an Aetheric Fissure,
   Spark Workshop on an Ancient Foundation) need one site per machine. Miasma is made by the
   coral itself (15/min each, per the wiki), so it is counted as coral, not as a raw input.
+- **What I have.** Enter the sites you've claimed, items you have coming in, or machines you've
+  built ("2 × Noxious Coral"), and it shows the most your targets can make and which one runs out
+  first. **Make the most** sets the targets to that. Production scales linearly, so this is exact:
+  2 corals make at most 7.5 Refined Aether/min. A plan that needs more than you have is flagged.
+- **Undo and redo** for every change to your plans (targets, recipes, crews, limits, checklist).
+  Quick edits like typing a number count as one step. On a phone the buttons float in the corner;
+  on a computer, Ctrl/⌘+Z and Ctrl/⌘+Shift+Z work too.
 - **Inputs & cost.** Raw inputs needed, and the material cost to build every machine.
 - **Saved plans and share links.** Keep several named plans and switch between them. **Share**
   sends a link that opens the plan for whoever follows it. The plan is encoded in the URL
@@ -102,7 +109,10 @@ BASE_PATH=/voidspark npm run build   # then publish build/ (it includes .nojekyl
   seconds per craft with one Stumpy. PirateSpark's `120 × speed / buildTime` is the same
   formula with two identical sparks per machine. See
   [docs/wiki-recipe-audit.md](docs/wiki-recipe-audit.md).
-- Supply-limited stations are capped. The Miasma Collector runs at most 7.5 crafts/min.
+- A machine that uses a site resource can't craft faster than its site supplies it. A Miasma Collector
+  gets 15 miasma/min from its coral (1 every 4 s) and uses 2 per craft, so it tops out at one craft
+  every 8 s (7.5 crafts/min, 15 vials/min) however fast
+  its crew is (its 20-miasma buffer only covers bursts).
 - A fuelled machine burns the chosen fuel's per-minute amount from the game data.
 - Each target expands into its own tree. Every node is sized for exactly what its parent
   pulls, and the Build plan sums the branches into one group per recipe. Extra outputs are surplus and are never
@@ -134,6 +144,8 @@ BASE_PATH=/voidspark npm run build   # then publish build/ (it includes .nojekyl
 | `src/lib/state.svelte.ts` | Reactive app state (`$state`): saved plans, checklist, share-link encoding; persisted to localStorage |
 | `src/service-worker.ts`, `static/manifest.webmanifest` | Offline caching and install metadata |
 | `src/lib/engine/data.ts` | Typed access to game data, plus facts the JSON lacks (spark-powered stations) |
+| `src/lib/engine/limits.ts` | What I have: how much of each limit a plan uses, and the most it can make |
+| `src/lib/history.ts` | Undo/redo over plan snapshots |
 | `src/lib/engine/solver.ts` | Rates, machine counts, loops, trees, station and cost summaries. Framework-free |
 | `src/lib/components/` | Tree, machines, inputs views, and recipe/spark/material pickers |
 | `src/lib/data/oddsparks.json` | Game data imported from the wiki (generated, don't hand-edit) |

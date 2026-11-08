@@ -435,6 +435,14 @@
           {fmt(n.line.crafts, 3)} crafts/min
           {#if n.line.recipe.cycles}· growth recipe, rate approximate{/if}
         </p>
+        {@const limit = solver.craftRate(n.line.recipe)}
+        {#if limit.limitedBy !== "crew" && limit.limitedBy !== "cap"}
+          {@const res = GAME.materials.get(limit.limitedBy)?.siteResource}
+          <p class="small">
+            Each machine tops out at <strong>{fmt(limit.rate, 3)} crafts/min</strong>: its {res?.site ?? "site"} only makes
+            {fmtRate(res?.perMinute ?? 0, app.cfg.unit)} {displayName(limit.limitedBy)}. A faster crew won't help.
+          </p>
+        {/if}
         <div class="detail-controls">
           <label class="small">Sparks <CrewPicker workstation={n.line.recipe.workstation} {app} /></label>
           <label class="small">Recipe <RecipePicker material={n.material} {solver} {app} /></label>
