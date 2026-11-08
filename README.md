@@ -31,7 +31,7 @@ greenhouses, the Arboretum, and the metal sparks. It started from the PirateSpar
   Giant Rock, Miasma Collector on a Noxious Coral, Ore Miner on a Giant Ore Deposit, Spark
   Workbench and Workstation on an Ancient Base and Support, Arboretum on an Aetheric Fissure,
   Spark Workshop on an Ancient Foundation) need one site per machine. Miasma is made by the
-  coral itself (8/min each, measured in game; the wiki's 15/min is out of date), so it is counted as coral, not as a raw input.
+  coral itself (15/min each, per the wiki), so it is counted as coral, not as a raw input.
 - **Inputs & cost.** Raw inputs needed, and the material cost to build every machine.
 - **Saved plans and share links.** Keep several named plans and switch between them. **Share**
   sends a link that opens the plan for whoever follows it. The plan is encoded in the URL
@@ -103,7 +103,8 @@ BASE_PATH=/voidspark npm run build   # then publish build/ (it includes .nojekyl
   formula with two identical sparks per machine. See
   [docs/wiki-recipe-audit.md](docs/wiki-recipe-audit.md).
 - A machine that uses a site resource can't craft faster than its site supplies it. A Miasma Collector
-  gets 8 miasma/min from its coral and uses 2 per craft, so it tops out at 4 crafts/min however fast
+  gets 15 miasma/min from its coral (1 every 4 s) and uses 2 per craft, so it tops out at one craft
+  every 8 s (7.5 crafts/min, 15 vials/min) however fast
   its crew is (its 20-miasma buffer only covers bursts).
 - A fuelled machine burns the chosen fuel's per-minute amount from the game data.
 - Each target expands into its own tree. Every node is sized for exactly what its parent

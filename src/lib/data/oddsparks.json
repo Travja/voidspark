@@ -3542,7 +3542,7 @@
       "craftable": false,
       "siteResource": {
         "site": "Noxious Coral",
-        "perMinute": 8
+        "perMinute": 15
       },
       "defaultRecipe": null
     },

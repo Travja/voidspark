@@ -49,8 +49,8 @@ const NOT_SPARK_POWERED = {
 const SITE_RESOURCES = {
   Miasma: {
     site: "Noxious Coral",
-    perMinute: 8,
-    why: "Measured in game (1.0): a Noxious Coral caps at 8 miasma/min. The wiki still says 1 every 4 s (15/min), which is out of date",
+    perMinute: 15,
+    why: "Wiki (Miasma, Miasma Collector): a Noxious Coral generates 1 miasma every 4 s (15/min), held by the collector built on it. A craft uses 2, so a collector crafts at most every 8 s",
   },
 };
 
