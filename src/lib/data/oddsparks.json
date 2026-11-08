@@ -291,7 +291,7 @@
       ],
       "sparkPowered": true,
       "site": "Noxious Coral",
-      "craftCap": 7.5
+      "craftCap": 4
     },
     {
       "category": "harvesters",
@@ -3543,7 +3543,7 @@
       "craftable": false,
       "siteResource": {
         "site": "Noxious Coral",
-        "perMinute": 15
+        "perMinute": 8
       },
       "defaultRecipe": null
     },

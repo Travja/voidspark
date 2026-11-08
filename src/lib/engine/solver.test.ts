@@ -88,7 +88,7 @@ describe("rates and spark crews", () => {
   it("caps the miasma collector at its miasma supply", () => {
     expect(new Solver(base()).outputPerMachine("miasma-vial")).toBeCloseTo(3.75 * 2);
     const s = new Solver(base({ defaultCrew: ["spark-crafty", "spark-crafty"] }));
-    expect(s.outputPerMachine("miasma-vial")).toBeCloseTo(7.5 * 2);
+    expect(s.outputPerMachine("miasma-vial")).toBeCloseTo(4 * 2);
   });
 
   it("matches PirateSpark's rates with a crew of two identical sparks", () => {
@@ -297,20 +297,20 @@ describe("sites", () => {
   const sites = (p: Plan) => Object.fromEntries(p.sites.map((s) => [s.site, s.count]));
 
   it("counts one Noxious Coral per Miasma Collector, and miasma is not a raw input", () => {
-    // 10 miasma vials/min, 2 Crafty: collector capped at 7.5 crafts/min (coral makes 15 miasma/min,
-    // 2 per craft) -> 15 vials/min each -> 1 collector, 1 coral.
-    const p = makePlan(base({ targets: [target("miasma-vial", 10)], defaultCrew: ["spark-crafty", "spark-crafty"] }));
+    // 8 miasma vials/min, 2 Crafty: collector capped at 4 crafts/min (coral makes 8 miasma/min,
+    // 2 per craft) -> 8 vials/min each -> 1 collector, 1 coral.
+    const p = makePlan(base({ targets: [target("miasma-vial", 8)], defaultCrew: ["spark-crafty", "spark-crafty"] }));
     expect(sites(p)["Noxious Coral"]).toBe(1);
     expect(p.rawInputs.map((r) => r.material)).not.toContain("miasma");
     const coral = p.sites.find((s) => s.site === "Noxious Coral")!;
-    expect(coral.resources[0]).toMatchObject({ material: "miasma", perSite: 15 });
-    expect(coral.resources[0].used).toBeCloseTo(10);
+    expect(coral.resources[0]).toMatchObject({ material: "miasma", perSite: 8 });
+    expect(coral.resources[0].used).toBeCloseTo(8);
   });
 
-  it("scales coral with demand: 40 vials/min needs 3 collectors on 3 corals", () => {
+  it("scales coral with demand: 40 vials/min needs 5 collectors on 5 corals", () => {
     const p = makePlan(base({ targets: [target("miasma-vial", 40)], defaultCrew: ["spark-crafty", "spark-crafty"] }));
-    expect(sites(p)["Noxious Coral"]).toBe(3);
-    expect(line(p, "miasma-vial").machinesBuilt).toBe(3);
+    expect(sites(p)["Noxious Coral"]).toBe(5);
+    expect(line(p, "miasma-vial").machinesBuilt).toBe(5);
   });
 
   it("counts sites for every site-bound building", () => {
