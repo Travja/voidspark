@@ -7,6 +7,8 @@
  *   crewSpeed is the sum of the sparks working the station (Stumpy 1, Crafty 1.5, Handy 2.5).
  *   A fuelled station burns `fuel.perMinute` items of the chosen fuel per minute while running.
  *   Randomised outputs count at their expected value (amount * chance).
+ *   Growth recipes (greenhouse, arboretum) count each cycle as a craft: a cycle uses the listed
+ *   inputs, and the products come out after `cycles` of them.
  *
  * Production flows one way: from raw inputs toward the targets. Each target expands into its
  * own tree and every node is sized for exactly what its parent pulls, so no belt has to run
@@ -19,6 +21,7 @@
  */
 import {
   expectedOutput,
+  outputPerCraft,
   GAME,
   SECONDS_PER_MINUTE,
   type GameData,
@@ -390,7 +393,7 @@ export class Solver {
       crew: this.crewFor(recipe.workstation),
       byproducts: recipe.to
         .filter((t) => t.material !== material)
-        .map((t) => ({ material: t.material, rate: crafts * t.amount * (t.chance ?? 1), fuel: false })),
+        .map((t) => ({ material: t.material, rate: crafts * outputPerCraft(recipe, t), fuel: false })),
     };
   }
 
@@ -462,7 +465,7 @@ export class Solver {
         machines,
         machinesBuilt: Math.ceil(machines - EPS),
         inputs: this.craftInputs(recipe).map((e) => ({ material: e.material, rate: crafts * e.perUnit, fuel: e.fuel })),
-        outputs: recipe.to.map((t) => ({ material: t.material, rate: crafts * t.amount * (t.chance ?? 1), fuel: false })),
+        outputs: recipe.to.map((t) => ({ material: t.material, rate: crafts * outputPerCraft(recipe, t), fuel: false })),
       });
     }
 

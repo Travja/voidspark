@@ -113,6 +113,10 @@ BASE_PATH=/voidspark npm run build   # then publish build/ (it includes .nojekyl
   gets 15 miasma/min from its coral (1 every 4 s) and uses 2 per craft, so it tops out at one craft
   every 8 s (7.5 crafts/min, 15 vials/min) however fast
   its crew is (its 20-miasma buffer only covers bursts).
+- Greenhouse and Arboretum recipes grow in cycles (10 and 100). Each cycle takes the recipe's
+  duration and uses its listed inputs, and the products come out after the last cycle. Leafy
+  Growth with one Stumpy: 640 s and 40 Leaves + 20 Fertiliser per 10 Leaf Knots. The solver counts
+  cycles as crafts, so cards show cycles/min for these, and the 🌱 tag marks them.
 - A fuelled machine burns the chosen fuel's per-minute amount from the game data.
 - Each target expands into its own tree. Every node is sized for exactly what its parent
   pulls, and the Build plan sums the branches into one group per recipe. Extra outputs are surplus and are never
@@ -172,8 +176,7 @@ and the other gaps are listed as assumptions in
 ## Known gaps
 
 - Temperature (heaters/coolers) isn't modelled. "Overclocked" recipes come in as alternates.
-- Greenhouse and Arboretum recipes have growth `cycles` that the wiki doesn't explain, so they
-  are treated as ordinary recipes and tagged "≈ growth".
+- The Arboretum's feeders aren't modelled: its inputs are shown as going into the Arboretum.
 - The Ancient Printer/Generator/Greenhouse, Tailor's Tent, Aetheric Converter Feeder, and the
   shrines are left out. They are fixed ruins, cosmetic, or one-off repairs.
 - The wiki is missing region categories for most 1.0 items. The importer fills them in from

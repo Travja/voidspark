@@ -332,3 +332,34 @@ describe("sites", () => {
     expect(s["Noxious Coral"]).toBe(1);
   });
 });
+
+describe("growth recipes (greenhouse, arboretum)", () => {
+  // Leafy Growth: 4 Leaves + 2 Fertiliser per cycle, 64 s per cycle with one Stumpy, and the
+  // 10 Leaf Knots come out after 10 cycles. So one greenhouse makes 10 knots per 640 s.
+  it("products come out after all the cycles; inputs are used every cycle", () => {
+    const s = new Solver(base());
+    expect(s.outputPerMachine("leaf-knot")).toBeCloseTo((10 / 640) * 60); // 0.9375/min
+    const p = makePlan(base({ targets: [target("leaf-knot", 10)] }));
+    const rp = p.recipes.get("leafy-growth")!;
+    expect(rp.crafts).toBeCloseTo(10); // cycles/min: 1 batch/min needs 10 cycles/min
+    expect(rp.machines).toBeCloseTo(10 / (60 / 64));
+    expect(rp.inputs.find((i) => i.material === "leaves")!.rate).toBeCloseTo(40);
+    expect(rp.inputs.find((i) => i.material === "fertiliser")!.rate).toBeCloseTo(20);
+    expect(rp.outputs[0].rate).toBeCloseTo(10);
+  });
+
+  it("a machine-count target counts whole batches", () => {
+    // 1 greenhouse, 2 Crafty (3x): a batch every 640 / 3 s -> 10 knots per 213 s.
+    const p = makePlan(base({ targets: [target("leaf-knot", 1, "machines")], defaultCrew: ["spark-crafty", "spark-crafty"] }));
+    expect(p.materials.get("leaf-knot")!.targetRate).toBeCloseTo((10 * 60) / (640 / 3));
+  });
+
+  it("applies to the arboretum's 100 cycles", () => {
+    // Aether Tree: 256 s per cycle, 100 cycles per apple, 5 Liquid Fertiliser + 5 Aether Seed per cycle.
+    const p = makePlan(base({ targets: [target("aether-apple", 1)] }));
+    const rp = p.recipes.get("aether-tree")!;
+    expect(rp.crafts).toBeCloseTo(100);
+    expect(rp.inputs.find((i) => i.material === "aether-seed")!.rate).toBeCloseTo(500);
+    expect(rp.machines).toBeCloseTo(100 / (60 / 256));
+  });
+});

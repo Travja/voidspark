@@ -19,7 +19,12 @@ export interface Recipe {
   fuelRequired: boolean;
   from: Amount[];
   to: Output[];
-  /** Growth cycles (greenhouse / arboretum). The wiki doesn't define it, so rates are approximate. */
+  /**
+   * Growth cycles (greenhouse / arboretum). Each cycle takes `buildTime` and uses the inputs in
+   * `from`; the products in `to` only come out once all the cycles are done (wiki Template:Recipe,
+   * confirmed in game). So one batch of Leafy Growth (64 s, 10 cycles) takes 640 s with one Stumpy
+   * and uses 40 Leaves + 20 Fertiliser for 10 Leaf Knots.
+   */
   cycles?: number;
   /** Preferred temperature from the wiki. Not modelled. */
   temperature?: string;
@@ -101,9 +106,18 @@ export const SECONDS_PER_MINUTE = 60;
  */
 export const DEFAULT_SPARK_SLOTS = 2;
 
-/** Expected units of `material` per craft, counting the chance of randomised outputs. */
+/** Cycles per batch: how many crafts it takes before the products come out. */
+export const cyclesOf = (recipe: Recipe) => (recipe.cycles && recipe.cycles > 1 ? recipe.cycles : 1);
+
+/**
+ * Expected units of one output per craft, counting the chance of randomised outputs. The solver
+ * counts a growth recipe's cycles as its crafts, so a batch's products are spread over its cycles.
+ */
+export const outputPerCraft = (recipe: Recipe, out: Output) => (out.amount * (out.chance ?? 1)) / cyclesOf(recipe);
+
+/** Expected units of `material` per craft (per cycle, for growth recipes). */
 export function expectedOutput(recipe: Recipe, material: string): number {
-  return recipe.to.reduce((n, t) => (t.material === material ? n + t.amount * (t.chance ?? 1) : n), 0);
+  return recipe.to.reduce((n, t) => (t.material === material ? n + outputPerCraft(recipe, t) : n), 0);
 }
 
 export function inputAmount(recipe: Recipe, material: string): number {

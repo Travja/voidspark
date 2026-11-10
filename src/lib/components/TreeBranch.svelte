@@ -78,10 +78,10 @@
           {/if}
           {#if node.recipe.cycles}
             <span
-              class="tag approx"
-              title="Growth recipe ({node.recipe.cycles} cycles); the wiki doesn't say exactly how cycles work, so this rate is approximate"
+              class="tag growth"
+              title="Growth recipe: each cycle uses the inputs, and the products come out after {node.recipe.cycles} cycles"
             >
-              ≈ growth
+              🌱 {node.recipe.cycles} cycles
             </span>
           {/if}
         </div>

@@ -386,7 +386,8 @@ aside {
 }
 
 .tag.chance,
-.tag.approx {
+.tag.approx,
+.tag.growth {
   color: var(--muted);
   border: 1px solid var(--border);
 }

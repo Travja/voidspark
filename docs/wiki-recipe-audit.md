@@ -32,4 +32,4 @@ Imported on 2026-11-01 by `scripts/import-wiki.mjs`: 110 recipes, 102 items, 21 
 See [wiki-import-report.md](wiki-import-report.md) for how each conflicting or excluded wiki
 entry was handled. Default recipes are chosen so that no production line loops back on
 itself. Extra outputs of multi-output recipes are surplus, and randomised outputs count at
-their expected value. Temperature isn't modelled, and growth `cycles` are approximate.
+their expected value. Temperature isn't modelled. Growth `cycles` follow Template:Recipe ("requires X number of completed cycles to actually produce the output"), with inputs used every cycle (confirmed in game).
