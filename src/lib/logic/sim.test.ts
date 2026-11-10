@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { connectPath, decodeCircuit, encodeCircuit, pathEndpoint, planWire, validateCircuit } from "./circuit";
 import { CircuitBuilder, EXAMPLES, legacyExample } from "./examples";
-import { PART_TYPES, stackSize, TICK } from "./parts";
+import { machineRecipe, PART_TYPES, stackSize, TICK } from "./parts";
 import { paint } from "./grid";
 import { Sim } from "./sim";
 import type { Rot } from "./types";
@@ -1160,4 +1160,17 @@ describe("compressor", () => {
     }
   });
 
+});
+
+describe("machine recipes", () => {
+  it("a growth recipe runs as one batch: every cycle's inputs and time, then the products", () => {
+    const cfg = { ...PART_TYPES.find((t) => t.id === "machine")!.defaults(), recipe: "leafy-growth", speed: 1 } as Parameters<typeof machineRecipe>[0];
+    const r = machineRecipe(cfg);
+    expect(r.seconds).toBe(640);
+    expect(r.from).toEqual([
+      { material: "leaves", amount: 40 },
+      { material: "fertiliser", amount: 20 },
+    ]);
+    expect(r.to).toEqual([{ material: "leaf-knot", amount: 10 }]);
+  });
 });

@@ -360,7 +360,7 @@
                   {#each n.line.crew as s, i (i)}<Icon id={s.block} size={14} title={s.name} />{/each}
                 </span>
                 {#if surplusOf(n).length}<span class="tag surplus" title="Extra outputs nothing uses">+ surplus</span>{/if}
-                {#if n.line.recipe.cycles}<span class="tag approx">≈</span>{/if}
+                {#if n.line.recipe.cycles}<span class="tag growth" title="{n.line.recipe.cycles} growth cycles per batch">🌱</span>{/if}
               </span>
             {:else if n.kind === "target"}
               <span class="card-row"><span class="tag target">target</span></span>
@@ -432,9 +432,19 @@
         {/if}
         <p class="small muted">
           {n.line.recipe.name} · {fmt(n.line.machines, 3)} machines exactly ({fmtLoad(n.line.machines)} busy) ·
-          {fmt(n.line.crafts, 3)} crafts/min
-          {#if n.line.recipe.cycles}· growth recipe, rate approximate{/if}
+          {#if n.line.recipe.cycles}
+            {fmt(n.line.crafts, 3)} cycles/min
+          {:else}
+            {fmt(n.line.crafts, 3)} crafts/min
+          {/if}
         </p>
+        {#if n.line.recipe.cycles}
+          <p class="small">
+            Grows in batches: each of its {n.line.recipe.cycles} cycles uses the inputs, then the products come out. One
+            batch takes <strong>{fmt((n.line.recipe.cycles * 60) / n.line.craftsPerMachine, 3)} s</strong> per machine with
+            this crew.
+          </p>
+        {/if}
         {@const limit = solver.craftRate(n.line.recipe)}
         {#if limit.limitedBy !== "crew" && limit.limitedBy !== "cap"}
           {@const res = GAME.materials.get(limit.limitedBy)?.siteResource}

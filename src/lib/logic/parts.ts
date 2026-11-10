@@ -1,6 +1,6 @@
 // The part registry: every component the sandbox can place, with its ports, settings and
 // behaviour. Behaviour follows docs/logic-components.md (wiki facts plus listed assumptions).
-import { GAME, type Recipe } from "../engine/data";
+import { cyclesOf, GAME, type Recipe } from "../engine/data";
 import type { Config, FieldDef, PartStatus, PartType, PortDef, StepCtx, StorageView } from "./types";
 
 /** Simulation tick, in seconds. Game settings come in 0.1 s steps, so they land on whole ticks. */
@@ -1062,10 +1062,12 @@ export const slotSize = (cfg: { slot: number }, item: string) => (cfg.slot > 0 ?
 export function machineRecipe(cfg: MachineCfg): MachineRecipe {
   const r: Recipe | undefined = cfg.recipe ? GAME.recipesById.get(cfg.recipe) : undefined;
   if (r) {
+    // A growth recipe is one batch: every cycle's inputs and time, then the products.
+    const cycles = cyclesOf(r);
     return {
-      from: r.from.map((f) => ({ material: f.material, amount: f.amount })),
+      from: r.from.map((f) => ({ material: f.material, amount: f.amount * cycles })),
       to: r.to.filter((t) => (t.chance ?? 1) >= 1).map((t) => ({ material: t.material, amount: t.amount })),
-      seconds: r.buildTime / (cfg.speed || 1),
+      seconds: (r.buildTime * cycles) / (cfg.speed || 1),
     };
   }
   return {
