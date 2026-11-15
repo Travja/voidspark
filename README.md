@@ -14,8 +14,17 @@ greenhouses, the Arboretum, and the metal sparks. It started from the PirateSpar
   marked "supply separately".
 - **Recipe choices.** Pick between recipes, or mark any material as supplied externally,
   directly in the tree.
-- **One-way production lines.** Every line flows from raw inputs toward its target and never
-  loops back. Extra outputs from multi-output recipes (Plant Extractor, Geode Breaker…) are
+- **Loop-backs (optional).** A Settings option: *greenhouse & arboretum chains only* (the
+  default), *always*, or *never*. Looping back feeds byproducts into the machines that use them
+  (extracted copper seeds back into the Arboretum), and makes an input that's needed further down
+  its own chain in-line instead of supplying it separately. Each loop can be switched on its own
+  from the Build plan's Loop-backs panel or the tree. Excess byproducts are listed as surplus. In
+  the Build plan, loop-back arrows are dotted and run round the outside of the diagram.
+- **Arboretum feeders.** An Arboretum is worked through its feeders (4 by default, 1 to 12): each
+  feeder's crew adds speed. Feeders are counted in staffing and build cost, with a stepper in the
+  Build plan details.
+- **One-way production lines** (when loop-backs are off). Every line flows from raw inputs toward
+  its target and never loops back. Extra outputs from multi-output recipes (Plant Extractor, Geode Breaker…) are
   listed as surplus. They aren't fed back into earlier machines or into other lines, so belts
   don't cross back over the build. Random outputs count at their expected value.
 - **Build plan.** A diagram of what to build. Each card is a group of machines running one
@@ -121,6 +130,10 @@ BASE_PATH=/voidspark npm run build   # then publish build/ (it includes .nojekyl
 - Each target expands into its own tree. Every node is sized for exactly what its parent
   pulls, and the Build plan sums the branches into one group per recipe. Extra outputs are surplus and are never
   credited anywhere.
+- Loop-backs (`closeLoops`): for each looped material, its own chain is resized so that, with
+  byproducts fed back, supply meets the plan's whole use of it. That changes what the chain uses
+  and makes, so it repeats until it settles. A loop that needs one or more units back per unit
+  made never settles; it's reported and supplied separately.
 - If an input already appears further up its own chain (coal fuelling the coal furnace,
   enrichment recipes, seed ↔ plant cycles), it isn't produced in a loop. It's flagged to be
   supplied separately. The importer picks loop-free default recipes, so this only happens
@@ -176,7 +189,7 @@ and the other gaps are listed as assumptions in
 ## Known gaps
 
 - Temperature (heaters/coolers) isn't modelled. "Overclocked" recipes come in as alternates.
-- The Arboretum's feeders aren't modelled: its inputs are shown as going into the Arboretum.
+- The Arboretum's inputs are shown going into the Arboretum, not split across its feeders.
 - The Ancient Printer/Generator/Greenhouse, Tailor's Tent, Aetheric Converter Feeder, and the
   shrines are left out. They are fixed ruins, cosmetic, or one-off repairs.
 - The wiki is missing region categories for most 1.0 items. The importer fills them in from

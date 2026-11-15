@@ -1,9 +1,16 @@
 <script lang="ts">
-  import type { Solver, TreeNode } from "../engine/solver";
+  import type { LoopInfo, Solver, TreeNode } from "../engine/solver";
+  import { displayName } from "./icons";
   import type { AppState } from "../state.svelte";
   import TreeBranch from "./TreeBranch.svelte";
 
-  let { trees, solver, app }: { trees: TreeNode[]; solver: Solver; app: AppState } = $props();
+  let {
+    trees,
+    solver,
+    app,
+    loops = [],
+  }: { trees: TreeNode[]; solver: Solver; app: AppState; loops?: LoopInfo[] } = $props();
+  const fedBack = $derived(loops.filter((l) => l.loopBack && l.fedBack > 1e-9));
 
   let collapsed = $state(new Set<string>());
 
@@ -34,6 +41,12 @@
       counts are for that branch only; the Build plan has the combined totals.
     </span>
   </div>
+  {#if fedBack.length}
+    <p class="muted small tree-note">
+      ↻ Loop-backs feed {fedBack.map((l) => displayName(l.material)).join(", ")} back into this plan. The tree shows each
+      branch before that feedback; the Build plan and Inputs include it.
+    </p>
+  {/if}
   <ul class="tree root">
     {#each trees as t (t.id)}
       <TreeBranch node={t} {solver} {app} {collapsed} {toggle} />

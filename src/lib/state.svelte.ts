@@ -1,7 +1,7 @@
 import { GAME } from "./engine/data";
 import { fromBase64Url, toBase64Url } from "./base64url";
 import { allSites, type Limit } from "./engine/limits";
-import { EXTERNAL, type PlanConfig, type Target } from "./engine/solver";
+import { EXTERNAL, type LoopMode, type PlanConfig, type Target } from "./engine/solver";
 import { History } from "./history";
 
 export type RateUnit = "sec" | "min" | "hr";
@@ -46,6 +46,9 @@ export const defaultPlanConfig = (): PlanConfig => ({
   stationCrew: {},
   fuel: { material: "wooden-log", perMinute: GAME.fuels.find((f) => f.id === "wooden-log")!.perMinute },
   limits: [],
+  loopMode: "growth",
+  loopChoice: {},
+  feeders: {},
 });
 
 /**
@@ -127,6 +130,12 @@ interface SharePayload {
   f?: [string, number];
   /** limits: [kind ("s" site | "i" item | "w" workstation), key, amount] */
   l?: [string, string, number][];
+  /** loop mode, when not the default ("growth") */
+  lm?: LoopMode;
+  /** loop choices: material -> 1 (loop back) | 0 (supply separately) */
+  lc?: Record<string, 0 | 1>;
+  /** feeders per station */
+  fd?: Record<string, number>;
 }
 
 export function encodePlan(name: string, cfg: PlanConfig): string {
@@ -139,6 +148,11 @@ export function encodePlan(name: string, cfg: PlanConfig): string {
   payload.c = cfg.defaultCrew;
   if (Object.keys(cfg.stationCrew).length) payload.s = cfg.stationCrew;
   payload.f = [cfg.fuel.material, cfg.fuel.perMinute];
+  if (cfg.loopMode && cfg.loopMode !== "growth") payload.lm = cfg.loopMode;
+  if (cfg.loopChoice && Object.keys(cfg.loopChoice).length) {
+    payload.lc = Object.fromEntries(Object.entries(cfg.loopChoice).map(([m, c]) => [m, c === "loop" ? 1 : 0]));
+  }
+  if (cfg.feeders && Object.keys(cfg.feeders).length) payload.fd = cfg.feeders;
   if (cfg.limits?.length) {
     payload.l = cfg.limits.map((l) => [l.kind[0], l.key, +l.amount.toPrecision(6)]);
   }
@@ -176,6 +190,14 @@ export function decodePlan(data: string): { name: string; config: PlanConfig } |
   }
   const fuel = p.f && GAME.fuels.find((f) => f.id === p.f![0]);
   if (fuel) config.fuel = { material: fuel.id, perMinute: fuel.perMinute };
+  if (p.lm === "all" || p.lm === "none") config.loopMode = p.lm;
+  for (const [m, c] of Object.entries(p.lc ?? {})) {
+    if (GAME.materials.has(m) && (c === 0 || c === 1)) config.loopChoice![m] = c ? "loop" : "supply";
+  }
+  for (const [ws, n] of Object.entries(p.fd ?? {})) {
+    const fed = GAME.workstations.get(ws)?.fedBy;
+    if (fed && Number.isInteger(n) && n >= 1 && n <= fed.max) config.feeders![ws] = n;
+  }
   const kinds = { s: "site", i: "item", w: "workstation" } as const;
   const sites = new Set(allSites());
   config.limits = (Array.isArray(p.l) ? p.l : [])
@@ -268,7 +290,17 @@ export class AppState {
    */
   readonly cfg: AppConfig = (() => {
     const self = this;
-    const planKeys = ["targets", "recipeChoice", "defaultCrew", "stationCrew", "fuel", "limits"] as const;
+    const planKeys = [
+      "targets",
+      "recipeChoice",
+      "defaultCrew",
+      "stationCrew",
+      "fuel",
+      "limits",
+      "loopMode",
+      "loopChoice",
+      "feeders",
+    ] as const;
     const view = {} as AppConfig;
     for (const key of planKeys) {
       Object.defineProperty(view, key, {
@@ -338,9 +370,25 @@ export class AppState {
     for (const t of this.cfg.targets) t.value = round(t.value * factor);
   }
 
+  /** Feed a material back ("loop"), supply it separately ("supply"), or go back to the default (null). */
+  setLoopChoice(material: string, choice: "loop" | "supply" | null) {
+    if (choice === null) delete this.cfg.loopChoice[material];
+    else this.cfg.loopChoice[material] = choice;
+  }
+
+  setFeeders(workstation: string, count: number) {
+    const fed = GAME.workstations.get(workstation)?.fedBy;
+    if (!fed) return;
+    const n = Math.min(fed.max, Math.max(1, Math.round(count)));
+    if (n === fed.count) delete this.cfg.feeders[workstation];
+    else this.cfg.feeders[workstation] = n;
+  }
+
   clearOverrides() {
     this.cfg.stationCrew = {};
     this.cfg.recipeChoice = {};
+    this.cfg.loopChoice = {};
+    this.cfg.feeders = {};
   }
 
   // --- saved plans ---------------------------------------------------------------------------

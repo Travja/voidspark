@@ -1,5 +1,5 @@
 {
-  "version": "wiki 2026-11-05",
+  "version": "wiki 2026-11-15",
   "source": "https://oddsparks.wiki.gg (CC BY-SA)",
   "spark": [
     {
@@ -143,7 +143,32 @@
         }
       ],
       "sparkPowered": false,
-      "site": "Aetheric Fissure"
+      "site": "Aetheric Fissure",
+      "fedBy": {
+        "workstation": "arboretum-feeder",
+        "count": 4,
+        "max": 12
+      }
+    },
+    {
+      "category": "miscellaneous",
+      "id": "arboretum-feeder",
+      "name": "Arboretum Feeder",
+      "cost": [
+        {
+          "id": "stone-plate",
+          "amount": 20
+        },
+        {
+          "id": "copper-ingot",
+          "amount": 10
+        },
+        {
+          "id": "frilled-walrion-tusk",
+          "amount": 1
+        }
+      ],
+      "sparkPowered": true
     },
     {
       "category": "refiners",
@@ -3402,6 +3427,13 @@
       "category": "metal-sparks",
       "craftable": true,
       "defaultRecipe": "freezing-spark"
+    },
+    {
+      "id": "frilled-walrion-tusk",
+      "name": "Frilled Walrion Tusk",
+      "category": "plateau-items",
+      "craftable": false,
+      "defaultRecipe": null
     },
     {
       "id": "frowl-sac",

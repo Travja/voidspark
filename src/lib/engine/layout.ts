@@ -8,6 +8,9 @@
  *   3. Order within a layer: a few barycenter sweeps to reduce crossings.
  *   4. Coordinates: layers are centred; arrow ports are spread along each card edge, sorted by
  *      where the arrow goes next, so arrows into one card don't pile up.
+ * Loop-backs make arrows that run back to an earlier layer. Those are routed around the outside
+ * of the diagram (below it, or to its right when top-to-bottom), each in its own track, so they
+ * never pass behind a machine either.
  * `direction: "lr"` lays layers out as columns (left to right); "tb" as rows (top to bottom),
  * which suits narrow screens.
  */
@@ -59,6 +62,8 @@ export interface PlacedEdge {
   segments: Segment[];
   /** SVG path for the arrow. */
   path: string;
+  /** Runs back to an earlier layer (a loop-back), around the outside of the diagram. */
+  back?: boolean;
 }
 
 export interface Layout {
@@ -72,6 +77,9 @@ export interface Layout {
 
 /** Thickness of a lane reserved for an arrow passing through a layer. */
 const LANE = 6;
+/** Loop-back arrows: distance of the first track outside the cards, and spacing between tracks. */
+const BACK_MARGIN = 24;
+const BACK_TRACK = 12;
 
 interface Vertex {
   id: string;
@@ -101,6 +109,7 @@ export function layoutFlow(nodes: FlowNode[], edges: FlowEdge[], opt: LayoutOpti
     state.set(id, 1);
     let r = 0;
     for (const e of outReal.get(id)!) {
+      if (e.loop) continue; // loop-backs run back up the line; they don't decide the layers
       const s = visit(e.to);
       if (s >= 0) r = Math.max(r, s + 1);
     }
@@ -250,6 +259,8 @@ export function layoutFlow(nodes: FlowNode[], edges: FlowEdge[], opt: LayoutOpti
   };
 
   const placedEdges: PlacedEdge[] = [];
+  let backCount = 0;
+  let flowEnd = flowSize;
   for (const e of live) {
     const ids = chain.get(e)!;
     const a = placed.get(e.from)!;
@@ -258,11 +269,24 @@ export function layoutFlow(nodes: FlowNode[], edges: FlowEdge[], opt: LayoutOpti
     const la = vertices.get(e.from)!.layer;
     const lb = vertices.get(e.to)!.layer;
     const segments: Segment[] = [];
-    if (lb <= la) {
-      // Back edge from a user-chosen loop: just connect the ports.
-      const start = tb ? { x: p.out, y: a.y + a.height } : { x: a.x + a.width, y: p.out };
-      const end = tb ? { x: p.in, y: b.y } : { x: b.x, y: p.in };
-      segments.push(curve(start, end));
+    const back = lb <= la;
+    if (back) {
+      // Loop-back: out of the source, round the outside in its own track, into the target.
+      const k = backCount++;
+      const d = Math.min(opt.columnGap / 3, 10 + 6 * k);
+      const g1 = layerStart[la] + layerDepth[la] + d;
+      const g2 = layerStart[lb] - d;
+      const outside = crossSize + BACK_MARGIN + BACK_TRACK * k;
+      const points = [
+        pt(tb ? a.y + a.height : a.x + a.width, p.out),
+        pt(g1, p.out),
+        pt(g1, outside),
+        pt(g2, outside),
+        pt(g2, p.in),
+        pt(layerStart[lb], p.in),
+      ];
+      for (let i = 1; i < points.length; i++) segments.push(straight(points[i - 1], points[i]));
+      flowEnd = Math.max(flowEnd, g1);
     } else {
       // Leave the source card, and in tb drop to the bottom of its row first (cards are top-aligned).
       let cur = tb ? { x: p.out, y: a.y + a.height } : { x: a.x + a.width, y: p.out };
@@ -285,14 +309,15 @@ export function layoutFlow(nodes: FlowNode[], edges: FlowEdge[], opt: LayoutOpti
     const path = `M ${f(segments[0].p0)} ${segments.map((s) => `C ${f(s.c1)}, ${f(s.c2)}, ${f(s.p3)}`).join(" ")}`;
     const first = segments[0].p0;
     const last = segments.at(-1)!.p3;
-    placedEdges.push({ edge: e, x1: first.x, y1: first.y, x2: last.x, y2: last.y, segments, path });
+    placedEdges.push({ edge: e, x1: first.x, y1: first.y, x2: last.x, y2: last.y, segments, path, ...(back ? { back } : {}) });
   }
+  const crossTotal = crossSize + (backCount ? BACK_MARGIN + BACK_TRACK * backCount : 0);
 
   return {
     nodes: [...placed.values()],
     edges: placedEdges,
-    width: tb ? crossSize : flowSize,
-    height: tb ? flowSize : crossSize,
+    width: tb ? crossTotal : flowEnd,
+    height: tb ? flowEnd : crossTotal,
     columns: layerCount,
     direction: tb ? "tb" : "lr",
   };
