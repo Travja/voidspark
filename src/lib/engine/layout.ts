@@ -64,6 +64,11 @@ export interface PlacedEdge {
   path: string;
   /** Runs back to an earlier layer (a loop-back), around the outside of the diagram. */
   back?: boolean;
+  /**
+   * Loop-backs carrying the same item into the same card share one track and one way in, so they
+   * read as one arrow. Every edge in the group has this; only the lead one shows the label.
+   */
+  group?: { rate: number; edges: FlowEdge[]; lead: boolean };
 }
 
 export interface Layout {
@@ -246,10 +251,13 @@ export function layoutFlow(nodes: FlowNode[], edges: FlowEdge[], opt: LayoutOpti
     }
   });
 
+  const isBack = (e: FlowEdge) => vertices.get(e.to)!.layer <= vertices.get(e.from)!.layer;
   // Ports: spread along the card edge facing the flow, ordered by where each arrow goes next.
   const port = new Map<FlowEdge, { out: number; in: number }>();
   const spread = (card: PlacedNode, list: FlowEdge[], neighbour: (e: FlowEdge) => string, side: "out" | "in") => {
-    const sorted = [...list].sort((a, b) => acrossCentre.get(neighbour(a))! - acrossCentre.get(neighbour(b))!);
+    // Loop-backs leave from the end nearest their track, outside the diagram.
+    const key = (e: FlowEdge) => (isBack(e) ? Infinity : acrossCentre.get(neighbour(e))!);
+    const sorted = [...list].sort((a, b) => key(a) - key(b));
     const start = tb ? card.x : card.y;
     const length = tb ? card.width : card.height;
     const inset = Math.min(18, length * 0.2);
@@ -259,9 +267,25 @@ export function layoutFlow(nodes: FlowNode[], edges: FlowEdge[], opt: LayoutOpti
       port.set(e, p);
     });
   };
+  // Loop-backs, grouped by the card and item they bring back.
+  const backGroups = new Map<string, FlowEdge[]>();
+  for (const e of live) {
+    if (!isBack(e)) continue;
+    const key = [e.to, e.material, e.fuel ? 1 : 0].join("|");
+    backGroups.set(key, [...(backGroups.get(key) ?? []), e]);
+  }
+  const groupOf = new Map<FlowEdge, { index: number; edges: FlowEdge[] }>();
+  [...backGroups.values()].forEach((edges, index) => edges.forEach((e) => groupOf.set(e, { index, edges })));
+  /** No other card beyond this one in its layer, on the side the loop-back tracks run. */
+  const outermost = (id: string) => {
+    const layer = layers[vertices.get(id)!.layer];
+    return layer.slice(layer.indexOf(id) + 1).every((v) => !vertices.get(v)!.node);
+  };
+
   for (const [id, card] of placed) {
     spread(card, outReal.get(id)!, (e) => chain.get(e)![1], "out");
-    spread(card, incReal.get(id)!, (e) => chain.get(e)!.at(-2)!, "in");
+    // Loop-backs come in their own way (below), so they don't take ports from the ordinary inputs.
+    spread(card, incReal.get(id)!.filter((e) => !isBack(e)), (e) => chain.get(e)!.at(-2)!, "in");
   }
 
   // Arrow geometry: straight through each lane, curving only in the gaps between layers.
@@ -293,21 +317,29 @@ export function layoutFlow(nodes: FlowNode[], edges: FlowEdge[], opt: LayoutOpti
     const lb = vertices.get(e.to)!.layer;
     const segments: Segment[] = [];
     const back = lb <= la;
-    if (back) {
-      // Loop-back: out of the source, round the outside in its own track, into the target.
-      const k = backCount++;
+    const group = groupOf.get(e);
+    if (back && group) {
+      // Loop-back: out of the source, round the outside on its group's track, into the target.
+      // Several sources of one item into one card share the track and the way in.
+      const k = group.index;
       const d = Math.min(opt.columnGap / 3, 10 + 6 * k);
       const g1 = layerStart[la] + layerDepth[la] + d;
-      const g2 = layerStart[lb] - d;
       const outside = crossSize + BACK_MARGIN + BACK_TRACK * k;
-      const points = [
-        pt(tb ? a.y + a.height : a.x + a.width, p.out),
-        pt(g1, p.out),
-        pt(g1, outside),
-        pt(g2, outside),
-        pt(g2, p.in),
-        pt(layerStart[lb], p.in),
-      ];
+      const points = [pt(tb ? a.y + a.height : a.x + a.width, p.out), pt(g1, p.out), pt(g1, outside)];
+      const bAlongStart = tb ? b.y : b.x;
+      const bAlongSize = tb ? b.height : b.width;
+      const bAcrossEnd = tb ? b.x + b.width : b.y + b.height;
+      if (outermost(e.to)) {
+        // Nothing beyond the target: come straight in from the side facing the track.
+        const mid = bAlongStart + bAlongSize / 2;
+        points.push(pt(mid, outside), pt(mid, bAcrossEnd));
+      } else {
+        // Otherwise through the gap before it, into the far end of its input edge.
+        const g2 = layerStart[lb] - d;
+        const inset = Math.min(14, (tb ? b.width : b.height) * 0.15);
+        points.push(pt(g2, outside), pt(g2, bAcrossEnd - inset), pt(bAlongStart, bAcrossEnd - inset));
+      }
+      backCount = Math.max(backCount, k + 1);
       for (let i = 1; i < points.length; i++) segments.push(straight(points[i - 1], points[i]));
       flowEnd = Math.max(flowEnd, g1);
     } else {
@@ -332,7 +364,19 @@ export function layoutFlow(nodes: FlowNode[], edges: FlowEdge[], opt: LayoutOpti
     const path = `M ${f(segments[0].p0)} ${segments.map((s) => `C ${f(s.c1)}, ${f(s.c2)}, ${f(s.p3)}`).join(" ")}`;
     const first = segments[0].p0;
     const last = segments.at(-1)!.p3;
-    placedEdges.push({ edge: e, x1: first.x, y1: first.y, x2: last.x, y2: last.y, segments, path, ...(back ? { back } : {}) });
+    placedEdges.push({
+      edge: e,
+      x1: first.x,
+      y1: first.y,
+      x2: last.x,
+      y2: last.y,
+      segments,
+      path,
+      ...(back ? { back } : {}),
+      ...(group
+        ? { group: { rate: group.edges.reduce((n, x) => n + x.rate, 0), edges: group.edges, lead: group.edges[0] === e } }
+        : {}),
+    });
   }
   // Top to bottom, the tracks run down the right-hand side: leave room for their labels too.
   const crossTotal = crossSize + (backCount ? BACK_MARGIN + BACK_TRACK * backCount + (tb ? BACK_LABEL_ROOM : 0) : 0);
