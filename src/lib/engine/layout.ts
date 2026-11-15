@@ -200,16 +200,142 @@ export function layoutFlow(nodes: FlowNode[], edges: FlowEdge[], opt: LayoutOpti
     }
     layer.sort((a, b) => bary.get(a)! - bary.get(b)!);
   };
-  for (let it = 0; it < 8; it++) {
+  /** Crossings between layer l and l + 1: links whose ends are in opposite orders. */
+  const rank0 = new Map<string, number>();
+  const reindex = () => layers.forEach((layer) => layer.forEach((id, i) => rank0.set(id, i)));
+  const crossingsBetween = (l: number) => {
+    const links: [number, number][] = [];
+    for (const u of layers[l]) for (const v of outs(u)) if (vertices.get(v)!.layer === l + 1) links.push([rank0.get(u)!, rank0.get(v)!]);
+    let n = 0;
+    for (let i = 0; i < links.length; i++)
+      for (let j = i + 1; j < links.length; j++) {
+        const [a1, b1] = links[i];
+        const [a2, b2] = links[j];
+        if ((a1 - a2) * (b1 - b2) < 0) n++;
+      }
+    return n;
+  };
+  const crossings = () => {
+    reindex();
+    let n = 0;
+    for (let l = 0; l + 1 < layerCount; l++) n += crossingsBetween(l);
+    return n;
+  };
+  let best = { n: crossings(), layers: layers.map((x) => [...x]) };
+  const keepBest = () => {
+    const n = crossings();
+    if (n < best.n) best = { n, layers: layers.map((x) => [...x]) };
+  };
+  for (let it = 0; it < 12 && best.n > 0; it++) {
     for (let l = layerCount - 2; l >= 0; l--) {
       sweep(layers[l], outs);
       index();
     }
+    keepBest();
     for (let l = 1; l < layerCount; l++) {
       sweep(layers[l], ins);
       index();
     }
+    keepBest();
   }
+  best.layers.forEach((x, l) => (layers[l] = x));
+
+  // Loop-back arrows run to a track outside the diagram (past the last card in each layer). On the
+  // way they cross every arrow leaving below their source and every arrow arriving below their
+  // target, so cards with loop-backs belong at that outer edge.
+  const backFrom = new Set<string>();
+  const backTo = new Set<string>();
+  for (const e of live) {
+    if (vertices.get(e.to)!.layer <= vertices.get(e.from)!.layer) {
+      backFrom.add(e.from);
+      backTo.add(e.to);
+    }
+  }
+  const backCost = (l: number) => {
+    let n = 0;
+    for (const id of layers[l]) {
+      const r = rank0.get(id)!;
+      if (backFrom.has(id) && l + 1 < layerCount) {
+        for (const u of layers[l]) if (rank0.get(u)! > r) n += outs(u).filter((v) => vertices.get(v)!.layer === l + 1).length;
+      }
+      if (backTo.has(id) && l > 0) {
+        for (const v of layers[l]) if (rank0.get(v)! > r) n += ins(v).filter((u) => vertices.get(u)!.layer === l - 1).length;
+      }
+    }
+    return n;
+  };
+
+  // Move every card with a loop-back to the outer edge of its layer at once (a source and its
+  // target usually have to move together), and keep that if it crosses less overall.
+  const total = () => {
+    reindex();
+    let n = 0;
+    for (let l = 0; l < layerCount; l++) n += (l + 1 < layerCount ? crossingsBetween(l) : 0) + 2 * backCost(l);
+    return n;
+  };
+  if (backFrom.size) {
+    const before = total();
+    const saved = layers.map((x) => [...x]);
+    for (const layer of layers) {
+      const edge = layer.filter((id) => backFrom.has(id) || backTo.has(id));
+      if (!edge.length) continue;
+      const rest = layer.filter((id) => !backFrom.has(id) && !backTo.has(id));
+      layer.splice(0, layer.length, ...rest, ...edge);
+    }
+    if (total() >= before) saved.forEach((x, l) => (layers[l] = x));
+    reindex();
+  }
+
+  // Transpose: swap neighbours in a layer whenever that removes crossings, until nothing improves.
+  const local = (l: number) =>
+    (l > 0 ? crossingsBetween(l - 1) : 0) + (l + 1 < layerCount ? crossingsBetween(l) : 0) + 2 * backCost(l);
+  reindex();
+  for (let pass = 0, improved = best.n > 0 || backFrom.size > 0; improved && pass < 20; pass++) {
+    improved = false;
+    for (let l = 0; l < layerCount; l++) {
+      const layer = layers[l];
+      for (let i = 0; i + 1 < layer.length; i++) {
+        const before = local(l);
+        [layer[i], layer[i + 1]] = [layer[i + 1], layer[i]];
+        reindex();
+        if (local(l) < before) improved = true;
+        else {
+          [layer[i], layer[i + 1]] = [layer[i + 1], layer[i]];
+          reindex();
+        }
+      }
+    }
+  }
+  // Sifting: try every card (and every arrow's lane) at every position in its layer, keeping any
+  // spot that crosses less.
+  if (total() > 0) {
+    for (let round = 0; round < 2; round++) {
+      let changed = false;
+      for (let l = 0; l < layerCount; l++) {
+        const layer = layers[l];
+        for (const id of [...layer]) {
+          let bestAt = layer.indexOf(id);
+          let bestCost = local(l);
+          layer.splice(bestAt, 1);
+          for (let at = 0; at <= layer.length; at++) {
+            layer.splice(at, 0, id);
+            reindex();
+            const c = local(l);
+            if (c < bestCost) {
+              bestCost = c;
+              bestAt = at;
+              changed = true;
+            }
+            layer.splice(at, 1);
+          }
+          layer.splice(bestAt, 0, id);
+          reindex();
+        }
+      }
+      if (!changed) break;
+    }
+  }
+  index();
 
   // 4. Coordinates. "Across" runs along a layer (y for lr, x for tb); "along" runs with the flow.
   const cardSize = (id: string) => {

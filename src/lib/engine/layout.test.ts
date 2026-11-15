@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { countCrossings } from "./crossings";
 import { layoutFlow, splitSources } from "./layout";
 import { makePlan, type PlanConfig } from "./solver";
 import { GAME } from "./data";
@@ -207,6 +208,32 @@ describe("self-feeding loop layout", () => {
         "copper-sap-beading>copper-bamboo:copper-seed",
         "extract-copper-cuttings>copper-bamboo:copper-seed",
       ]);
+    }
+  });
+});
+
+describe("crossing arrows", () => {
+  const layoutOf = (m: string, direction: "lr" | "tb") => {
+    const p = makePlan(cfg(m));
+    const g = splitSources(p.flow.nodes, p.flow.edges);
+    return layoutFlow(g.nodes, g.edges, { ...opts, direction, height: () => 90 });
+  };
+
+  it("stay rare across every item (was 42 before crossing reduction)", () => {
+    for (const direction of ["lr", "tb"] as const) {
+      let total = 0;
+      for (const m of GAME.materials.keys()) total += countCrossings(layoutOf(m, direction));
+      expect(total, direction).toBeLessThanOrEqual(16);
+    }
+  });
+
+  it("never involve a loop-back arrow", () => {
+    for (const m of GAME.materials.keys()) {
+      const l = layoutOf(m, "lr");
+      if (!l.edges.some((e) => e.back)) continue;
+      const loopsOnly = { ...l, edges: l.edges };
+      const withoutLoops = { ...l, edges: l.edges.filter((e) => !e.back) };
+      expect(countCrossings(loopsOnly), m).toBe(countCrossings(withoutLoops));
     }
   });
 });
