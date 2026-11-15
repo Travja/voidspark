@@ -25,9 +25,10 @@ greenhouses, the Arboretum, and the metal sparks. It started from the PirateSpar
   a one-tap switch, says which outside inputs that drops, and how many to prime each machine with
   (one batch: 500 Copper Seeds per Arboretum). Copper Bamboo returns 170 seeds per cutting for the
   100 it eats, so the rest is excess.
-- **Arboretum feeders.** An Arboretum is worked through its feeders (4 by default, 1 to 12): each
-  feeder's crew adds speed. Feeders are counted in staffing and build cost, with a stepper in the
-  Build plan details.
+- **Arboretum feeders.** An Arboretum is worked through its feeders, and each feeder's crew adds
+  speed, so the plan scales feeders rather than Arboretums: it works out the feeders needed and
+  builds as few Arboretums as fit them (up to 14 feeders each by default; lower it in the Build
+  plan details if fewer fit in range). Feeders are counted in staffing and build cost.
 - **One-way production lines** (when loop-backs are off). Every line flows from raw inputs toward
   its target and never loops back. Extra outputs from multi-output recipes (Plant Extractor, Geode Breaker…) are
   listed as surplus. They aren't fed back into earlier machines or into other lines, so belts

@@ -294,10 +294,14 @@ describe("staffing", () => {
   it("staffs the Arboretum through its feeders", () => {
     const p = makePlan(base({ targets: [target("aether-apple", 1)] }));
     const arboretum = [...p.recipes.values()].find((r) => r.recipe.workstation === "arboretum")!;
-    expect(arboretum.feeders).toBe(4);
-    expect(arboretum.crew.map((s) => s.id)).toEqual(Array(4).fill("spark-stumpy"));
+    // 100 cycles/min; a feeder with one Stumpy adds 60 / 256 cycles/min: 426.7 -> 427 feeders,
+    // 14 to an Arboretum at most -> 31 Arboretums.
+    expect(arboretum.crew.map((s) => s.id)).toEqual(["spark-stumpy"]);
+    expect(arboretum.feedersTotal).toBe(427);
+    expect(arboretum.machinesBuilt).toBe(31);
+    expect(arboretum.feeders).toBe(14);
     const total = p.staffing.reduce((n, s) => n + s.count, 0);
-    const expected = [...p.recipes.values()].reduce((n, r) => n + r.machinesBuilt * r.crew.length, 0);
+    const expected = [...p.recipes.values()].reduce((n, r) => n + (r.feedersTotal ?? r.machinesBuilt) * r.crew.length, 0);
     expect(total).toBe(expected);
   });
 });
@@ -357,31 +361,38 @@ describe("growth recipes (greenhouse, arboretum)", () => {
 
   it("applies to the arboretum's 100 cycles", () => {
     // Aether Tree: 256 s per cycle, 100 cycles per apple, 5 Liquid Fertiliser + 5 Aether Seed per cycle.
-    // 4 feeders with one Stumpy each: 4x speed, 256 / 4 = 64 s per cycle.
+    // 14 feeders with one Stumpy each: 14x speed.
     const p = makePlan(base({ targets: [target("aether-apple", 1)] }));
     const rp = p.recipes.get("aether-tree")!;
     expect(rp.crafts).toBeCloseTo(100);
     expect(rp.inputs.find((i) => i.material === "aether-seed")!.rate).toBeCloseTo(500);
-    expect(rp.machines).toBeCloseTo(100 / ((60 * 4) / 256));
+    expect(rp.machines).toBeCloseTo(100 / ((60 * 14) / 256));
   });
 });
 
 describe("arboretum feeders", () => {
-  it("each feeder's crew adds speed, and feeders are built and staffed", () => {
+  it("sizes by feeders: as few Arboretums as the feeder cap allows", () => {
     const crafty = { defaultCrew: ["spark-crafty", "spark-crafty"] };
     // Copper Bamboo: 256 s per cycle, 100 cycles per 5 cuttings. 1 cutting/min = 20 cycles/min.
-    // 4 feeders x 2 Crafty = 12x speed: 60 * 12 / 256 = 2.8125 cycles/min per arboretum.
+    // A feeder with 2 Crafty adds 60 * 3 / 256 = 0.703 cycles/min: 28.4 -> 29 feeders, and at
+    // 14 per Arboretum that's 3 Arboretums.
     const p = makePlan(base({ ...crafty, targets: [target("copper-cutting", 1)] }));
     const rp = p.recipes.get("copper-bamboo")!;
-    expect(rp.machines).toBeCloseTo(20 / 2.8125);
-    expect(rp.crew).toHaveLength(8);
-    const feederCost = p.buildCost.find((c) => c.material === "frilled-walrion-tusk")!;
-    expect(feederCost.amount).toBe(rp.machinesBuilt * 4);
-    // 8 feeders: twice as fast.
+    expect(rp.machines).toBeCloseTo(20 / 0.703125 / 14);
+    expect(rp.machinesBuilt).toBe(3);
+    expect(rp.feedersTotal).toBe(29);
+    expect(rp.feeders).toBe(10);
+    expect(p.buildCost.find((c) => c.material === "frilled-walrion-tusk")!.amount).toBe(29);
+    // Staffing counts each feeder's crew.
+    const crafty2 = p.staffing.find((x) => x.spark.id === "spark-crafty")!.count;
+    const others = [...p.recipes.values()].filter((r) => !r.feedersTotal).reduce((n, r) => n + r.machinesBuilt * 2, 0);
+    expect(crafty2).toBe(others + 29 * 2);
+    // Fewer fit in range: more Arboretums, same feeders.
     const eight = makePlan(base({ ...crafty, targets: [target("copper-cutting", 1)], feeders: { arboretum: 8 } }));
-    expect(eight.recipes.get("copper-bamboo")!.machines).toBeCloseTo(rp.machines / 2);
-    // Clamped to 1..12.
-    expect(new Solver(base({ feeders: { arboretum: 50 } })).feedersFor("arboretum")).toBe(12);
+    expect(eight.recipes.get("copper-bamboo")!.machinesBuilt).toBe(4);
+    expect(eight.recipes.get("copper-bamboo")!.feedersTotal).toBe(29);
+    // Clamped to 1..14.
+    expect(new Solver(base({ feeders: { arboretum: 50 } })).feedersFor("arboretum")).toBe(14);
     expect(new Solver(base({ feeders: { arboretum: 0 } })).feedersFor("arboretum")).toBe(1);
   });
 });

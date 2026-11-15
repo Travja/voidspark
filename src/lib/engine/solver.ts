@@ -96,7 +96,10 @@ export interface PlanConfig {
   loopMode?: LoopMode;
   /** Per material: feed it back ("loop") or supply it separately ("supply"). */
   loopChoice?: Record<string, "loop" | "supply">;
-  /** Feeders per station, for stations worked through feeders (the Arboretum). */
+  /**
+   * Most feeders per station, for stations worked through feeders (the Arboretum). The plan uses
+   * as few stations as this allows and only the feeders it needs.
+   */
   feeders?: Record<string, number>;
   /** What the player has (sites, items/min, machines). The solver ignores them; see limits.ts. */
   limits?: Limit[];
@@ -130,8 +133,10 @@ export interface RecipePlan {
   machines: number;
   /** Machines to build (ceil of the sum). */
   machinesBuilt: number;
-  /** Feeders per machine, for stations worked through feeders (the Arboretum). */
+  /** Feeders per machine (the most any one needs), for stations worked through feeders. */
   feeders?: number;
+  /** Feeders to build across all the machines. */
+  feedersTotal?: number;
   inputs: Flow[];
   outputs: Flow[];
 }
@@ -185,6 +190,8 @@ export interface TreeNode {
   truncated?: boolean;
   /** For loop nodes: this loop is fed back in-line rather than supplied separately. */
   loopBack?: boolean;
+  /** Feeders this branch needs, for stations worked through feeders. */
+  feeders?: number;
 }
 
 /**
@@ -307,11 +314,8 @@ export class Solver {
   /** Sparks working one machine of this workstation type (trimmed to its slot count). */
   crewFor(workstation: string): SparkType[] {
     const ws = this.data.workstations.get(workstation);
-    if (ws?.fedBy) {
-      // Every feeder brings its own crew.
-      const one = this.crewFor(ws.fedBy.workstation);
-      return Array.from({ length: this.feedersFor(workstation) }, () => one).flat();
-    }
+    // The sparks sit in the feeders: this is one feeder's crew.
+    if (ws?.fedBy) return this.crewFor(ws.fedBy.workstation);
     if (ws && !ws.sparkPowered) return [];
     const ids = this.cfg.stationCrew[workstation] ?? this.cfg.defaultCrew;
     const crew = ids
@@ -329,12 +333,25 @@ export class Solver {
     return this.crewFor(workstation).reduce((n, s) => n + s.speed / 100, 0);
   }
 
-  /** Feeders per machine for a station worked through feeders (0 for any other station). */
+  /**
+   * Most feeders per machine for a station worked through feeders (0 for any other station). A
+   * machine with this many feeders is as fast as it gets; the plan sizes by feeders, so it builds
+   * as few machines as this allows.
+   */
   feedersFor(workstation: string): number {
     const fed = this.data.workstations.get(workstation)?.fedBy;
     if (!fed) return 0;
     const n = Math.round(this.cfg.feeders?.[workstation] ?? fed.count);
     return Math.min(fed.max, Math.max(1, n));
+  }
+
+  /** Feeders for `machines` (exact) fed stations: only as many as the work needs. */
+  private feederCounts(workstation: string, machines: number): { feeders?: number; feedersTotal?: number } {
+    const most = this.feedersFor(workstation);
+    if (!most) return {};
+    const total = Math.max(1, Math.ceil(machines * most - EPS));
+    const built = Math.max(1, Math.ceil(machines - EPS));
+    return { feeders: Math.ceil(total / built), feedersTotal: total };
   }
 
   craftsPerMinute(recipe: Recipe): number {
@@ -468,6 +485,9 @@ export class Solver {
       machines: crafts / this.craftsPerMinute(recipe),
       recipe,
       crew: this.crewFor(recipe.workstation),
+      ...(this.feedersFor(recipe.workstation)
+        ? { feeders: Math.ceil((crafts / this.craftsPerMinute(recipe)) * this.feedersFor(recipe.workstation) - EPS) }
+        : {}),
       byproducts: recipe.to
         .filter((t) => t.material !== material)
         .map((t) => ({ material: t.material, rate: crafts * outputPerCraft(recipe, t), fuel: false })),
@@ -544,7 +564,7 @@ export class Solver {
         craftsPerMachine: cpm,
         machines,
         machinesBuilt: Math.ceil(machines - EPS),
-        ...(this.feedersFor(recipe.workstation) ? { feeders: this.feedersFor(recipe.workstation) } : {}),
+        ...this.feederCounts(recipe.workstation, machines),
         inputs: this.craftInputs(recipe).map((e) => ({ material: e.material, rate: crafts * e.perUnit, fuel: e.fuel })),
         outputs: recipe.to.map((t) => ({ material: t.material, rate: crafts * outputPerCraft(recipe, t), fuel: false })),
       });
@@ -628,14 +648,15 @@ export class Solver {
       const ws = this.data.workstations.get(s.workstation);
       for (const c of ws?.cost ?? []) add(cost, c.id, c.amount * s.machinesBuilt);
       if (ws?.fedBy) {
-        const feeders = this.feedersFor(ws.id) * s.machinesBuilt;
+        const feeders = s.lines.reduce((n, l) => n + (l.feedersTotal ?? 0), 0);
         for (const c of this.data.workstations.get(ws.fedBy.workstation)?.cost ?? []) add(cost, c.id, c.amount * feeders);
       }
     }
 
     // Each built machine needs its whole crew (a recipe line's crew follows its workstation).
     const staff = new Map<string, number>();
-    for (const rp of recipes.values()) for (const spark of rp.crew) add(staff, spark.id, rp.machinesBuilt);
+    // Fed stations: every feeder needs its crew.
+    for (const rp of recipes.values()) for (const spark of rp.crew) add(staff, spark.id, rp.feedersTotal ?? rp.machinesBuilt);
     const staffing = this.data.sparks
       .filter((sp) => (staff.get(sp.id) ?? 0) > 0)
       .map((spark) => ({ spark, count: staff.get(spark.id)! }));

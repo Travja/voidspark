@@ -361,8 +361,8 @@
               <span class="card-row small muted">
                 {fmtLoad(n.line.machines)} busy
                 <span class="crew">
-                  {#each n.line.crew.slice(0, n.line.crew.length / (n.line.feeders || 1)) as s, i (i)}<Icon id={s.block} size={14} title={s.name} />{/each}
-                  {#if n.line.feeders}<span class="muted" title="Sparks per feeder × feeders per machine">×{n.line.feeders} feeders</span>{/if}
+                  {#each n.line.crew as s, i (i)}<Icon id={s.block} size={14} title={s.name} />{/each}
+                  {#if n.line.feedersTotal}<span class="muted" title="Sparks per feeder × feeders">×{n.line.feedersTotal} feeders</span>{/if}
                 </span>
                 {#if surplusOf(n).length}<span class="tag surplus" title="Extra outputs nothing uses">+ surplus</span>{/if}
                 {#if n.line.recipe.cycles}<span class="tag growth" title="{n.line.recipe.cycles} growth cycles per batch">🌱</span>{/if}
@@ -453,8 +453,10 @@
         {#if n.line.feeders}
           {@const fed = GAME.workstations.get(n.line.recipe.workstation)!.fedBy!}
           <p class="small">
-            Worked through <strong>{n.line.feeders} {displayName(fed.workstation)}s</strong> per machine
-            ({n.line.feeders * n.line.machinesBuilt} in all). The sparks sit in the feeders, and each feeder's crew adds speed.
+            Worked through <strong>{n.line.feedersTotal} {displayName(fed.workstation)}s</strong>{#if n.line.machinesBuilt > 1}
+              (up to {n.line.feeders} per {displayName(n.line.recipe.workstation)}){/if}. The sparks sit in the feeders, and each
+            feeder's crew adds speed, so add feeders before adding another {displayName(n.line.recipe.workstation)}. A new one is
+            only needed past {solver.feedersFor(n.line.recipe.workstation)} feeders each.
           </p>
         {/if}
         {@const limit = solver.craftRate(n.line.recipe)}
@@ -471,11 +473,11 @@
           {#if n.line.feeders}
             {@const ws = n.line.recipe.workstation}
             {@const fed = GAME.workstations.get(ws)!.fedBy!}
-            <span class="built-stepper small">
-              Feeders
-              <button class="icon-btn" aria-label="One fewer feeder" disabled={n.line.feeders <= 1} onclick={() => app.setFeeders(ws, solver.feedersFor(ws) - 1)}>−</button>
-              <strong>{n.line.feeders}</strong>
-              <button class="icon-btn" aria-label="One more feeder" disabled={n.line.feeders >= fed.max} onclick={() => app.setFeeders(ws, solver.feedersFor(ws) + 1)}>+</button>
+            <span class="built-stepper small" title="How many feeders fit in range of one {displayName(ws)}">
+              Max feeders each
+              <button class="icon-btn" aria-label="Fewer feeders per {displayName(ws)}" disabled={solver.feedersFor(ws) <= 1} onclick={() => app.setFeeders(ws, solver.feedersFor(ws) - 1)}>−</button>
+              <strong>{solver.feedersFor(ws)}</strong>
+              <button class="icon-btn" aria-label="More feeders per {displayName(ws)}" disabled={solver.feedersFor(ws) >= fed.max} onclick={() => app.setFeeders(ws, solver.feedersFor(ws) + 1)}>+</button>
             </span>
           {/if}
           <span class="built-stepper small">
