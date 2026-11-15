@@ -55,6 +55,18 @@
   const usedText = (kind: Limit["kind"], used: number) =>
     kind === "item" ? fmtRate(used, app.cfg.unit) : String(Math.ceil(used - 1e-9));
 
+  /**
+   * What "Make the most" would set each target to: scaled, then rounded down to 3 significant
+   * digits so it stays within the limits. The button only shows when that changes something.
+   */
+  const proposed = $derived(report.scale === null ? [] : app.cfg.targets.map((t) => floorSig(t.value * report.scale!, 3)));
+  const wouldChange = $derived(proposed.some((v, i) => Math.abs(v - app.cfg.targets[i].value) > 1e-9));
+  /** The most each target can make, as the button would set it (3 significant digits). */
+  const maxText = (perMinute: number) => {
+    const v = floorSig(perMinute * u, 3);
+    return v > 0 && v < 0.01 ? fmtRate(perMinute, app.cfg.unit) : `${v}/${app.cfg.unit}`;
+  };
+
   function makeTheMost() {
     if (report.scale === null) return;
     app.scaleTargets(report.scale, (x) => floorSig(x, 3));
@@ -112,16 +124,18 @@
         {#each report.maxRates as m (m.target.id)}
           <li>
             <Icon id={m.target.material} size={18} />
-            <strong>{fmtRate(m.rate, app.cfg.unit)}</strong>
+            <strong>{maxText(m.rate)}</strong>
             {GAME.materials.get(m.target.material)?.name}
           </li>
         {/each}
       </ul>
       <p class="muted small">Limited by {limitName(b.limit)}.</p>
-      {#if Math.abs(report.scale - 1) > 1e-3}
+      {#if wouldChange}
         <button class="make-most" onclick={makeTheMost}>
           {report.scale < 1 ? "Scale targets down to fit" : "Make the most"}
         </button>
+      {:else if report.scale >= 1}
+        <p class="small">✓ Your targets are already the most you can make.</p>
       {/if}
     </div>
   {:else if app.cfg.limits.length}

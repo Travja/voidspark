@@ -1083,6 +1083,13 @@ footer {
 .edge-label.back {
   border-color: var(--loop);
   color: var(--loop);
+  /* Centred on its track outside the diagram. */
+  transform: translate(-50%, -50%);
+}
+
+/* Short status bits on a card ("100% busy", "14 feeders") stay on one line each. */
+.flow-card .card-row.small > span {
+  white-space: nowrap;
 }
 
 .edge-label.back::before {

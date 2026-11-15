@@ -80,6 +80,8 @@ const LANE = 6;
 /** Loop-back arrows: distance of the first track outside the cards, and spacing between tracks. */
 const BACK_MARGIN = 24;
 const BACK_TRACK = 12;
+/** Room beside the outermost track for its rate label (half a label's width). */
+const BACK_LABEL_ROOM = 48;
 
 interface Vertex {
   id: string;
@@ -99,8 +101,30 @@ export function layoutFlow(nodes: FlowNode[], edges: FlowEdge[], opt: LayoutOpti
     incReal.get(e.to)!.push(e);
   }
 
-  // 1. Rank = longest path to a sink. Back edges (only possible with user-chosen loops) are
-  //    ignored by marking nodes in progress.
+  // 1. Pick the arrows that point back (loop-backs): keep every ordinary arrow, then add loop
+  //    arrows one at a time, own-chain ones before fed-back byproducts, keeping each one that
+  //    doesn't close a cycle. What's left over runs back up the line.
+  const forward = new Map<string, FlowEdge[]>(nodes.map((n) => [n.id, []]));
+  const reaches = (from: string, to: string) => {
+    const seen = new Set<string>();
+    const stack = [from];
+    while (stack.length) {
+      const id = stack.pop()!;
+      if (id === to) return true;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      for (const e of forward.get(id)!) stack.push(e.to);
+    }
+    return false;
+  };
+  for (const e of live) if (!e.loop) forward.get(e.from)!.push(e);
+  const order = { chain: 0, byproduct: 1 } as const;
+  for (const e of live.filter((x) => x.loop).sort((a, b) => order[a.loop!] - order[b.loop!])) {
+    if (!reaches(e.to, e.from)) forward.get(e.from)!.push(e);
+  }
+
+  // 2. Rank = longest path to a sink along those arrows. Any cycle left (only possible with
+  //    user-chosen loops) is broken by marking nodes in progress.
   const rank = new Map<string, number>();
   const state = new Map<string, 1 | 2>();
   const visit = (id: string): number => {
@@ -108,8 +132,7 @@ export function layoutFlow(nodes: FlowNode[], edges: FlowEdge[], opt: LayoutOpti
     if (state.get(id) === 1) return -1;
     state.set(id, 1);
     let r = 0;
-    for (const e of outReal.get(id)!) {
-      if (e.loop) continue; // loop-backs run back up the line; they don't decide the layers
+    for (const e of forward.get(id)!) {
       const s = visit(e.to);
       if (s >= 0) r = Math.max(r, s + 1);
     }
@@ -311,7 +334,8 @@ export function layoutFlow(nodes: FlowNode[], edges: FlowEdge[], opt: LayoutOpti
     const last = segments.at(-1)!.p3;
     placedEdges.push({ edge: e, x1: first.x, y1: first.y, x2: last.x, y2: last.y, segments, path, ...(back ? { back } : {}) });
   }
-  const crossTotal = crossSize + (backCount ? BACK_MARGIN + BACK_TRACK * backCount : 0);
+  // Top to bottom, the tracks run down the right-hand side: leave room for their labels too.
+  const crossTotal = crossSize + (backCount ? BACK_MARGIN + BACK_TRACK * backCount + (tb ? BACK_LABEL_ROOM : 0) : 0);
 
   return {
     nodes: [...placed.values()],

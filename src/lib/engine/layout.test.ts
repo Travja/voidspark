@@ -190,3 +190,22 @@ describe("loop-back arrows", () => {
     }
   });
 });
+
+describe("self-feeding loop layout", () => {
+  it("reads Arboretum -> Extractor -> beading Furnace, with only the seeds looping back", () => {
+    const { flow } = makePlan(
+      cfg("copper-cutting", 0.2, { recipeChoice: { "copper-seed": "copper-sap-beading" }, fuel: { material: "coal", perMinute: 2 } }),
+    );
+    for (const direction of ["lr", "tb"] as const) {
+      const l = layoutFlow(flow.nodes, flow.edges, { ...opts, direction });
+      const col = (id: string) => l.nodes.find((n) => n.node.id === id)!.column;
+      expect(col("copper-bamboo")).toBeLessThan(col("extract-copper-cuttings"));
+      expect(col("extract-copper-cuttings")).toBeLessThan(col("copper-sap-beading"));
+      const back = l.edges.filter((e) => e.back).map((e) => `${e.edge.from}>${e.edge.to}:${e.edge.material}`).sort();
+      expect(back).toEqual([
+        "copper-sap-beading>copper-bamboo:copper-seed",
+        "extract-copper-cuttings>copper-bamboo:copper-seed",
+      ]);
+    }
+  });
+});

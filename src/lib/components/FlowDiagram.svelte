@@ -53,6 +53,13 @@
    */
   const labelPos = $derived.by(() => {
     const result = new Map<(typeof layout.edges)[number], { x: number; y: number }>();
+    // Loop-back arrows: on their own track outside the diagram, spread along it so they don't stack.
+    const back = layout.edges.filter((e) => e.back && e.segments.length >= 3);
+    back.forEach((e, i) => {
+      const leg = e.segments[2];
+      const t = (i + 1) / (back.length + 1);
+      result.set(e, { x: leg.p0.x + (leg.p3.x - leg.p0.x) * t, y: leg.p0.y + (leg.p3.y - leg.p0.y) * t });
+    });
     if (layout.direction !== "tb") return result;
     const at = (seg: Segment, t: number) => {
       const u = 1 - t;
@@ -76,6 +83,7 @@
     const width = (e: (typeof layout.edges)[number]) => 34 + 6.6 * fmtRate(e.edge.rate, app.cfg.unit).length;
     const gaps = new Map<number, (typeof layout.edges)[number][]>();
     for (const e of layout.edges) {
+      if (result.has(e)) continue;
       const key = Math.round(e.segments.at(-1)!.p0.y);
       gaps.set(key, [...(gaps.get(key) ?? []), e]);
     }
@@ -359,13 +367,16 @@
                 <span class="rate">{fmtRate(n.line.outputs.find((o) => o.material === n.material)?.rate ?? 0, unit)}</span>
               </span>
               <span class="card-row small muted">
-                {fmtLoad(n.line.machines)} busy
+                <span>{fmtLoad(n.line.machines)} busy</span>
                 <span class="crew">
-                  {#each n.line.crew as s, i (i)}<Icon id={s.block} size={14} title={s.name} />{/each}
-                  {#if n.line.feedersTotal}<span class="muted" title="Sparks per feeder × feeders">×{n.line.feedersTotal} feeders</span>{/if}
+                  {#if n.line.feedersTotal}
+                    <span title="{n.line.crew.map((s) => s.name).join(' + ')} in each feeder">{n.line.feedersTotal} feeders</span>
+                  {:else}
+                    {#each n.line.crew as s, i (i)}<Icon id={s.block} size={14} title={s.name} />{/each}
+                  {/if}
                 </span>
                 {#if surplusOf(n).length}<span class="tag surplus" title="Extra outputs nothing uses">+ surplus</span>{/if}
-                {#if n.line.recipe.cycles}<span class="tag growth" title="{n.line.recipe.cycles} growth cycles per batch">🌱</span>{/if}
+                {#if n.line.recipe.cycles && !n.line.feedersTotal}<span class="tag growth" title="{n.line.recipe.cycles} growth cycles per batch">🌱</span>{/if}
               </span>
             {:else if n.kind === "target"}
               <span class="card-row"><span class="tag target">target</span></span>

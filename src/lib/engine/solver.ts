@@ -53,6 +53,10 @@ export interface LoopInfo {
   excess: number;
   /** Items/min needed further down its own chain: made in-line when looping, else supplied. */
   selfUse: number;
+  /** When looping: items/min used by machines in the plan (its own chain included), and by which recipes. */
+  used?: { rate: number; recipes: string[] };
+  /** When looping: items/min made in all (machines plus targets). */
+  total?: number;
   /** The loop can't sustain itself (each unit needs a unit or more back), so it wasn't closed. */
   failed?: boolean;
   /**
@@ -215,8 +219,12 @@ export interface FlowEdge {
   material: string;
   rate: number;
   fuel: boolean;
-  /** Feeds a loop-back: it runs back up the line, so the layout doesn't rank by it. */
-  loop?: boolean;
+  /**
+   * Part of a loop-back. "byproduct": a fed-back byproduct (seeds from extraction). "chain": a
+   * looped material's own chain feeding something below it. The layout keeps as many of these
+   * pointing forward as it can, and draws the rest as arrows back up the line, byproducts first.
+   */
+  loop?: "chain" | "byproduct";
 }
 
 export interface Plan {
@@ -712,7 +720,8 @@ export class Solver {
       for (const e of flowEdges) {
         if (e.material !== l.material) continue;
         const consumer = flowNodes.get(e.to)?.material;
-        if (fromBy.has(e.from) || (consumer && (consumer === l.material || below.has(consumer)))) e.loop = true;
+        if (fromBy.has(e.from)) e.loop = "byproduct";
+        else if (consumer && (consumer === l.material || below.has(consumer))) e.loop ??= "chain";
       }
     }
 
@@ -920,6 +929,17 @@ export class Solver {
         fedBack,
         excess: Math.max(0, made - fedBack),
         selfUse: looping ? (ff.loop.get(m) ?? 0) : (t.loop.get(m) ?? 0),
+        ...(looping
+          ? {
+              used: {
+                rate: use.get(m) ?? 0,
+                recipes: [...t.crafts]
+                  .filter(([id, c]) => c > EPS && this.craftInputs(this.data.recipesById.get(id)!).some((x) => x.material === m))
+                  .map(([id]) => id),
+              },
+              total: need,
+            }
+          : {}),
         ...(failed.has(m) ? { failed: true } : {}),
       });
       if (!looping) continue;
