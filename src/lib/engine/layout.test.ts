@@ -105,7 +105,8 @@ describe("arrows never pass behind a machine", () => {
           for (let i = 0; i <= 24; i++) {
             const q = bez(s, i / 24);
             const inside = q.x > card.x + 0.5 && q.x < card.x + card.width - 0.5 && q.y > card.y + 0.5 && q.y < card.y + card.height - 0.5;
-            expect(inside, `${label}: ${e.edge.from} -> ${e.edge.to} crosses ${card.node.id}`).toBe(false);
+            // Only reach for expect() on a hit: calling it for every sample is what made this slow.
+            if (inside) expect(inside, `${label}: ${e.edge.from} -> ${e.edge.to} crosses ${card.node.id}`).toBe(false);
           }
         }
       }
