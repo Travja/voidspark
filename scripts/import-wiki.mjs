@@ -44,9 +44,9 @@ const EXCLUDED_WORKSTATION_PATTERN = /shrine$/i; // one-off shrine repairs
 const FED_BY = {
   Arboretum: {
     feeder: "Arboretum Feeder",
-    count: 4,
-    max: 12,
-    why: "Wiki (Arboretum): at least one feeder is needed, 'four or even six (up to twelve) is a better combination'; feeder sparks add speed (confirmed in game)",
+    count: 14,
+    max: 14,
+    why: "Wiki (Arboretum): at least one feeder is needed, feeders work from up to 5 tiles away; feeder sparks add speed and an Arboretum takes as many feeders as fit in range (confirmed in game). Capped at 14 until the real limit is known",
   },
 };
 
@@ -543,7 +543,7 @@ async function main() {
     const fed = FED_BY[ws];
     if (fed) {
       out.fedBy = { workstation: slug(fed.feeder), count: fed.count, max: fed.max };
-      report.decisions.push(`**${ws}** is worked through **${fed.feeder}**s (${fed.count} by default, up to ${fed.max}): ${fed.why}.`);
+      report.decisions.push(`**${ws}** is worked through **${fed.feeder}**s (up to ${fed.max} each): ${fed.why}.`);
     }
     if (CRAFT_CAP[ws]) {
       out.craftCap = CRAFT_CAP[ws][0];

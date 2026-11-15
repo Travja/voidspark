@@ -76,11 +76,11 @@
           </span>
           <span class="muted small" title="{fmt(node.machines, 3)} machines exactly">· {fmtLoad(node.machines)} busy</span>
           <span class="crew">
-            {#each node.crew.slice(0, node.crew.length / (solver.feedersFor(node.recipe.workstation) || 1)) as s, i (i)}
+            {#each node.crew as s, i (i)}
               <Icon id={s.block} size={18} title="{s.name} · {s.speed / 100}×" />
             {/each}
-            {#if solver.feedersFor(node.recipe.workstation)}
-              <span class="muted small" title="Sparks per feeder × feeders per machine">×{solver.feedersFor(node.recipe.workstation)} feeders</span>
+            {#if node.feeders}
+              <span class="muted small" title="Sparks per feeder × feeders">×{node.feeders} feeders</span>
             {/if}
           </span>
           <CrewPicker workstation={node.recipe.workstation} {app} />
