@@ -46,7 +46,7 @@ describe("layout", () => {
     for (const m of GAME.materials.keys()) {
       const { flow } = makePlan(cfg(m));
       const l = layoutFlow(flow.nodes, flow.edges, opts);
-      for (const e of l.edges) expect(e.x2, `${m}: ${e.edge.from} -> ${e.edge.to}`).toBeGreaterThan(e.x1);
+      for (const e of l.edges.filter((x) => !x.back)) expect(e.x2, `${m}: ${e.edge.from} -> ${e.edge.to}`).toBeGreaterThan(e.x1);
       const byCol = new Map<number, typeof l.nodes>();
       for (const n of l.nodes) byCol.set(n.column, [...(byCol.get(n.column) ?? []), n]);
       for (const col of byCol.values()) {
@@ -65,7 +65,7 @@ describe("top-to-bottom layout", () => {
       const { flow } = makePlan(cfg(m));
       const l = layoutFlow(flow.nodes, flow.edges, { ...opts, cardWidth: 160, direction: "tb" });
       expect(l.direction).toBe("tb");
-      for (const e of l.edges) expect(e.y2, `${m}: ${e.edge.from} -> ${e.edge.to}`).toBeGreaterThan(e.y1);
+      for (const e of l.edges.filter((x) => !x.back)) expect(e.y2, `${m}: ${e.edge.from} -> ${e.edge.to}`).toBeGreaterThan(e.y1);
       const byRow = new Map<number, typeof l.nodes>();
       for (const n of l.nodes) byRow.set(n.column, [...(byRow.get(n.column) ?? []), n]);
       for (const row of byRow.values()) {
@@ -166,5 +166,27 @@ describe("splitSources", () => {
     }
     expect(after).toBe(0);
     expect(before).toBeGreaterThan(0);
+  });
+});
+
+describe("loop-back arrows", () => {
+  it("draw the fed-back byproduct as the back arrow, round the outside", () => {
+    const { flow } = makePlan(
+      cfg("copper-ingot", 20, { recipeChoice: { "copper-ingot": "copper-sap-smelting" } }),
+    );
+    for (const direction of ["lr", "tb"] as const) {
+      const l = layoutFlow(flow.nodes, flow.edges, { ...opts, direction });
+      const col = (id: string) => l.nodes.find((n) => n.node.id === id)!.column;
+      expect(col("copper-bamboo")).toBeLessThan(col("extract-copper-cuttings"));
+      const back = l.edges.filter((e) => e.back);
+      expect(back.map((e) => [e.edge.from, e.edge.to, e.edge.material])).toEqual([
+        ["extract-copper-cuttings", "copper-bamboo", "copper-seed"],
+      ]);
+      // It stays inside the drawing.
+      for (const s of back[0].segments) {
+        expect(Math.max(s.p0.x, s.p3.x)).toBeLessThanOrEqual(l.width);
+        expect(Math.max(s.p0.y, s.p3.y)).toBeLessThanOrEqual(l.height);
+      }
+    }
   });
 });

@@ -17,6 +17,9 @@ describe("share links", () => {
       { id: "y", kind: "item", key: "aether-shard", amount: 12.5 },
       { id: "z", kind: "workstation", key: "alchemy-lab", amount: 4 },
     ];
+    cfg.loopMode = "all";
+    cfg.loopChoice = { "copper-seed": "supply", coal: "loop" };
+    cfg.feeders = { arboretum: 8 };
     const back = decodePlan(encodePlan("Copper line ✓", cfg))!;
     expect(back.name).toBe("Copper line ✓");
     expect(back.config.targets.map(({ material, mode, value }) => [material, mode, value])).toEqual([
@@ -27,6 +30,9 @@ describe("share links", () => {
     expect(back.config.defaultCrew).toEqual(cfg.defaultCrew);
     expect(back.config.stationCrew).toEqual(cfg.stationCrew);
     expect(back.config.fuel).toEqual({ material: "coal", perMinute: 2 });
+    expect(back.config.loopMode).toBe("all");
+    expect(back.config.loopChoice).toEqual(cfg.loopChoice);
+    expect(back.config.feeders).toEqual({ arboretum: 8 });
     expect(back.config.limits!.map(({ kind, key, amount }) => [kind, key, amount])).toEqual([
       ["site", "Noxious Coral", 2],
       ["item", "aether-shard", 12.5],

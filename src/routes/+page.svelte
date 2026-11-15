@@ -99,7 +99,11 @@
 
   const u = $derived(UNIT_FACTOR[app.cfg.unit]);
   const hasOverrides = $derived(
-    Object.keys(app.cfg.stationCrew).length + Object.keys(app.cfg.recipeChoice).length > 0,
+    Object.keys(app.cfg.stationCrew).length +
+      Object.keys(app.cfg.recipeChoice).length +
+      Object.keys(app.cfg.loopChoice).length +
+      Object.keys(app.cfg.feeders).length >
+      0,
   );
 
   const tabs: { id: View; label: string }[] = [
@@ -214,8 +218,20 @@
             {/each}
           </select>
         </label>
+        <label>
+          Loop-backs
+          <select bind:value={app.cfg.loopMode}>
+            <option value="growth">Greenhouse & arboretum chains only</option>
+            <option value="all">Always loop back</option>
+            <option value="none">Never: supply separately</option>
+          </select>
+        </label>
+        <p class="muted small">
+          Off, every line flows one way and extra outputs are surplus. Looping back feeds byproducts (like seeds from
+          extracting plants) into the machines that use them. You can switch each loop in the Build plan.
+        </p>
         {#if hasOverrides}
-          <button onclick={() => app.clearOverrides()} title="Clear per-station spark crews and recipe choices">
+          <button onclick={() => app.clearOverrides()} title="Clear per-station spark crews, recipe choices, loop choices and feeder counts">
             Clear overrides
           </button>
         {/if}
@@ -247,7 +263,7 @@
           <div class="warning">{w}</div>
         {/each}
         {#if app.cfg.view === "tree"}
-          <TreeView trees={result.plan.trees} {solver} {app} />
+          <TreeView trees={result.plan.trees} loops={result.plan.loops} {solver} {app} />
         {:else if app.cfg.view === "machines"}
           <FlowDiagram plan={result.plan} {solver} {app} />
         {:else}

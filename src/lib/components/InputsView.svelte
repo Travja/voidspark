@@ -5,6 +5,7 @@
   import Icon from "./Icon.svelte";
   import { displayName } from "./icons";
   import RecipePicker from "./RecipePicker.svelte";
+  import Loops from "./Loops.svelte";
   import Sites from "./Sites.svelte";
   import Staffing from "./Staffing.svelte";
 
@@ -14,6 +15,7 @@
 
 <Staffing {plan} {app} />
 <Sites {plan} {app} />
+<Loops {plan} {app} />
 
 <div class="two-col">
   <section class="card">

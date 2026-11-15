@@ -37,6 +37,19 @@ const EXCLUDED_WORKSTATIONS = {
 };
 const EXCLUDED_WORKSTATION_PATTERN = /shrine$/i; // one-off shrine repairs
 
+/**
+ * Stations worked through separate feeder buildings: their sparks sit in the feeders, and each
+ * feeder's crew adds to the station's speed (confirmed in game).
+ */
+const FED_BY = {
+  Arboretum: {
+    feeder: "Arboretum Feeder",
+    count: 4,
+    max: 12,
+    why: "Wiki (Arboretum): at least one feeder is needed, 'four or even six (up to twelve) is a better combination'; feeder sparks add speed (confirmed in game)",
+  },
+};
+
 /** Stations that don't run on sparks. */
 const NOT_SPARK_POWERED = {
   Arboretum: "Wiki: 'The Arboretum does not need Sparks to operate' (sparks work its Feeders)",
@@ -78,6 +91,7 @@ const DEFAULT_RECIPE_OVERRIDES = {
  * Chosen from the item's name, where it's found, and what it's made from.
  */
 const REGION_OVERRIDES = {
+  "Frilled Walrion Tusk": ["Plateau", "dropped by Walrions in the Glacial Plateau"],
   // Copper production chain.
   "Copper Ore": ["Metal", "copper chain"],
   "Copper Ingot": ["Metal", "copper chain"],
@@ -432,7 +446,9 @@ async function main() {
   console.log(`${resolved.length} recipes after de-duplication`);
 
   // 4. Items and buildings referenced, and their infoboxes.
-  const workstationNames = [...new Set(resolved.map((r) => r.workstation))];
+  const workstationNames = [
+    ...new Set([...resolved.map((r) => r.workstation), ...Object.values(FED_BY).map((f) => f.feeder)]),
+  ];
   const itemNames = new Set(resolved.flatMap((r) => [...r.ingredients, ...r.products].map((x) => x.name)));
   const wsPages = await fetchPages(workstationNames);
   const costs = new Map();
@@ -524,6 +540,11 @@ async function main() {
     };
     if (sites.has(ws)) report.decisions.push(`**${ws}** must be built on a **${sites.get(ws)}** (one site per machine).`);
     if (NOT_SPARK_POWERED[ws]) report.decisions.push(`**${ws}** is not spark-powered: ${NOT_SPARK_POWERED[ws]}.`);
+    const fed = FED_BY[ws];
+    if (fed) {
+      out.fedBy = { workstation: slug(fed.feeder), count: fed.count, max: fed.max };
+      report.decisions.push(`**${ws}** is worked through **${fed.feeder}**s (${fed.count} by default, up to ${fed.max}): ${fed.why}.`);
+    }
     if (CRAFT_CAP[ws]) {
       out.craftCap = CRAFT_CAP[ws][0];
       report.decisions.push(`**${ws}** capped at ${CRAFT_CAP[ws][0]} crafts/min: ${CRAFT_CAP[ws][1]}.`);

@@ -50,13 +50,22 @@
             ({fmtRate(GAME.materials.get(node.material)!.siteResource!.perMinute, unit)} each)
           </span>
         {:else if node.kind === "raw"}<span class="tag raw">raw input</span>{/if}
-        {#if node.kind === "loop"}
-          <span
-            class="tag loop"
-            title="This item is already made further up this chain. Feeding it back would loop the line, so bring it in separately (or pick another recipe for it)."
+        {#if node.kind === "loop" && node.loopBack}
+          <button
+            class="tag loop on"
+            title="Already made further up this chain, and fed back from there (loop-back on). Tap to supply it separately instead."
+            onclick={() => app.setLoopChoice(node.material, "supply")}
           >
-            ↻ supply separately (would loop)
-          </span>
+            ↻ fed back in-line
+          </button>
+        {:else if node.kind === "loop"}
+          <button
+            class="tag loop"
+            title="Already made further up this chain, so it's brought in separately rather than looping the line back. Tap to loop it back instead."
+            onclick={() => app.setLoopChoice(node.material, "loop")}
+          >
+            ↻ supply separately · loop back?
+          </button>
         {/if}
       </div>
       {#if node.kind === "craft" && node.recipe}
@@ -67,9 +76,12 @@
           </span>
           <span class="muted small" title="{fmt(node.machines, 3)} machines exactly">· {fmtLoad(node.machines)} busy</span>
           <span class="crew">
-            {#each node.crew as s, i (i)}
+            {#each node.crew.slice(0, node.crew.length / (solver.feedersFor(node.recipe.workstation) || 1)) as s, i (i)}
               <Icon id={s.block} size={18} title="{s.name} · {s.speed / 100}×" />
             {/each}
+            {#if solver.feedersFor(node.recipe.workstation)}
+              <span class="muted small" title="Sparks per feeder × feeders per machine">×{solver.feedersFor(node.recipe.workstation)} feeders</span>
+            {/if}
           </span>
           <CrewPicker workstation={node.recipe.workstation} {app} />
           <RecipePicker material={node.material} {solver} {app} />

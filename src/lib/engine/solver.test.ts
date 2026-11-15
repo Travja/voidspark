@@ -291,10 +291,11 @@ describe("staffing", () => {
     expect(staff(p)).toEqual({ "spark-stumpy": 2, "spark-crafty": 14 });
   });
 
-  it("needs no sparks for stations that don't use them", () => {
+  it("staffs the Arboretum through its feeders", () => {
     const p = makePlan(base({ targets: [target("aether-apple", 1)] }));
     const arboretum = [...p.recipes.values()].find((r) => r.recipe.workstation === "arboretum")!;
-    expect(arboretum.crew).toEqual([]);
+    expect(arboretum.feeders).toBe(4);
+    expect(arboretum.crew.map((s) => s.id)).toEqual(Array(4).fill("spark-stumpy"));
     const total = p.staffing.reduce((n, s) => n + s.count, 0);
     const expected = [...p.recipes.values()].reduce((n, r) => n + r.machinesBuilt * r.crew.length, 0);
     expect(total).toBe(expected);
@@ -356,10 +357,130 @@ describe("growth recipes (greenhouse, arboretum)", () => {
 
   it("applies to the arboretum's 100 cycles", () => {
     // Aether Tree: 256 s per cycle, 100 cycles per apple, 5 Liquid Fertiliser + 5 Aether Seed per cycle.
+    // 4 feeders with one Stumpy each: 4x speed, 256 / 4 = 64 s per cycle.
     const p = makePlan(base({ targets: [target("aether-apple", 1)] }));
     const rp = p.recipes.get("aether-tree")!;
     expect(rp.crafts).toBeCloseTo(100);
     expect(rp.inputs.find((i) => i.material === "aether-seed")!.rate).toBeCloseTo(500);
-    expect(rp.machines).toBeCloseTo(100 / (60 / 256));
+    expect(rp.machines).toBeCloseTo(100 / ((60 * 4) / 256));
+  });
+});
+
+describe("arboretum feeders", () => {
+  it("each feeder's crew adds speed, and feeders are built and staffed", () => {
+    const crafty = { defaultCrew: ["spark-crafty", "spark-crafty"] };
+    // Copper Bamboo: 256 s per cycle, 100 cycles per 5 cuttings. 1 cutting/min = 20 cycles/min.
+    // 4 feeders x 2 Crafty = 12x speed: 60 * 12 / 256 = 2.8125 cycles/min per arboretum.
+    const p = makePlan(base({ ...crafty, targets: [target("copper-cutting", 1)] }));
+    const rp = p.recipes.get("copper-bamboo")!;
+    expect(rp.machines).toBeCloseTo(20 / 2.8125);
+    expect(rp.crew).toHaveLength(8);
+    const feederCost = p.buildCost.find((c) => c.material === "frilled-walrion-tusk")!;
+    expect(feederCost.amount).toBe(rp.machinesBuilt * 4);
+    // 8 feeders: twice as fast.
+    const eight = makePlan(base({ ...crafty, targets: [target("copper-cutting", 1)], feeders: { arboretum: 8 } }));
+    expect(eight.recipes.get("copper-bamboo")!.machines).toBeCloseTo(rp.machines / 2);
+    // Clamped to 1..12.
+    expect(new Solver(base({ feeders: { arboretum: 50 } })).feedersFor("arboretum")).toBe(12);
+    expect(new Solver(base({ feeders: { arboretum: 0 } })).feedersFor("arboretum")).toBe(1);
+  });
+});
+
+describe("loop-backs", () => {
+  // Copper ingots from sap: Copper Bamboo -> Extract Copper Cuttings (20 sap + 10 seeds each) ->
+  // Copper Sap Smelting (1 sap -> 1 ingot). 10 ingots/min = 0.5 cuttings/min = 10 bamboo cycles/min,
+  // which eat 50 seeds/min. Extraction gives 5 seeds/min back.
+  const copper = (over: Partial<PlanConfig> = {}) =>
+    base({
+      targets: [target("copper-ingot", 10)],
+      recipeChoice: { "copper-ingot": "copper-sap-smelting" },
+      defaultCrew: ["spark-crafty", "spark-crafty"],
+      ...over,
+    });
+
+  it("feeds byproduct seeds back into the arboretum by default (growth chains)", () => {
+    const p = makePlan(copper());
+    const loop = p.loops.find((l) => l.material === "copper-seed")!;
+    expect(loop).toMatchObject({ loopBack: true, isDefault: true });
+    expect(loop.fedBack).toBeCloseTo(5);
+    expect(loop.excess).toBeCloseTo(0);
+    // The greenhouse makes the other 45/min: 2 seeds per cycle -> 22.5 cycles/min.
+    expect(p.recipes.get("copper-seed-germination")!.crafts).toBeCloseTo(22.5);
+    expect(p.materials.get("copper-seed")!.surplus).toBeCloseTo(0);
+    expect(p.flow.edges.find((e) => e.from === "extract-copper-cuttings" && e.to === "copper-bamboo" && e.material === "copper-seed")!.rate).toBeCloseTo(5);
+  });
+
+  it("can be turned off, globally or per material", () => {
+    for (const p of [makePlan(copper({ loopMode: "none" })), makePlan(copper({ loopChoice: { "copper-seed": "supply" } }))]) {
+      expect(p.loops.find((l) => l.material === "copper-seed")!.loopBack).toBe(false);
+      expect(p.recipes.get("copper-seed-germination")!.crafts).toBeCloseTo(25);
+      expect(p.materials.get("copper-seed")!.surplus).toBeCloseTo(5);
+    }
+  });
+
+  it("only growth chains loop by default; others need the setting or a choice", () => {
+    // Coal fuelling the coal furnace: supplied separately unless looped.
+    const coal = (over: Partial<PlanConfig> = {}) =>
+      base({ targets: [target("coal", 5.5)], fuel: { material: "coal", perMinute: 2 }, ...over });
+    const off = makePlan(coal());
+    expect(off.loops.find((l) => l.material === "coal")!.loopBack).toBe(false);
+    expect(off.materials.get("coal")!.loopSupplied).toBeGreaterThan(0);
+    // Looped: x crafts make 5.5 + x * 2/7.5 coal, so x = 7.5 -> exactly one furnace.
+    for (const p of [makePlan(coal({ loopMode: "all" })), makePlan(coal({ loopChoice: { coal: "loop" } }))]) {
+      const line = [...p.recipes.values()].find((r) => r.primary === "coal")!;
+      expect(line.machines).toBeCloseTo(1);
+      expect(p.materials.get("coal")!.supplied).toBeCloseTo(0);
+      expect(p.rawInputs.map((r) => r.material)).not.toContain("coal");
+    }
+  });
+
+  it("refuses a loop that can't sustain itself", () => {
+    // 10 coal/min of fuel per furnace: each coal made needs 1.33 coal back.
+    const p = makePlan(base({ targets: [target("coal", 5)], fuel: { material: "coal", perMinute: 10 }, loopMode: "all" }));
+    expect(p.loops.find((l) => l.material === "coal")).toMatchObject({ loopBack: false, failed: true });
+    expect(p.warnings.join(" ")).toMatch(/can't be looped back/);
+    expect(p.materials.get("coal")!.loopSupplied).toBeGreaterThan(0);
+  });
+
+  it("keeps every machine's inputs matched by arrows when looping", () => {
+    for (const cfg of [copper(), base({ targets: [target("coal", 5.5)], fuel: { material: "coal", perMinute: 2 }, loopMode: "all" })]) {
+      const p = makePlan(cfg);
+      for (const n of p.flow.nodes.filter((x) => x.line)) {
+        for (const input of n.line!.inputs) {
+          const into = p.flow.edges.filter((x) => x.to === n.id && x.material === input.material && x.fuel === input.fuel);
+          expect(into.reduce((s2, x) => s2 + x.rate, 0), `${n.id} <- ${input.material}`).toBeCloseTo(input.rate, 6);
+        }
+      }
+    }
+  });
+});
+
+describe("self-feeding growth chains", () => {
+  // Copper Bamboo eats 100 seeds per cutting. Extracting a cutting gives 10 seeds + 20 sap, and
+  // Copper Sap Beading turns each sap into 8 seeds: 170 seeds back per cutting, so the loop feeds
+  // itself with 70 seeds/cutting to spare.
+  const crafty = { defaultCrew: ["spark-crafty", "spark-crafty"] };
+  const beading = { "copper-seed": "copper-sap-beading" };
+
+  it("suggests the recipe that lets the chain feed itself", () => {
+    const p = makePlan(base({ ...crafty, targets: [target("copper-cutting", 1)] }));
+    expect(p.selfFeeding).toEqual([
+      { material: "copper-seed", recipe: "copper-sap-beading", growth: "copper-bamboo", saves: ["volcanic-soil"], needs: [] },
+    ]);
+    expect(makePlan(base({ ...crafty, targets: [target("copper-cutting", 1)], loopMode: "none" })).selfFeeding).toEqual([]);
+    // Already switched: nothing more to suggest.
+    expect(makePlan(base({ ...crafty, targets: [target("copper-cutting", 1)], recipeChoice: beading })).selfFeeding).toEqual([]);
+  });
+
+  it("nets 70 seeds per cutting once it runs, with nothing from outside", () => {
+    const p = makePlan(base({ ...crafty, targets: [target("copper-seed", 70)], recipeChoice: beading }));
+    expect(p.recipes.get("copper-bamboo")!.outputs[0].rate).toBeCloseTo(1); // 1 cutting/min
+    expect(p.recipes.get("extract-copper-cuttings")!.inputs[0].rate).toBeCloseTo(1);
+    expect(p.recipes.get("copper-sap-beading")!.outputs[0].rate).toBeCloseTo(160);
+    expect(p.rawInputs).toEqual([]);
+    const loop = p.loops.find((l) => l.material === "copper-seed")!;
+    expect(loop.fedBack).toBeCloseTo(10);
+    // Priming: one batch of seeds per Arboretum (5 per cycle x 100 cycles).
+    expect(loop.prime).toEqual([{ recipe: "copper-bamboo", perMachine: 500, total: 500 * p.recipes.get("copper-bamboo")!.machinesBuilt }]);
   });
 });

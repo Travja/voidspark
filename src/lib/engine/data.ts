@@ -61,6 +61,11 @@ export interface Workstation {
   craftCap?: number;
   /** World site each machine must be built on (e.g. "Giant Tree"), one site per machine. */
   site?: string;
+  /**
+   * Worked through separate feeder buildings (the Arboretum): the sparks sit in the feeders, and
+   * every feeder's crew adds to the station's speed. `count` feeders per station by default.
+   */
+  fedBy?: { workstation: string; count: number; max: number };
 }
 
 export interface SparkType {
@@ -137,6 +142,7 @@ interface RawData {
     sparkSlots?: number;
     craftCap?: number;
     site?: string;
+    fedBy?: { workstation: string; count: number; max: number };
   }[];
   process: Recipe[];
   material: Material[];

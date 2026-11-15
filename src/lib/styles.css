@@ -1071,3 +1071,35 @@ footer {
     display: none;
   }
 }
+
+/* ---------- Loop-backs ---------- */
+
+.edge.back {
+  stroke: var(--loop);
+  stroke-dasharray: 2 4;
+  stroke-linecap: round;
+}
+
+.edge-label.back {
+  border-color: var(--loop);
+  color: var(--loop);
+}
+
+.edge-label.back::before {
+  content: "↻ ";
+}
+
+button.tag {
+  cursor: pointer;
+  font: inherit;
+  font-size: inherit;
+  background: transparent;
+}
+
+.tag.loop.on {
+  background: var(--loop-soft);
+}
+
+.tree-note {
+  margin: 0 0 10px;
+}

@@ -8,6 +8,7 @@
   import Icon from "./Icon.svelte";
   import { displayName } from "./icons";
   import RecipePicker from "./RecipePicker.svelte";
+  import Loops from "./Loops.svelte";
   import Sites from "./Sites.svelte";
   import Staffing from "./Staffing.svelte";
 
@@ -223,6 +224,7 @@
 {#if graph.nodes.length}
   <Staffing {plan} {app} />
   <Sites {plan} {app} />
+  <Loops {plan} {app} />
   <details class="station-strip" bind:open={stationsOpen}>
     <summary class="muted small">
       {total} machines · {plan.stations.length} workstation types{stationsOpen ? ":" : ""}
@@ -304,6 +306,7 @@
               d={e.path}
               class="edge"
               class:fuel={e.edge.fuel}
+              class:back={e.back}
               class:dim={!linked(e.edge)}
               class:hot={focus && linked(e.edge)}
               stroke-width={strokeWidth(e.edge.rate)}
@@ -318,6 +321,7 @@
             class:tb={layout.direction === "tb"}
             class:dim={!linked(e.edge)}
             class:fuel={e.edge.fuel}
+            class:back={e.back}
             style:left="{labelPos.get(e)?.x ?? e.x2 - 10}px"
             style:top="{labelPos.get(e)?.y ?? e.y2}px"
             title="{displayName(e.edge.material)}{e.edge.fuel ? ' (fuel)' : ''}: {nodeLabel(e.edge.from)} → {nodeLabel(e.edge.to)}"
@@ -357,7 +361,8 @@
               <span class="card-row small muted">
                 {fmtLoad(n.line.machines)} busy
                 <span class="crew">
-                  {#each n.line.crew as s, i (i)}<Icon id={s.block} size={14} title={s.name} />{/each}
+                  {#each n.line.crew.slice(0, n.line.crew.length / (n.line.feeders || 1)) as s, i (i)}<Icon id={s.block} size={14} title={s.name} />{/each}
+                  {#if n.line.feeders}<span class="muted" title="Sparks per feeder × feeders per machine">×{n.line.feeders} feeders</span>{/if}
                 </span>
                 {#if surplusOf(n).length}<span class="tag surplus" title="Extra outputs nothing uses">+ surplus</span>{/if}
                 {#if n.line.recipe.cycles}<span class="tag growth" title="{n.line.recipe.cycles} growth cycles per batch">🌱</span>{/if}
@@ -445,6 +450,13 @@
             this crew.
           </p>
         {/if}
+        {#if n.line.feeders}
+          {@const fed = GAME.workstations.get(n.line.recipe.workstation)!.fedBy!}
+          <p class="small">
+            Worked through <strong>{n.line.feeders} {displayName(fed.workstation)}s</strong> per machine
+            ({n.line.feeders * n.line.machinesBuilt} in all). The sparks sit in the feeders, and each feeder's crew adds speed.
+          </p>
+        {/if}
         {@const limit = solver.craftRate(n.line.recipe)}
         {#if limit.limitedBy !== "crew" && limit.limitedBy !== "cap"}
           {@const res = GAME.materials.get(limit.limitedBy)?.siteResource}
@@ -456,6 +468,16 @@
         <div class="detail-controls">
           <label class="small">Sparks <CrewPicker workstation={n.line.recipe.workstation} {app} /></label>
           <label class="small">Recipe <RecipePicker material={n.material} {solver} {app} /></label>
+          {#if n.line.feeders}
+            {@const ws = n.line.recipe.workstation}
+            {@const fed = GAME.workstations.get(ws)!.fedBy!}
+            <span class="built-stepper small">
+              Feeders
+              <button class="icon-btn" aria-label="One fewer feeder" disabled={n.line.feeders <= 1} onclick={() => app.setFeeders(ws, solver.feedersFor(ws) - 1)}>−</button>
+              <strong>{n.line.feeders}</strong>
+              <button class="icon-btn" aria-label="One more feeder" disabled={n.line.feeders >= fed.max} onclick={() => app.setFeeders(ws, solver.feedersFor(ws) + 1)}>+</button>
+            </span>
+          {/if}
           <span class="built-stepper small">
             Built
             <button

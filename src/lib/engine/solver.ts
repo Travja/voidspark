@@ -10,14 +10,17 @@
  *   Growth recipes (greenhouse, arboretum) count each cycle as a craft: a cycle uses the listed
  *   inputs, and the products come out after `cycles` of them.
  *
- * Production flows one way: from raw inputs toward the targets. Each target expands into its
- * own tree and every node is sized for exactly what its parent pulls, so no belt has to run
- * back up the line:
+ * By default production flows one way: from raw inputs toward the targets. Each target expands
+ * into its own tree and every node is sized for exactly what its parent pulls, so no belt has to
+ * run back up the line:
  *   - Extra outputs (byproducts) are surplus. They are never fed back into earlier machines or
  *     credited against other branches.
  *   - If an input already appears further up its own chain (coal fuelling the coal furnace,
  *     a seed that comes from the plant it grows), it is not produced in a loop. It becomes a
  *     separate input, supplied from outside that chain.
+ * Loop-backs (a plan setting, on by default for greenhouse and arboretum chains) close those
+ * loops instead: byproducts are fed back into the inputs they can cover, and an input needed
+ * further down its own chain is made in-line. See `closeLoops`.
  */
 import {
   expectedOutput,
@@ -31,6 +34,46 @@ import {
 import type { Limit } from "./limits";
 
 export const EXTERNAL = "external";
+
+/** growth: loop back only where a greenhouse or arboretum recipe is involved. */
+export type LoopMode = "growth" | "all" | "none";
+
+/** A loop the plan could close: a byproduct that feeds an input, or an input needed below itself. */
+export interface LoopInfo {
+  material: string;
+  /** True when it's fed back; false when it's supplied separately (and byproducts are surplus). */
+  loopBack: boolean;
+  /** Whether that's the default for this material (no per-material choice made). */
+  isDefault: boolean;
+  /** Items/min of byproduct made in the plan, by recipe id. */
+  byproducts: { recipe: string; rate: number }[];
+  /** Items/min of byproduct fed back into the plan (0 when not looping back). */
+  fedBack: number;
+  /** Items/min of byproduct left over. */
+  excess: number;
+  /** Items/min needed further down its own chain: made in-line when looping, else supplied. */
+  selfUse: number;
+  /** The loop can't sustain itself (each unit needs a unit or more back), so it wasn't closed. */
+  failed?: boolean;
+  /**
+   * A loop that feeds itself (seeds -> plants -> seeds) has to be started by hand: one batch of
+   * this material per growth machine, before the first products come out.
+   */
+  prime?: { recipe: string; perMachine: number; total: number }[];
+}
+
+/** Another recipe for a growth recipe's input that would let the chain feed itself. */
+export interface SelfFeedingOption {
+  material: string;
+  /** The recipe to switch to. */
+  recipe: string;
+  /** The growth recipe whose own output ends up feeding it. */
+  growth: string;
+  /** Raw inputs the plan would no longer need. */
+  saves: string[];
+  /** Raw inputs it would still need. */
+  needs: string[];
+}
 
 export interface Target {
   id: string;
@@ -49,6 +92,12 @@ export interface PlanConfig {
   /** workstation id -> spark ids working it. */
   stationCrew: Record<string, string[]>;
   fuel: { material: string; perMinute: number };
+  /** Which loops are fed back by default. Default "growth": only greenhouse/arboretum chains. */
+  loopMode?: LoopMode;
+  /** Per material: feed it back ("loop") or supply it separately ("supply"). */
+  loopChoice?: Record<string, "loop" | "supply">;
+  /** Feeders per station, for stations worked through feeders (the Arboretum). */
+  feeders?: Record<string, number>;
   /** What the player has (sites, items/min, machines). The solver ignores them; see limits.ts. */
   limits?: Limit[];
 }
@@ -81,6 +130,8 @@ export interface RecipePlan {
   machines: number;
   /** Machines to build (ceil of the sum). */
   machinesBuilt: number;
+  /** Feeders per machine, for stations worked through feeders (the Arboretum). */
+  feeders?: number;
   inputs: Flow[];
   outputs: Flow[];
 }
@@ -99,6 +150,8 @@ export interface MaterialPlan {
   loopSupplied: number;
   /** Items/min made but not used: byproducts. */
   surplus: number;
+  /** Items/min of byproduct fed back into its own inputs (loop-backs). */
+  fedBack: number;
   producers: Flow[];
   consumers: Flow[];
 }
@@ -130,6 +183,8 @@ export interface TreeNode {
   children: TreeNode[];
   /** Inputs not shown because the tree hit its display size limit (totals still count them). */
   truncated?: boolean;
+  /** For loop nodes: this loop is fed back in-line rather than supplied separately. */
+  loopBack?: boolean;
 }
 
 /**
@@ -153,6 +208,8 @@ export interface FlowEdge {
   material: string;
   rate: number;
   fuel: boolean;
+  /** Feeds a loop-back: it runs back up the line, so the layout doesn't rank by it. */
+  loop?: boolean;
 }
 
 export interface Plan {
@@ -174,6 +231,10 @@ export interface Plan {
   trees: TreeNode[];
   /** Machine groups and what feeds what, for the build diagram. */
   flow: { nodes: FlowNode[]; edges: FlowEdge[] };
+  /** Loops the plan could close, and whether each one is fed back. */
+  loops: LoopInfo[];
+  /** Recipe switches that would let a growth chain feed itself. */
+  selfFeeding: SelfFeedingOption[];
   warnings: string[];
 }
 
@@ -227,6 +288,8 @@ export class Solver {
   constructor(
     readonly cfg: PlanConfig,
     readonly data: GameData = GAME,
+    /** Look for self-feeding recipe switches (off for the trial plans that check them). */
+    private readonly suggest = true,
   ) {}
 
   recipeFor(material: string): Recipe | null {
@@ -244,6 +307,11 @@ export class Solver {
   /** Sparks working one machine of this workstation type (trimmed to its slot count). */
   crewFor(workstation: string): SparkType[] {
     const ws = this.data.workstations.get(workstation);
+    if (ws?.fedBy) {
+      // Every feeder brings its own crew.
+      const one = this.crewFor(ws.fedBy.workstation);
+      return Array.from({ length: this.feedersFor(workstation) }, () => one).flat();
+    }
     if (ws && !ws.sparkPowered) return [];
     const ids = this.cfg.stationCrew[workstation] ?? this.cfg.defaultCrew;
     const crew = ids
@@ -256,8 +324,17 @@ export class Solver {
   /** Combined speed multiplier of the crew (1 = one Stumpy). */
   crewSpeed(workstation: string): number {
     const ws = this.data.workstations.get(workstation);
+    if (ws?.fedBy) return this.feedersFor(workstation) * this.crewSpeed(ws.fedBy.workstation);
     if (ws && !ws.sparkPowered) return 1;
     return this.crewFor(workstation).reduce((n, s) => n + s.speed / 100, 0);
+  }
+
+  /** Feeders per machine for a station worked through feeders (0 for any other station). */
+  feedersFor(workstation: string): number {
+    const fed = this.data.workstations.get(workstation)?.fedBy;
+    if (!fed) return 0;
+    const n = Math.round(this.cfg.feeders?.[workstation] ?? fed.count);
+    return Math.min(fed.max, Math.max(1, n));
   }
 
   craftsPerMinute(recipe: Recipe): number {
@@ -438,7 +515,7 @@ export class Solver {
     const warnings: string[] = [];
     const targets = this.cfg.targets.filter((t) => this.data.materials.has(t.material));
     const demand = new Map<string, number>();
-    const totals = emptyTotals();
+    let totals = emptyTotals();
     for (const t of targets) {
       if (t.mode === "machines" && !this.recipeFor(t.material)) {
         warnings.push(`${this.name(t.material)} has no recipe selected, so set its target as a rate.`);
@@ -449,6 +526,9 @@ export class Solver {
       const r = this.recipeFor(t.material);
       add(totals.edges, edgeKey(r ? r.id : `raw:${t.material}`, `target:${t.material}`, t.material, false), rate);
     }
+    const closed = this.closeLoops(totals, demand, warnings);
+    totals = closed.totals;
+    const loops = closed.loops;
 
     const recipes = new Map<string, RecipePlan>();
     for (const [id, crafts] of totals.crafts) {
@@ -464,6 +544,7 @@ export class Solver {
         craftsPerMachine: cpm,
         machines,
         machinesBuilt: Math.ceil(machines - EPS),
+        ...(this.feedersFor(recipe.workstation) ? { feeders: this.feedersFor(recipe.workstation) } : {}),
         inputs: this.craftInputs(recipe).map((e) => ({ material: e.material, rate: crafts * e.perUnit, fuel: e.fuel })),
         outputs: recipe.to.map((t) => ({ material: t.material, rate: crafts * outputPerCraft(recipe, t), fuel: false })),
       });
@@ -482,6 +563,7 @@ export class Solver {
           supplied: totals.raw.get(m) ?? 0,
           loopSupplied: totals.loop.get(m) ?? 0,
           surplus: 0,
+          fedBack: loops.find((l) => l.material === m)?.fedBack ?? 0,
           producers: [],
           consumers: [],
         };
@@ -510,7 +592,7 @@ export class Solver {
     for (const mp of materials.values()) {
       if (mp.loopSupplied > 1e-7) {
         warnings.push(
-          `${this.name(mp.material)} (${+mp.loopSupplied.toFixed(3)}/min) is needed further down its own chain. Supply it separately rather than looping it back, or pick another recipe.`,
+          `${this.name(mp.material)} (${+mp.loopSupplied.toFixed(3)}/min) is needed further down its own chain, so it's supplied separately. Turn on its loop-back to make it in-line, or pick another recipe.`,
         );
       }
     }
@@ -543,7 +625,12 @@ export class Solver {
 
     const cost = new Map<string, number>();
     for (const s of stations) {
-      for (const c of this.data.workstations.get(s.workstation)?.cost ?? []) add(cost, c.id, c.amount * s.machinesBuilt);
+      const ws = this.data.workstations.get(s.workstation);
+      for (const c of ws?.cost ?? []) add(cost, c.id, c.amount * s.machinesBuilt);
+      if (ws?.fedBy) {
+        const feeders = this.feedersFor(ws.id) * s.machinesBuilt;
+        for (const c of this.data.workstations.get(ws.fedBy.workstation)?.cost ?? []) add(cost, c.id, c.amount * feeders);
+      }
     }
 
     // Each built machine needs its whole crew (a recipe line's crew follows its workstation).
@@ -554,6 +641,28 @@ export class Solver {
       .map((spark) => ({ spark, count: staff.get(spark.id)! }));
 
     const trees = this.buildTrees(targets.map((t) => ({ material: t.material, rate: this.targetRate(t), id: t.id })));
+    const looped = new Set(loops.filter((l) => l.loopBack && !l.failed).map((l) => l.material));
+    const markLoops = (n: TreeNode) => {
+      if (n.kind === "loop" && looped.has(n.material)) n.loopBack = true;
+      n.children.forEach(markLoops);
+    };
+    trees.forEach(markLoops);
+
+    // Priming: a looped input of a growth recipe that is made from that recipe's own output
+    // (seeds from its cuttings) can't start by itself, so it needs one batch up front.
+    for (const l of loops) {
+      if (!l.loopBack || l.failed) continue;
+      const below = this.reach(l.material);
+      const prime: NonNullable<LoopInfo["prime"]> = [];
+      for (const rp of recipes.values()) {
+        const r = rp.recipe;
+        const amount = r.from.find((f) => f.material === l.material)?.amount;
+        if (!r.cycles || !amount || !r.to.some((t) => below.has(t.material))) continue;
+        const perMachine = amount * r.cycles;
+        prime.push({ recipe: r.id, perMachine, total: perMachine * rp.machinesBuilt });
+      }
+      if (prime.length) l.prime = prime;
+    }
 
     // Build diagram: one node per recipe line, raw supply, loop break and target.
     const flowNodes = new Map<string, FlowNode>();
@@ -573,6 +682,18 @@ export class Solver {
       if (!flowNodes.get(from)!.line) flowNodes.get(from)!.rate += rate;
       flowEdges.push({ from, to, material, rate, fuel: fuel === "1" });
     }
+    // Mark the arrows that close a loop: fed-back byproducts, and a looped material's own chain
+    // feeding something below it in that chain.
+    for (const l of loops) {
+      if (!l.loopBack || l.failed) continue;
+      const fromBy = new Set(l.byproducts.map((b) => b.recipe));
+      const below = this.reach(l.material);
+      for (const e of flowEdges) {
+        if (e.material !== l.material) continue;
+        const consumer = flowNodes.get(e.to)?.material;
+        if (fromBy.has(e.from) || (consumer && (consumer === l.material || below.has(consumer)))) e.loop = true;
+      }
+    }
 
     return {
       materials,
@@ -589,6 +710,8 @@ export class Solver {
       sites: this.sitesFor(stations, materials),
       trees,
       flow: { nodes: [...flowNodes.values()], edges: flowEdges },
+      loops,
+      selfFeeding: this.suggest ? this.selfFeedingOptions(recipes, materials) : [],
       warnings,
     };
   }
@@ -620,6 +743,197 @@ export class Solver {
       s.count = Math.max(s.count, Math.ceil(mp.supplied / res.perMinute - EPS));
     }
     return [...bySite.values()].sort((a, b) => b.count - a.count || a.site.localeCompare(b.site));
+  }
+
+  // --- loop-backs --------------------------------------------------------------------------------
+
+  /**
+   * For each input of a growth recipe in the plan, another recipe whose chain runs back through
+   * that growth recipe's own output (copper seeds from the sap of its cuttings) and settles when
+   * looped: switching to it lets the chain feed itself.
+   */
+  private selfFeedingOptions(recipes: Map<string, RecipePlan>, materials: Map<string, MaterialPlan>): SelfFeedingOption[] {
+    if ((this.cfg.loopMode ?? "growth") === "none") return [];
+    const out: SelfFeedingOption[] = [];
+    const raw = new Set([...materials.values()].filter((m) => m.supplied > 1e-7).map((m) => m.material));
+    for (const rp of recipes.values()) {
+      const g = rp.recipe;
+      if (!g.cycles) continue;
+      const products = new Set(g.to.map((t) => t.material));
+      for (const input of g.from) {
+        const m = input.material;
+        if (this.cfg.loopChoice?.[m] === "supply" || out.some((o) => o.material === m)) continue;
+        const current = this.recipeFor(m);
+        for (const alt of this.data.recipesFor.get(m) ?? []) {
+          if (alt.id === current?.id || alt.to.every((t) => t.material !== m)) continue;
+          const back = alt.from.some((f) => products.has(f.material) || [...products].some((p) => this.reach(f.material).has(p)));
+          if (!back) continue;
+          const trial = new Solver(
+            { ...this.cfg, recipeChoice: { ...this.cfg.recipeChoice, [m]: alt.id }, loopChoice: { ...this.cfg.loopChoice, [m]: "loop" } },
+            this.data,
+            false,
+          ).plan();
+          const loop = trial.loops.find((l) => l.material === m);
+          if (!loop?.loopBack || trial.loops.some((l) => l.failed)) continue;
+          const trialRaw = new Set(trial.rawInputs.map((r) => r.material));
+          out.push({
+            material: m,
+            recipe: alt.id,
+            growth: g.id,
+            saves: [...raw].filter((x) => !trialRaw.has(x) && x !== m),
+            needs: [...trialRaw],
+          });
+          break;
+        }
+      }
+    }
+    return out;
+  }
+
+  /** Whether a material's loop is fed back: the player's choice, else the plan's loop mode. */
+  private loopsBack(material: string, recipesInPlan: Recipe[]): { loopBack: boolean; isDefault: boolean } {
+    const choice = this.cfg.loopChoice?.[material];
+    if (choice) return { loopBack: choice === "loop", isDefault: false };
+    const mode = this.cfg.loopMode ?? "growth";
+    if (mode !== "growth") return { loopBack: mode === "all", isDefault: true };
+    const growth = recipesInPlan.some(
+      (r) => r.cycles && (r.from.some((f) => f.material === material) || r.to.some((t) => t.material === material)),
+    );
+    return { loopBack: growth, isDefault: true };
+  }
+
+  /** Items/min of each material used by the plan's recipes, and byproducts made, by recipe. */
+  private flowStats(t: Totals) {
+    const use = new Map<string, number>();
+    const by = new Map<string, Map<string, number>>();
+    for (const [id, crafts] of t.crafts) {
+      if (crafts <= EPS) continue;
+      const recipe = this.data.recipesById.get(id)!;
+      for (const e of this.craftInputs(recipe)) add(use, e.material, crafts * e.perUnit);
+      for (const o of recipe.to) {
+        if (this.recipeFor(o.material)?.id === id) continue;
+        const m = by.get(o.material) ?? new Map<string, number>();
+        add(m, id, crafts * outputPerCraft(recipe, o));
+        by.set(o.material, m);
+      }
+    }
+    return { use, by };
+  }
+
+  /**
+   * Close the loops the player wants fed back. For each such material, its own chain (its recipe,
+   * or its raw supply) is resized so that, with the byproducts fed back, supply meets the plan's
+   * whole use of it, including any use further down its own chain. Resizing a chain changes what
+   * it uses and what byproducts it makes, so this repeats until it settles (it converges whenever
+   * the loop needs less than one unit back per unit made).
+   */
+  private closeLoops(ff: Totals, demand: Map<string, number>, warnings: string[]): { totals: Totals; loops: LoopInfo[] } {
+    const recipesIn = (t: Totals) =>
+      [...t.crafts].filter(([, c]) => c > EPS).map(([id]) => this.data.recipesById.get(id)!);
+    const stats0 = this.flowStats(ff);
+    const candidates = new Set<string>();
+    for (const [m, v] of ff.loop) if (v > EPS) candidates.add(m);
+    for (const [m] of stats0.by) if ((stats0.use.get(m) ?? 0) + (demand.get(m) ?? 0) > EPS) candidates.add(m);
+    if (!candidates.size) return { totals: ff, loops: [] };
+
+    const inPlan = recipesIn(ff);
+    const choice = new Map([...candidates].map((m) => [m, this.loopsBack(m, inPlan)]));
+    const active = [...candidates].filter((m) => choice.get(m)!.loopBack);
+
+    const build = (e: Map<string, number>) => {
+      const t = emptyTotals();
+      mergeInto(t, ff, 1);
+      for (const [m, v] of e) if (v) mergeInto(t, this.unit(m, new Set()), v);
+      return t;
+    };
+    const produced = (t: Totals, m: string) => {
+      const r = this.recipeFor(m);
+      return r ? (t.crafts.get(r.id) ?? 0) * expectedOutput(r, m) : (t.raw.get(m) ?? 0) - (t.loop.get(m) ?? 0);
+    };
+
+    const failed = new Set<string>();
+    let e = new Map<string, number>();
+    let t = ff;
+    if (active.length) {
+      let settled = false;
+      for (let it = 0; it < 400 && !settled; it++) {
+        t = build(e);
+        const { use, by } = this.flowStats(t);
+        settled = true;
+        for (const m of active) {
+          const need = (use.get(m) ?? 0) + (demand.get(m) ?? 0);
+          const back = Math.min(need, [...(by.get(m)?.values() ?? [])].reduce((a, b) => a + b, 0));
+          const delta = need - back - produced(t, m);
+          if (Math.abs(delta) > 1e-10 * Math.max(1, need)) settled = false;
+          e.set(m, (e.get(m) ?? 0) + delta);
+          if (!Number.isFinite(e.get(m)!) || e.get(m)! > 1e9) failed.add(m);
+        }
+        if (failed.size) break;
+      }
+      if (!settled || failed.size) {
+        for (const m of active) if (failed.size === 0 || failed.has(m)) failed.add(m);
+        warnings.push(
+          `${[...failed].map((m) => this.name(m)).join(", ")} can't be looped back: each one made needs at least one more back, so it would never settle. They're supplied separately instead.`,
+        );
+        e = new Map();
+        t = ff;
+      }
+    }
+
+    // Report every candidate; rewire the looped ones.
+    const { use, by } = this.flowStats(t);
+    const out = emptyTotals();
+    mergeInto(out, t, 1);
+    const loops: LoopInfo[] = [];
+    for (const m of candidates) {
+      const looping = choice.get(m)!.loopBack && !failed.has(m);
+      const need = (use.get(m) ?? 0) + (demand.get(m) ?? 0);
+      const byRecipe = [...(by.get(m) ?? new Map<string, number>())].map(([recipe, rate]) => ({ recipe, rate }));
+      const made = byRecipe.reduce((a, b) => a + b.rate, 0);
+      const fedBack = looping ? Math.min(made, need) : 0;
+      loops.push({
+        material: m,
+        loopBack: looping,
+        isDefault: choice.get(m)!.isDefault,
+        byproducts: byRecipe.filter((b) => b.rate > EPS),
+        fedBack,
+        excess: Math.max(0, made - fedBack),
+        selfUse: looping ? (ff.loop.get(m) ?? 0) : (t.loop.get(m) ?? 0),
+        ...(failed.has(m) ? { failed: true } : {}),
+      });
+      if (!looping) continue;
+
+      // Nothing is supplied separately any more: the chain makes it all.
+      const sep = out.loop.get(m) ?? 0;
+      if (sep) {
+        add(out.raw, m, -sep);
+        out.loop.delete(m);
+      }
+      // Rewire every flow of m: from its sources (fed-back byproducts, then its own chain) to its
+      // consumers, in proportion.
+      for (const key of [...out.edges.keys()]) if (key.split(SEP)[2] === m) out.edges.delete(key);
+      if (need <= EPS) continue;
+      const consumers = new Map<string, number>();
+      for (const [id, crafts] of out.crafts) {
+        if (crafts <= EPS) continue;
+        for (const e2 of this.craftInputs(this.data.recipesById.get(id)!)) {
+          if (e2.material === m) add(consumers, `${id}${SEP}${e2.fuel ? "1" : "0"}`, crafts * e2.perUnit);
+        }
+      }
+      if ((demand.get(m) ?? 0) > EPS) add(consumers, `target:${m}${SEP}0`, demand.get(m)!);
+      const sources: [string, number][] = byRecipe.map((b) => [b.recipe, made > EPS ? (b.rate * fedBack) / made : 0]);
+      const r = this.recipeFor(m);
+      sources.push([r ? r.id : `raw:${m}`, need - fedBack]);
+      for (const [from, amount] of sources) {
+        if (amount <= EPS) continue;
+        for (const [c, w] of consumers) {
+          const [to, fuel] = c.split(SEP);
+          add(out.edges, edgeKey(from, to, m, fuel === "1"), (amount * w) / need);
+        }
+      }
+    }
+    loops.sort((a, b) => this.name(a.material).localeCompare(this.name(b.material)));
+    return { totals: out, loops };
   }
 
   name(material: string): string {

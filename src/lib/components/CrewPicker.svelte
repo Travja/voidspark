@@ -7,8 +7,12 @@
   /**
    * Choose which sparks work a workstation type. Without `workstation`, edits the default crew.
    */
-  let { workstation, app }: { workstation?: string; app: AppState } = $props();
+  let { workstation: picked, app }: { workstation?: string; app: AppState } = $props();
 
+  /** A station worked through feeders (the Arboretum) takes the crew of each feeder. */
+  const workstation = $derived(
+    picked ? (GAME.workstations.get(picked)?.fedBy?.workstation ?? picked) : undefined,
+  );
   const ws = $derived(workstation ? GAME.workstations.get(workstation) : undefined);
   const options = $derived(crewOptions(ws?.sparkSlots ?? DEFAULT_SPARK_SLOTS));
   const override = $derived(workstation ? app.cfg.stationCrew[workstation] : undefined);
