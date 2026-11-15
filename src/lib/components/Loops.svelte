@@ -14,7 +14,8 @@
 
   const unit = $derived(app.cfg.unit);
   const recipeName = (id: string) => plan.recipes.get(id)?.recipe.name ?? GAME.recipesById.get(id)?.name ?? id;
-  const anyOn = $derived(plan.loops.some((l) => l.loopBack) || plan.selfFeeding.length > 0);
+  // Closed unless there's a suggestion to act on, so it doesn't push the diagram down.
+  const anyOn = $derived(plan.selfFeeding.length > 0);
   const stationOf = (recipe: string) => displayName(GAME.recipesById.get(recipe)?.workstation ?? "");
   const list = (ids: string[]) => ids.map(displayName).join(", ");
 </script>
@@ -53,7 +54,10 @@
                 {#if l.fedBack > 1e-9}
                   ↻ {fmtRate(l.fedBack, unit)} fed back from {l.byproducts.map((b) => recipeName(b.recipe)).join(", ")}.
                 {/if}
-                {#if l.selfUse > 1e-9}↻ Some of it goes back into its own chain, so that part is made in-line too.{/if}
+                {#if l.selfUse > 1e-9 && l.used && l.total}
+                  ↻ {fmtRate(l.used.rate, unit)} goes back into its own chain ({l.used.recipes.map(recipeName).join(", ")}), so
+                  {fmtRate(l.total, unit)} is made in all.
+                {/if}
                 {#each l.prime ?? [] as pr (pr.recipe)}
                   <span class="prime">
                     To start it, prime each {stationOf(pr.recipe)} with {pr.perMachine} {displayName(l.material)}

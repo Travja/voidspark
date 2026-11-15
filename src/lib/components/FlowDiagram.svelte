@@ -25,21 +25,78 @@
   let viewportWidth = $state(1000);
   const dir = $derived(direction === "auto" ? (viewportWidth < 700 ? "tb" : "lr") : direction);
 
-  // Left-to-right: arrows enter along the card's side, so tall cards spread many inputs.
-  // Top-to-bottom: arrows enter along the top, so cards stay a fixed height.
-  const nodeHeight = (n: FlowNode, ins: number, outs: number) =>
-    dir === "tb"
-      ? n.kind === "recipe"
-        ? 86
-        : 56
-      : n.kind === "recipe"
-        ? Math.max(86, 24 * Math.max(ins, outs) + 14)
-        : Math.max(54, 22 * outs + 12);
+  // Cards are sized to their text: names wrap (up to two lines) instead of being cut off, so a
+  // card's height depends on how its words fit. Measured with the page's own font.
+  const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+  const ctx = typeof document === "undefined" ? null : document.createElement("canvas").getContext("2d");
+  const textWidth = (text: string, font: string) => {
+    if (!ctx) return text.length * 7.5;
+    ctx.font = `${font} ${FONT}`;
+    return ctx.measureText(text).width;
+  };
+  /** Lines `text` takes at `width` px, wrapping at spaces like the browser does. */
+  const lineCount = (text: string, width: number, font: string) => {
+    let lines = 1;
+    let used = 0;
+    const space = textWidth(" ", font);
+    for (const word of text.split(/\s+/)) {
+      const w = textWidth(word, font);
+      if (used && used + space + w > width) {
+        lines++;
+        used = w;
+      } else used += (used ? space : 0) + w;
+    }
+    return lines;
+  };
+  /** Rows a wrapping row of pieces (given their widths) takes. */
+  const rowCount = (widths: number[], width: number, gap = 6) => {
+    let rows = 1;
+    let used = 0;
+    for (const w of widths) {
+      if (used && used + gap + w > width) {
+        rows++;
+        used = w;
+      } else used += (used ? gap : 0) + w;
+    }
+    return rows;
+  };
+  const cardWidth = $derived(dir === "tb" ? 168 : 210);
+  const LINE = 20; // 14px text
+  const SMALL = 18; // 12px text
+  const statusPieces = (n: FlowNode): number[] => {
+    const line = n.line!;
+    const crew = line.feedersTotal
+      ? textWidth(`${line.feedersTotal} feeders`, "12px")
+      : line.crew.length * 16;
+    return [
+      textWidth(fmtRate(line.outputs.find((o) => o.material === n.material)?.rate ?? 0, unit), "600 14px"),
+      textWidth(`${fmtLoad(line.machines)} busy`, "12px"),
+      crew,
+      ...(surplusOf(n).length ? [62] : []),
+      ...(line.recipe.cycles && !line.feedersTotal ? [30] : []),
+    ];
+  };
+  /** Card height for its text; left to right, also tall enough to spread its arrows. */
+  const nodeHeight = (n: FlowNode, ins: number, outs: number) => {
+    const inner = cardWidth - 22; // padding and border
+    let h: number;
+    if (n.kind === "recipe" && n.line) {
+      const head = Math.min(2, lineCount(`${n.line.machinesBuilt} × ${displayName(n.line.recipe.workstation)}`, inner - 32 - 24, "700 14px"));
+      const name = Math.min(2, lineCount(displayName(n.material), inner - 24, "14px"));
+      const status = rowCount(statusPieces(n), inner);
+      h = 18 + head * LINE + name * LINE + status * SMALL + 10;
+    } else {
+      const name = Math.min(2, lineCount(displayName(n.material), inner - 28, "700 14px"));
+      h = 18 + name * LINE + SMALL + 8 + (n.kind === "target" ? SMALL + 4 : 0);
+    }
+    if (dir === "tb") return Math.ceil(h);
+    return Math.ceil(Math.max(h, n.kind === "recipe" ? 24 * Math.max(ins, outs) + 14 : 22 * outs + 12));
+  };
 
   const layout = $derived(
     layoutFlow(graph.nodes, graph.edges, {
       direction: dir,
-      cardWidth: dir === "tb" ? 168 : 210,
+      cardWidth,
       columnGap: dir === "tb" ? 72 : 130,
       rowGap: dir === "tb" ? 12 : 18,
       height: nodeHeight,
@@ -53,6 +110,15 @@
    */
   const labelPos = $derived.by(() => {
     const result = new Map<(typeof layout.edges)[number], { x: number; y: number }>();
+    // Loop-back arrows: one label per group, on its track outside the diagram, just before the
+    // turn into the card (the part every arrow in the group shares).
+    for (const e of layout.edges) {
+      if (!e.back || !e.group?.lead || e.segments.length < 3) continue;
+      const leg = e.segments[2];
+      const len = Math.hypot(leg.p3.x - leg.p0.x, leg.p3.y - leg.p0.y) || 1;
+      const t = Math.max(0, 1 - 44 / len);
+      result.set(e, { x: leg.p0.x + (leg.p3.x - leg.p0.x) * t, y: leg.p0.y + (leg.p3.y - leg.p0.y) * t });
+    }
     if (layout.direction !== "tb") return result;
     const at = (seg: Segment, t: number) => {
       const u = 1 - t;
@@ -76,6 +142,7 @@
     const width = (e: (typeof layout.edges)[number]) => 34 + 6.6 * fmtRate(e.edge.rate, app.cfg.unit).length;
     const gaps = new Map<number, (typeof layout.edges)[number][]>();
     for (const e of layout.edges) {
+      if (result.has(e)) continue;
       const key = Math.round(e.segments.at(-1)!.p0.y);
       gaps.set(key, [...(gaps.get(key) ?? []), e]);
     }
@@ -309,13 +376,13 @@
               class:back={e.back}
               class:dim={!linked(e.edge)}
               class:hot={focus && linked(e.edge)}
-              stroke-width={strokeWidth(e.edge.rate)}
+              stroke-width={strokeWidth(e.group?.rate ?? e.edge.rate)}
               marker-end="url(#arrow)"
             />
           {/each}
         </svg>
 
-        {#each layout.edges as e (`label:${e.edge.from}>${e.edge.to}>${e.edge.material}>${e.edge.fuel}`)}
+        {#each layout.edges.filter((x) => !x.group || x.group.lead) as e (`label:${e.edge.from}>${e.edge.to}>${e.edge.material}>${e.edge.fuel}`)}
           <div
             class="edge-label"
             class:tb={layout.direction === "tb"}
@@ -324,10 +391,12 @@
             class:back={e.back}
             style:left="{labelPos.get(e)?.x ?? e.x2 - 10}px"
             style:top="{labelPos.get(e)?.y ?? e.y2}px"
-            title="{displayName(e.edge.material)}{e.edge.fuel ? ' (fuel)' : ''}: {nodeLabel(e.edge.from)} → {nodeLabel(e.edge.to)}"
+            title={e.group && e.group.edges.length > 1
+              ? `${displayName(e.edge.material)} back into ${nodeLabel(e.edge.to)}: ${e.group.edges.map((x) => `${fmtRate(x.rate, unit)} from ${nodeLabel(x.from)}`).join(", ")}`
+              : `${displayName(e.edge.material)}${e.edge.fuel ? " (fuel)" : ""}: ${nodeLabel(e.edge.from)} → ${nodeLabel(e.edge.to)}`}
           >
             <Icon id={e.edge.material} size={14} />
-            {fmtRate(e.edge.rate, unit)}{e.edge.fuel ? " 🔥" : ""}
+            {fmtRate(e.group?.rate ?? e.edge.rate, unit)}{e.edge.fuel ? " 🔥" : ""}
           </div>
         {/each}
 
@@ -351,33 +420,36 @@
             {#if n.kind === "recipe" && n.line}
               <span class="card-row">
                 <Icon id={n.line.recipe.workstation} size={26} />
-                <strong>{n.line.machinesBuilt} × {displayName(n.line.recipe.workstation)}</strong>
+                <strong class="card-text">{n.line.machinesBuilt} × {displayName(n.line.recipe.workstation)}</strong>
               </span>
               <span class="card-row">
                 <Icon id={n.material} size={18} />
-                <span class="ellipsis">{displayName(n.material)}</span>
-                <span class="rate">{fmtRate(n.line.outputs.find((o) => o.material === n.material)?.rate ?? 0, unit)}</span>
+                <span class="card-text">{displayName(n.material)}</span>
               </span>
-              <span class="card-row small muted">
-                {fmtLoad(n.line.machines)} busy
+              <span class="card-row card-status small muted">
+                <span class="rate">{fmtRate(n.line.outputs.find((o) => o.material === n.material)?.rate ?? 0, unit)}</span>
+                <span>{fmtLoad(n.line.machines)} busy</span>
                 <span class="crew">
-                  {#each n.line.crew as s, i (i)}<Icon id={s.block} size={14} title={s.name} />{/each}
-                  {#if n.line.feedersTotal}<span class="muted" title="Sparks per feeder × feeders">×{n.line.feedersTotal} feeders</span>{/if}
+                  {#if n.line.feedersTotal}
+                    <span title="{n.line.crew.map((s) => s.name).join(' + ')} in each feeder">{n.line.feedersTotal} feeders</span>
+                  {:else}
+                    {#each n.line.crew as s, i (i)}<Icon id={s.block} size={14} title={s.name} />{/each}
+                  {/if}
                 </span>
                 {#if surplusOf(n).length}<span class="tag surplus" title="Extra outputs nothing uses">+ surplus</span>{/if}
-                {#if n.line.recipe.cycles}<span class="tag growth" title="{n.line.recipe.cycles} growth cycles per batch">🌱</span>{/if}
+                {#if n.line.recipe.cycles && !n.line.feedersTotal}<span class="tag growth" title="{n.line.recipe.cycles} growth cycles per batch">🌱</span>{/if}
               </span>
             {:else if n.kind === "target"}
               <span class="card-row"><span class="tag target">target</span></span>
               <span class="card-row">
                 <Icon id={n.material} size={22} />
-                <strong class="ellipsis">{displayName(n.material)}</strong>
-                <span class="rate">{fmtRate(n.rate, unit)}</span>
+                <strong class="card-text">{displayName(n.material)}</strong>
               </span>
+              <span class="card-row card-status small"><span class="rate">{fmtRate(n.rate, unit)}</span></span>
             {:else}
               <span class="card-row">
                 <Icon id={n.material} size={22} />
-                <strong class="ellipsis">{displayName(n.material)}</strong>
+                <strong class="card-text">{displayName(n.material)}</strong>
               </span>
               <span class="card-row small">
                 {#if n.kind === "loop"}

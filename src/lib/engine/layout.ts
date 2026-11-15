@@ -64,6 +64,11 @@ export interface PlacedEdge {
   path: string;
   /** Runs back to an earlier layer (a loop-back), around the outside of the diagram. */
   back?: boolean;
+  /**
+   * Loop-backs carrying the same item into the same card share one track and one way in, so they
+   * read as one arrow. Every edge in the group has this; only the lead one shows the label.
+   */
+  group?: { rate: number; edges: FlowEdge[]; lead: boolean };
 }
 
 export interface Layout {
@@ -80,6 +85,8 @@ const LANE = 6;
 /** Loop-back arrows: distance of the first track outside the cards, and spacing between tracks. */
 const BACK_MARGIN = 24;
 const BACK_TRACK = 12;
+/** Room beside the outermost track for its rate label (half a label's width). */
+const BACK_LABEL_ROOM = 48;
 
 interface Vertex {
   id: string;
@@ -99,8 +106,30 @@ export function layoutFlow(nodes: FlowNode[], edges: FlowEdge[], opt: LayoutOpti
     incReal.get(e.to)!.push(e);
   }
 
-  // 1. Rank = longest path to a sink. Back edges (only possible with user-chosen loops) are
-  //    ignored by marking nodes in progress.
+  // 1. Pick the arrows that point back (loop-backs): keep every ordinary arrow, then add loop
+  //    arrows one at a time, own-chain ones before fed-back byproducts, keeping each one that
+  //    doesn't close a cycle. What's left over runs back up the line.
+  const forward = new Map<string, FlowEdge[]>(nodes.map((n) => [n.id, []]));
+  const reaches = (from: string, to: string) => {
+    const seen = new Set<string>();
+    const stack = [from];
+    while (stack.length) {
+      const id = stack.pop()!;
+      if (id === to) return true;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      for (const e of forward.get(id)!) stack.push(e.to);
+    }
+    return false;
+  };
+  for (const e of live) if (!e.loop) forward.get(e.from)!.push(e);
+  const order = { chain: 0, byproduct: 1 } as const;
+  for (const e of live.filter((x) => x.loop).sort((a, b) => order[a.loop!] - order[b.loop!])) {
+    if (!reaches(e.to, e.from)) forward.get(e.from)!.push(e);
+  }
+
+  // 2. Rank = longest path to a sink along those arrows. Any cycle left (only possible with
+  //    user-chosen loops) is broken by marking nodes in progress.
   const rank = new Map<string, number>();
   const state = new Map<string, 1 | 2>();
   const visit = (id: string): number => {
@@ -108,8 +137,7 @@ export function layoutFlow(nodes: FlowNode[], edges: FlowEdge[], opt: LayoutOpti
     if (state.get(id) === 1) return -1;
     state.set(id, 1);
     let r = 0;
-    for (const e of outReal.get(id)!) {
-      if (e.loop) continue; // loop-backs run back up the line; they don't decide the layers
+    for (const e of forward.get(id)!) {
       const s = visit(e.to);
       if (s >= 0) r = Math.max(r, s + 1);
     }
@@ -172,16 +200,142 @@ export function layoutFlow(nodes: FlowNode[], edges: FlowEdge[], opt: LayoutOpti
     }
     layer.sort((a, b) => bary.get(a)! - bary.get(b)!);
   };
-  for (let it = 0; it < 8; it++) {
+  /** Crossings between layer l and l + 1: links whose ends are in opposite orders. */
+  const rank0 = new Map<string, number>();
+  const reindex = () => layers.forEach((layer) => layer.forEach((id, i) => rank0.set(id, i)));
+  const crossingsBetween = (l: number) => {
+    const links: [number, number][] = [];
+    for (const u of layers[l]) for (const v of outs(u)) if (vertices.get(v)!.layer === l + 1) links.push([rank0.get(u)!, rank0.get(v)!]);
+    let n = 0;
+    for (let i = 0; i < links.length; i++)
+      for (let j = i + 1; j < links.length; j++) {
+        const [a1, b1] = links[i];
+        const [a2, b2] = links[j];
+        if ((a1 - a2) * (b1 - b2) < 0) n++;
+      }
+    return n;
+  };
+  const crossings = () => {
+    reindex();
+    let n = 0;
+    for (let l = 0; l + 1 < layerCount; l++) n += crossingsBetween(l);
+    return n;
+  };
+  let best = { n: crossings(), layers: layers.map((x) => [...x]) };
+  const keepBest = () => {
+    const n = crossings();
+    if (n < best.n) best = { n, layers: layers.map((x) => [...x]) };
+  };
+  for (let it = 0; it < 12 && best.n > 0; it++) {
     for (let l = layerCount - 2; l >= 0; l--) {
       sweep(layers[l], outs);
       index();
     }
+    keepBest();
     for (let l = 1; l < layerCount; l++) {
       sweep(layers[l], ins);
       index();
     }
+    keepBest();
   }
+  best.layers.forEach((x, l) => (layers[l] = x));
+
+  // Loop-back arrows run to a track outside the diagram (past the last card in each layer). On the
+  // way they cross every arrow leaving below their source and every arrow arriving below their
+  // target, so cards with loop-backs belong at that outer edge.
+  const backFrom = new Set<string>();
+  const backTo = new Set<string>();
+  for (const e of live) {
+    if (vertices.get(e.to)!.layer <= vertices.get(e.from)!.layer) {
+      backFrom.add(e.from);
+      backTo.add(e.to);
+    }
+  }
+  const backCost = (l: number) => {
+    let n = 0;
+    for (const id of layers[l]) {
+      const r = rank0.get(id)!;
+      if (backFrom.has(id) && l + 1 < layerCount) {
+        for (const u of layers[l]) if (rank0.get(u)! > r) n += outs(u).filter((v) => vertices.get(v)!.layer === l + 1).length;
+      }
+      if (backTo.has(id) && l > 0) {
+        for (const v of layers[l]) if (rank0.get(v)! > r) n += ins(v).filter((u) => vertices.get(u)!.layer === l - 1).length;
+      }
+    }
+    return n;
+  };
+
+  // Move every card with a loop-back to the outer edge of its layer at once (a source and its
+  // target usually have to move together), and keep that if it crosses less overall.
+  const total = () => {
+    reindex();
+    let n = 0;
+    for (let l = 0; l < layerCount; l++) n += (l + 1 < layerCount ? crossingsBetween(l) : 0) + 2 * backCost(l);
+    return n;
+  };
+  if (backFrom.size) {
+    const before = total();
+    const saved = layers.map((x) => [...x]);
+    for (const layer of layers) {
+      const edge = layer.filter((id) => backFrom.has(id) || backTo.has(id));
+      if (!edge.length) continue;
+      const rest = layer.filter((id) => !backFrom.has(id) && !backTo.has(id));
+      layer.splice(0, layer.length, ...rest, ...edge);
+    }
+    if (total() >= before) saved.forEach((x, l) => (layers[l] = x));
+    reindex();
+  }
+
+  // Transpose: swap neighbours in a layer whenever that removes crossings, until nothing improves.
+  const local = (l: number) =>
+    (l > 0 ? crossingsBetween(l - 1) : 0) + (l + 1 < layerCount ? crossingsBetween(l) : 0) + 2 * backCost(l);
+  reindex();
+  for (let pass = 0, improved = best.n > 0 || backFrom.size > 0; improved && pass < 20; pass++) {
+    improved = false;
+    for (let l = 0; l < layerCount; l++) {
+      const layer = layers[l];
+      for (let i = 0; i + 1 < layer.length; i++) {
+        const before = local(l);
+        [layer[i], layer[i + 1]] = [layer[i + 1], layer[i]];
+        reindex();
+        if (local(l) < before) improved = true;
+        else {
+          [layer[i], layer[i + 1]] = [layer[i + 1], layer[i]];
+          reindex();
+        }
+      }
+    }
+  }
+  // Sifting: try every card (and every arrow's lane) at every position in its layer, keeping any
+  // spot that crosses less.
+  if (total() > 0) {
+    for (let round = 0; round < 2; round++) {
+      let changed = false;
+      for (let l = 0; l < layerCount; l++) {
+        const layer = layers[l];
+        for (const id of [...layer]) {
+          let bestAt = layer.indexOf(id);
+          let bestCost = local(l);
+          layer.splice(bestAt, 1);
+          for (let at = 0; at <= layer.length; at++) {
+            layer.splice(at, 0, id);
+            reindex();
+            const c = local(l);
+            if (c < bestCost) {
+              bestCost = c;
+              bestAt = at;
+              changed = true;
+            }
+            layer.splice(at, 1);
+          }
+          layer.splice(bestAt, 0, id);
+          reindex();
+        }
+      }
+      if (!changed) break;
+    }
+  }
+  index();
 
   // 4. Coordinates. "Across" runs along a layer (y for lr, x for tb); "along" runs with the flow.
   const cardSize = (id: string) => {
@@ -223,10 +377,13 @@ export function layoutFlow(nodes: FlowNode[], edges: FlowEdge[], opt: LayoutOpti
     }
   });
 
+  const isBack = (e: FlowEdge) => vertices.get(e.to)!.layer <= vertices.get(e.from)!.layer;
   // Ports: spread along the card edge facing the flow, ordered by where each arrow goes next.
   const port = new Map<FlowEdge, { out: number; in: number }>();
   const spread = (card: PlacedNode, list: FlowEdge[], neighbour: (e: FlowEdge) => string, side: "out" | "in") => {
-    const sorted = [...list].sort((a, b) => acrossCentre.get(neighbour(a))! - acrossCentre.get(neighbour(b))!);
+    // Loop-backs leave from the end nearest their track, outside the diagram.
+    const key = (e: FlowEdge) => (isBack(e) ? Infinity : acrossCentre.get(neighbour(e))!);
+    const sorted = [...list].sort((a, b) => key(a) - key(b));
     const start = tb ? card.x : card.y;
     const length = tb ? card.width : card.height;
     const inset = Math.min(18, length * 0.2);
@@ -236,9 +393,25 @@ export function layoutFlow(nodes: FlowNode[], edges: FlowEdge[], opt: LayoutOpti
       port.set(e, p);
     });
   };
+  // Loop-backs, grouped by the card and item they bring back.
+  const backGroups = new Map<string, FlowEdge[]>();
+  for (const e of live) {
+    if (!isBack(e)) continue;
+    const key = [e.to, e.material, e.fuel ? 1 : 0].join("|");
+    backGroups.set(key, [...(backGroups.get(key) ?? []), e]);
+  }
+  const groupOf = new Map<FlowEdge, { index: number; edges: FlowEdge[] }>();
+  [...backGroups.values()].forEach((edges, index) => edges.forEach((e) => groupOf.set(e, { index, edges })));
+  /** No other card beyond this one in its layer, on the side the loop-back tracks run. */
+  const outermost = (id: string) => {
+    const layer = layers[vertices.get(id)!.layer];
+    return layer.slice(layer.indexOf(id) + 1).every((v) => !vertices.get(v)!.node);
+  };
+
   for (const [id, card] of placed) {
     spread(card, outReal.get(id)!, (e) => chain.get(e)![1], "out");
-    spread(card, incReal.get(id)!, (e) => chain.get(e)!.at(-2)!, "in");
+    // Loop-backs come in their own way (below), so they don't take ports from the ordinary inputs.
+    spread(card, incReal.get(id)!.filter((e) => !isBack(e)), (e) => chain.get(e)!.at(-2)!, "in");
   }
 
   // Arrow geometry: straight through each lane, curving only in the gaps between layers.
@@ -270,21 +443,29 @@ export function layoutFlow(nodes: FlowNode[], edges: FlowEdge[], opt: LayoutOpti
     const lb = vertices.get(e.to)!.layer;
     const segments: Segment[] = [];
     const back = lb <= la;
-    if (back) {
-      // Loop-back: out of the source, round the outside in its own track, into the target.
-      const k = backCount++;
+    const group = groupOf.get(e);
+    if (back && group) {
+      // Loop-back: out of the source, round the outside on its group's track, into the target.
+      // Several sources of one item into one card share the track and the way in.
+      const k = group.index;
       const d = Math.min(opt.columnGap / 3, 10 + 6 * k);
       const g1 = layerStart[la] + layerDepth[la] + d;
-      const g2 = layerStart[lb] - d;
       const outside = crossSize + BACK_MARGIN + BACK_TRACK * k;
-      const points = [
-        pt(tb ? a.y + a.height : a.x + a.width, p.out),
-        pt(g1, p.out),
-        pt(g1, outside),
-        pt(g2, outside),
-        pt(g2, p.in),
-        pt(layerStart[lb], p.in),
-      ];
+      const points = [pt(tb ? a.y + a.height : a.x + a.width, p.out), pt(g1, p.out), pt(g1, outside)];
+      const bAlongStart = tb ? b.y : b.x;
+      const bAlongSize = tb ? b.height : b.width;
+      const bAcrossEnd = tb ? b.x + b.width : b.y + b.height;
+      if (outermost(e.to)) {
+        // Nothing beyond the target: come straight in from the side facing the track.
+        const mid = bAlongStart + bAlongSize / 2;
+        points.push(pt(mid, outside), pt(mid, bAcrossEnd));
+      } else {
+        // Otherwise through the gap before it, into the far end of its input edge.
+        const g2 = layerStart[lb] - d;
+        const inset = Math.min(14, (tb ? b.width : b.height) * 0.15);
+        points.push(pt(g2, outside), pt(g2, bAcrossEnd - inset), pt(bAlongStart, bAcrossEnd - inset));
+      }
+      backCount = Math.max(backCount, k + 1);
       for (let i = 1; i < points.length; i++) segments.push(straight(points[i - 1], points[i]));
       flowEnd = Math.max(flowEnd, g1);
     } else {
@@ -309,9 +490,22 @@ export function layoutFlow(nodes: FlowNode[], edges: FlowEdge[], opt: LayoutOpti
     const path = `M ${f(segments[0].p0)} ${segments.map((s) => `C ${f(s.c1)}, ${f(s.c2)}, ${f(s.p3)}`).join(" ")}`;
     const first = segments[0].p0;
     const last = segments.at(-1)!.p3;
-    placedEdges.push({ edge: e, x1: first.x, y1: first.y, x2: last.x, y2: last.y, segments, path, ...(back ? { back } : {}) });
+    placedEdges.push({
+      edge: e,
+      x1: first.x,
+      y1: first.y,
+      x2: last.x,
+      y2: last.y,
+      segments,
+      path,
+      ...(back ? { back } : {}),
+      ...(group
+        ? { group: { rate: group.edges.reduce((n, x) => n + x.rate, 0), edges: group.edges, lead: group.edges[0] === e } }
+        : {}),
+    });
   }
-  const crossTotal = crossSize + (backCount ? BACK_MARGIN + BACK_TRACK * backCount : 0);
+  // Top to bottom, the tracks run down the right-hand side: leave room for their labels too.
+  const crossTotal = crossSize + (backCount ? BACK_MARGIN + BACK_TRACK * backCount + (tb ? BACK_LABEL_ROOM : 0) : 0);
 
   return {
     nodes: [...placed.values()],

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { countCrossings } from "./crossings";
 import { layoutFlow, splitSources } from "./layout";
 import { makePlan, type PlanConfig } from "./solver";
 import { GAME } from "./data";
@@ -105,7 +106,8 @@ describe("arrows never pass behind a machine", () => {
           for (let i = 0; i <= 24; i++) {
             const q = bez(s, i / 24);
             const inside = q.x > card.x + 0.5 && q.x < card.x + card.width - 0.5 && q.y > card.y + 0.5 && q.y < card.y + card.height - 0.5;
-            expect(inside, `${label}: ${e.edge.from} -> ${e.edge.to} crosses ${card.node.id}`).toBe(false);
+            // Only reach for expect() on a hit: calling it for every sample is what made this slow.
+            if (inside) expect(inside, `${label}: ${e.edge.from} -> ${e.edge.to} crosses ${card.node.id}`).toBe(false);
           }
         }
       }
@@ -187,6 +189,51 @@ describe("loop-back arrows", () => {
         expect(Math.max(s.p0.x, s.p3.x)).toBeLessThanOrEqual(l.width);
         expect(Math.max(s.p0.y, s.p3.y)).toBeLessThanOrEqual(l.height);
       }
+    }
+  });
+});
+
+describe("self-feeding loop layout", () => {
+  it("reads Arboretum -> Extractor -> beading Furnace, with only the seeds looping back", () => {
+    const { flow } = makePlan(
+      cfg("copper-cutting", 0.2, { recipeChoice: { "copper-seed": "copper-sap-beading" }, fuel: { material: "coal", perMinute: 2 } }),
+    );
+    for (const direction of ["lr", "tb"] as const) {
+      const l = layoutFlow(flow.nodes, flow.edges, { ...opts, direction });
+      const col = (id: string) => l.nodes.find((n) => n.node.id === id)!.column;
+      expect(col("copper-bamboo")).toBeLessThan(col("extract-copper-cuttings"));
+      expect(col("extract-copper-cuttings")).toBeLessThan(col("copper-sap-beading"));
+      const back = l.edges.filter((e) => e.back).map((e) => `${e.edge.from}>${e.edge.to}:${e.edge.material}`).sort();
+      expect(back).toEqual([
+        "copper-sap-beading>copper-bamboo:copper-seed",
+        "extract-copper-cuttings>copper-bamboo:copper-seed",
+      ]);
+    }
+  });
+});
+
+describe("crossing arrows", () => {
+  const layoutOf = (m: string, direction: "lr" | "tb") => {
+    const p = makePlan(cfg(m));
+    const g = splitSources(p.flow.nodes, p.flow.edges);
+    return layoutFlow(g.nodes, g.edges, { ...opts, direction, height: () => 90 });
+  };
+
+  it("stay rare across every item (was 42 before crossing reduction)", () => {
+    for (const direction of ["lr", "tb"] as const) {
+      let total = 0;
+      for (const m of GAME.materials.keys()) total += countCrossings(layoutOf(m, direction));
+      expect(total, direction).toBeLessThanOrEqual(16);
+    }
+  });
+
+  it("never involve a loop-back arrow", () => {
+    for (const m of GAME.materials.keys()) {
+      const l = layoutOf(m, "lr");
+      if (!l.edges.some((e) => e.back)) continue;
+      const loopsOnly = { ...l, edges: l.edges };
+      const withoutLoops = { ...l, edges: l.edges.filter((e) => !e.back) };
+      expect(countCrossings(loopsOnly), m).toBe(countCrossings(withoutLoops));
     }
   });
 });
