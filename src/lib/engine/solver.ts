@@ -55,6 +55,24 @@ export interface LoopInfo {
   selfUse: number;
   /** The loop can't sustain itself (each unit needs a unit or more back), so it wasn't closed. */
   failed?: boolean;
+  /**
+   * A loop that feeds itself (seeds -> plants -> seeds) has to be started by hand: one batch of
+   * this material per growth machine, before the first products come out.
+   */
+  prime?: { recipe: string; perMachine: number; total: number }[];
+}
+
+/** Another recipe for a growth recipe's input that would let the chain feed itself. */
+export interface SelfFeedingOption {
+  material: string;
+  /** The recipe to switch to. */
+  recipe: string;
+  /** The growth recipe whose own output ends up feeding it. */
+  growth: string;
+  /** Raw inputs the plan would no longer need. */
+  saves: string[];
+  /** Raw inputs it would still need. */
+  needs: string[];
 }
 
 export interface Target {
@@ -215,6 +233,8 @@ export interface Plan {
   flow: { nodes: FlowNode[]; edges: FlowEdge[] };
   /** Loops the plan could close, and whether each one is fed back. */
   loops: LoopInfo[];
+  /** Recipe switches that would let a growth chain feed itself. */
+  selfFeeding: SelfFeedingOption[];
   warnings: string[];
 }
 
@@ -268,6 +288,8 @@ export class Solver {
   constructor(
     readonly cfg: PlanConfig,
     readonly data: GameData = GAME,
+    /** Look for self-feeding recipe switches (off for the trial plans that check them). */
+    private readonly suggest = true,
   ) {}
 
   recipeFor(material: string): Recipe | null {
@@ -626,6 +648,22 @@ export class Solver {
     };
     trees.forEach(markLoops);
 
+    // Priming: a looped input of a growth recipe that is made from that recipe's own output
+    // (seeds from its cuttings) can't start by itself, so it needs one batch up front.
+    for (const l of loops) {
+      if (!l.loopBack || l.failed) continue;
+      const below = this.reach(l.material);
+      const prime: NonNullable<LoopInfo["prime"]> = [];
+      for (const rp of recipes.values()) {
+        const r = rp.recipe;
+        const amount = r.from.find((f) => f.material === l.material)?.amount;
+        if (!r.cycles || !amount || !r.to.some((t) => below.has(t.material))) continue;
+        const perMachine = amount * r.cycles;
+        prime.push({ recipe: r.id, perMachine, total: perMachine * rp.machinesBuilt });
+      }
+      if (prime.length) l.prime = prime;
+    }
+
     // Build diagram: one node per recipe line, raw supply, loop break and target.
     const flowNodes = new Map<string, FlowNode>();
     for (const rp of recipes.values()) {
@@ -673,6 +711,7 @@ export class Solver {
       trees,
       flow: { nodes: [...flowNodes.values()], edges: flowEdges },
       loops,
+      selfFeeding: this.suggest ? this.selfFeedingOptions(recipes, materials) : [],
       warnings,
     };
   }
@@ -707,6 +746,49 @@ export class Solver {
   }
 
   // --- loop-backs --------------------------------------------------------------------------------
+
+  /**
+   * For each input of a growth recipe in the plan, another recipe whose chain runs back through
+   * that growth recipe's own output (copper seeds from the sap of its cuttings) and settles when
+   * looped: switching to it lets the chain feed itself.
+   */
+  private selfFeedingOptions(recipes: Map<string, RecipePlan>, materials: Map<string, MaterialPlan>): SelfFeedingOption[] {
+    if ((this.cfg.loopMode ?? "growth") === "none") return [];
+    const out: SelfFeedingOption[] = [];
+    const raw = new Set([...materials.values()].filter((m) => m.supplied > 1e-7).map((m) => m.material));
+    for (const rp of recipes.values()) {
+      const g = rp.recipe;
+      if (!g.cycles) continue;
+      const products = new Set(g.to.map((t) => t.material));
+      for (const input of g.from) {
+        const m = input.material;
+        if (this.cfg.loopChoice?.[m] === "supply" || out.some((o) => o.material === m)) continue;
+        const current = this.recipeFor(m);
+        for (const alt of this.data.recipesFor.get(m) ?? []) {
+          if (alt.id === current?.id || alt.to.every((t) => t.material !== m)) continue;
+          const back = alt.from.some((f) => products.has(f.material) || [...products].some((p) => this.reach(f.material).has(p)));
+          if (!back) continue;
+          const trial = new Solver(
+            { ...this.cfg, recipeChoice: { ...this.cfg.recipeChoice, [m]: alt.id }, loopChoice: { ...this.cfg.loopChoice, [m]: "loop" } },
+            this.data,
+            false,
+          ).plan();
+          const loop = trial.loops.find((l) => l.material === m);
+          if (!loop?.loopBack || trial.loops.some((l) => l.failed)) continue;
+          const trialRaw = new Set(trial.rawInputs.map((r) => r.material));
+          out.push({
+            material: m,
+            recipe: alt.id,
+            growth: g.id,
+            saves: [...raw].filter((x) => !trialRaw.has(x) && x !== m),
+            needs: [...trialRaw],
+          });
+          break;
+        }
+      }
+    }
+    return out;
+  }
 
   /** Whether a material's loop is fed back: the player's choice, else the plan's loop mode. */
   private loopsBack(material: string, recipesInPlan: Recipe[]): { loopBack: boolean; isDefault: boolean } {

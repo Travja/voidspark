@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { GAME } from "../engine/data";
   import type { Plan } from "../engine/solver";
   import { fmtRate } from "../format";
   import type { AppState } from "../state.svelte";
@@ -12,18 +13,35 @@
   let { plan, app }: { plan: Plan; app: AppState } = $props();
 
   const unit = $derived(app.cfg.unit);
-  const recipeName = (id: string) => plan.recipes.get(id)?.recipe.name ?? id;
-  const anyOn = $derived(plan.loops.some((l) => l.loopBack));
+  const recipeName = (id: string) => plan.recipes.get(id)?.recipe.name ?? GAME.recipesById.get(id)?.name ?? id;
+  const anyOn = $derived(plan.loops.some((l) => l.loopBack) || plan.selfFeeding.length > 0);
+  const stationOf = (recipe: string) => displayName(GAME.recipesById.get(recipe)?.workstation ?? "");
+  const list = (ids: string[]) => ids.map(displayName).join(", ");
 </script>
 
-{#if plan.loops.length}
+{#if plan.loops.length || plan.selfFeeding.length}
   <details class="loops" open={anyOn}>
     <summary>
       <strong>Loop-backs</strong>
-      <span class="muted small">
-        {plan.loops.filter((l) => l.loopBack).length} of {plan.loops.length} fed back
-      </span>
+      {#if plan.loops.length}
+        <span class="muted small">
+          {plan.loops.filter((l) => l.loopBack).length} of {plan.loops.length} fed back
+        </span>
+      {/if}
     </summary>
+    {#each plan.selfFeeding as s (s.material)}
+      <div class="suggest">
+        <Icon id={s.material} size={22} />
+        <p class="small">
+          🌱 <strong>{displayName(s.material)} can feed itself.</strong> Make it with
+          <strong>{recipeName(s.recipe)}</strong>, from the {stationOf(s.growth)}'s own output, and loop it back.
+          {#if !s.needs.length}It then needs nothing from outside.{:else}{#if s.saves.length}No more {list(s.saves)}
+            from outside; it{:else}It{/if} still needs {list(s.needs)}.{/if}
+          Anything left over is excess.
+        </p>
+        <button class="small" onclick={() => app.chooseRecipe(s.material, s.recipe)}>Use it</button>
+      </div>
+    {/each}
     <ul>
       {#each plan.loops as l (l.material)}
         <li class:on={l.loopBack}>
@@ -35,7 +53,13 @@
                 {#if l.fedBack > 1e-9}
                   ↻ {fmtRate(l.fedBack, unit)} fed back from {l.byproducts.map((b) => recipeName(b.recipe)).join(", ")}.
                 {/if}
-                {#if l.selfUse > 1e-9}↻ Made in-line for its own chain ({fmtRate(l.selfUse, unit)} before feedback).{/if}
+                {#if l.selfUse > 1e-9}↻ Some of it goes back into its own chain, so that part is made in-line too.{/if}
+                {#each l.prime ?? [] as pr (pr.recipe)}
+                  <span class="prime">
+                    To start it, prime each {stationOf(pr.recipe)} with {pr.perMachine} {displayName(l.material)}
+                    ({pr.total} for all of them). After the first batch it keeps itself going.
+                  </span>
+                {/each}
                 {#if l.excess > 1e-9}
                   <span class="excess">Excess: {fmtRate(l.excess, unit)} more than the plan uses (surplus).</span>
                 {:else if l.byproducts.length}
@@ -119,7 +143,23 @@
     color: var(--loop);
   }
 
-  .excess {
+  .excess,
+  .prime {
     font-weight: 600;
+  }
+
+  .suggest {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin: 8px 0 0;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+
+  .suggest p {
+    flex: 1;
+    margin: 0;
   }
 </style>

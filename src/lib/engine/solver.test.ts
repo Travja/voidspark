@@ -454,3 +454,33 @@ describe("loop-backs", () => {
     }
   });
 });
+
+describe("self-feeding growth chains", () => {
+  // Copper Bamboo eats 100 seeds per cutting. Extracting a cutting gives 10 seeds + 20 sap, and
+  // Copper Sap Beading turns each sap into 8 seeds: 170 seeds back per cutting, so the loop feeds
+  // itself with 70 seeds/cutting to spare.
+  const crafty = { defaultCrew: ["spark-crafty", "spark-crafty"] };
+  const beading = { "copper-seed": "copper-sap-beading" };
+
+  it("suggests the recipe that lets the chain feed itself", () => {
+    const p = makePlan(base({ ...crafty, targets: [target("copper-cutting", 1)] }));
+    expect(p.selfFeeding).toEqual([
+      { material: "copper-seed", recipe: "copper-sap-beading", growth: "copper-bamboo", saves: ["volcanic-soil"], needs: [] },
+    ]);
+    expect(makePlan(base({ ...crafty, targets: [target("copper-cutting", 1)], loopMode: "none" })).selfFeeding).toEqual([]);
+    // Already switched: nothing more to suggest.
+    expect(makePlan(base({ ...crafty, targets: [target("copper-cutting", 1)], recipeChoice: beading })).selfFeeding).toEqual([]);
+  });
+
+  it("nets 70 seeds per cutting once it runs, with nothing from outside", () => {
+    const p = makePlan(base({ ...crafty, targets: [target("copper-seed", 70)], recipeChoice: beading }));
+    expect(p.recipes.get("copper-bamboo")!.outputs[0].rate).toBeCloseTo(1); // 1 cutting/min
+    expect(p.recipes.get("extract-copper-cuttings")!.inputs[0].rate).toBeCloseTo(1);
+    expect(p.recipes.get("copper-sap-beading")!.outputs[0].rate).toBeCloseTo(160);
+    expect(p.rawInputs).toEqual([]);
+    const loop = p.loops.find((l) => l.material === "copper-seed")!;
+    expect(loop.fedBack).toBeCloseTo(10);
+    // Priming: one batch of seeds per Arboretum (5 per cycle x 100 cycles).
+    expect(loop.prime).toEqual([{ recipe: "copper-bamboo", perMachine: 500, total: 500 * p.recipes.get("copper-bamboo")!.machinesBuilt }]);
+  });
+});

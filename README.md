@@ -20,6 +20,11 @@ greenhouses, the Arboretum, and the metal sparks. It started from the PirateSpar
   its own chain in-line instead of supplying it separately. Each loop can be switched on its own
   from the Build plan's Loop-backs panel or the tree. Excess byproducts are listed as surplus. In
   the Build plan, loop-back arrows are dotted and run round the outside of the diagram.
+- **Self-feeding growth chains.** When another recipe would let a growth chain feed itself (copper
+  seeds beaded from the sap of the Arboretum's own cuttings), the Loop-backs panel suggests it with
+  a one-tap switch, says which outside inputs that drops, and how many to prime each machine with
+  (one batch: 500 Copper Seeds per Arboretum). Copper Bamboo returns 170 seeds per cutting for the
+  100 it eats, so the rest is excess.
 - **Arboretum feeders.** An Arboretum is worked through its feeders (4 by default, 1 to 12): each
   feeder's crew adds speed. Feeders are counted in staffing and build cost, with a stepper in the
   Build plan details.
