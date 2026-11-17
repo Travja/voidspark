@@ -58,9 +58,9 @@
                   ↻ {fmtRate(l.used.rate, unit)} goes back into its own chain ({l.used.recipes.map(recipeName).join(", ")}), so
                   {fmtRate(l.total, unit)} is made in all.
                 {/if}
-                {#each l.prime ?? [] as pr (pr.recipe)}
+                {#each l.prime ?? [] as pr (pr.recipe + pr.material)}
                   <span class="prime">
-                    To start it, prime each {stationOf(pr.recipe)} with {pr.perMachine} {displayName(l.material)}
+                    To start it, prime each {stationOf(pr.recipe)} with {pr.perMachine} {displayName(pr.material)}
                     ({pr.total} for all of them). After the first batch it keeps itself going.
                   </span>
                 {/each}

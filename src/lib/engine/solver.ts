@@ -63,7 +63,7 @@ export interface LoopInfo {
    * A loop that feeds itself (seeds -> plants -> seeds) has to be started by hand: one batch of
    * this material per growth machine, before the first products come out.
    */
-  prime?: { recipe: string; perMachine: number; total: number }[];
+  prime?: { recipe: string; material: string; perMachine: number; total: number }[];
 }
 
 /** Another recipe for a growth recipe's input that would let the chain feed itself. */
@@ -685,10 +685,19 @@ export class Solver {
       const prime: NonNullable<LoopInfo["prime"]> = [];
       for (const rp of recipes.values()) {
         const r = rp.recipe;
-        const amount = r.from.find((f) => f.material === l.material)?.amount;
-        if (!r.cycles || !amount || !r.to.some((t) => below.has(t.material))) continue;
-        const perMachine = amount * r.cycles;
-        prime.push({ recipe: r.id, perMachine, total: perMachine * rp.machinesBuilt });
+        if (!r.cycles) continue;
+        // The looped input itself (copper seeds), or, when the loop is on the growth's own
+        // product (stellar leaves sent back to be extracted), the inputs made from it (seeds).
+        const makesLoop = r.to.some((t) => t.material === l.material);
+        for (const f of r.from) {
+          const fromOwnOutput =
+            f.material === l.material
+              ? r.to.some((t) => below.has(t.material))
+              : makesLoop && this.reach(f.material).has(l.material);
+          if (!fromOwnOutput) continue;
+          const perMachine = f.amount * r.cycles;
+          prime.push({ recipe: r.id, material: f.material, perMachine, total: perMachine * rp.machinesBuilt });
+        }
       }
       if (prime.length) l.prime = prime;
     }
@@ -803,8 +812,11 @@ export class Solver {
             this.data,
             false,
           ).plan();
-          const loop = trial.loops.find((l) => l.material === m);
-          if (!loop?.loopBack || trial.loops.some((l) => l.failed)) continue;
+          // The loop may show up on the input (fed back as a byproduct, like copper seeds from
+          // extracted cuttings) or on the growth product (sent back down its own chain, like stellar
+          // leaves extracted into the seeds that grow them).
+          const loop = trial.loops.find((l) => l.loopBack && (l.material === m || products.has(l.material)));
+          if (!loop || trial.loops.some((l) => l.failed)) continue;
           const trialRaw = new Set(trial.rawInputs.map((r) => r.material));
           out.push({
             material: m,

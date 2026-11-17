@@ -477,10 +477,15 @@ describe("self-feeding growth chains", () => {
     const p = makePlan(base({ ...crafty, targets: [target("copper-cutting", 1)] }));
     expect(p.selfFeeding).toEqual([
       { material: "copper-seed", recipe: "copper-sap-beading", growth: "copper-bamboo", saves: ["volcanic-soil"], needs: [] },
+      // Its Leafy Growth Greenhouses can feed themselves too: 40 leaves in, 10 knots out, each
+      // knot cut into 10 leaves. That stands in for the Logger.
+      { material: "leaves", recipe: "leaf-knot-cutting", growth: "leafy-growth", saves: [], needs: ["volcanic-soil"] },
     ]);
     expect(makePlan(base({ ...crafty, targets: [target("copper-cutting", 1)], loopMode: "none" })).selfFeeding).toEqual([]);
-    // Already switched: nothing more to suggest.
-    expect(makePlan(base({ ...crafty, targets: [target("copper-cutting", 1)], recipeChoice: beading })).selfFeeding).toEqual([]);
+    // Already switched: only the leaves are left to suggest.
+    expect(
+      makePlan(base({ ...crafty, targets: [target("copper-cutting", 1)], recipeChoice: beading })).selfFeeding.map((s) => s.material),
+    ).toEqual(["leaves"]);
   });
 
   it("nets 70 seeds per cutting once it runs, with nothing from outside", () => {
@@ -492,6 +497,27 @@ describe("self-feeding growth chains", () => {
     const loop = p.loops.find((l) => l.material === "copper-seed")!;
     expect(loop.fedBack).toBeCloseTo(10);
     // Priming: one batch of seeds per Arboretum (5 per cycle x 100 cycles).
-    expect(loop.prime).toEqual([{ recipe: "copper-bamboo", perMachine: 500, total: 500 * p.recipes.get("copper-bamboo")!.machinesBuilt }]);
+    expect(loop.prime).toEqual([{ recipe: "copper-bamboo", material: "copper-seed", perMachine: 500, total: 500 * p.recipes.get("copper-bamboo")!.machinesBuilt }]);
+  });
+
+  // Stellar Cactus eats 1 seed + 2 volcanic soil a cycle and gives 20 leaves after 10 cycles.
+  // Extracting 2 leaves gives 3 seeds, so a batch's 10 seeds take 6.67 of its 20 leaves back.
+  it("suggests extracting stellar leaves for seeds, which the leaves loop then feeds", () => {
+    const leaves = (recipeChoice = {}) => makePlan(base({ targets: [target("stellar-leaves", 1)], recipeChoice }));
+    expect(leaves().selfFeeding).toEqual([
+      { material: "stellar-seed", recipe: "extract-stellar-leaves", growth: "stellar-cactus", saves: ["frozen-log"], needs: ["volcanic-soil"] },
+    ]);
+    const p = leaves({ "stellar-seed": "extract-stellar-leaves" });
+    expect(p.selfFeeding).toEqual([]);
+    // 13.33 leaves net per batch for 20 soil: 1.5 soil per leaf, and nothing else from outside.
+    expect(p.rawInputs.map((r) => [r.material, +r.supplied.toFixed(6)])).toEqual([["volcanic-soil", 1.5]]);
+    const loop = p.loops.find((l) => l.material === "stellar-leaves")!;
+    expect(loop).toMatchObject({ loopBack: true });
+    expect(loop.used!.rate).toBeCloseTo(0.5);
+    expect(loop.total).toBeCloseTo(1.5);
+    // The seeds have to be put in by hand to start: 10 per Greenhouse.
+    expect(loop.prime).toEqual([
+      { recipe: "stellar-cactus", material: "stellar-seed", perMachine: 10, total: 10 * p.recipes.get("stellar-cactus")!.machinesBuilt },
+    ]);
   });
 });
